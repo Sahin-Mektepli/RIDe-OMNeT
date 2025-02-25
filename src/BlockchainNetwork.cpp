@@ -15,6 +15,7 @@ void BlockchainNetwork::initialize() {
     int numIoTNodes = getSubmoduleVectorSize("iotNodes");
 
     // Connect blockchain nodes in a circular topology
+    // why though? I am not sure if this topology has any direct effect on anything though. 
     for (int i = 0; i < numBlockchainNodes; i++) {
         cModule *node1 = getSubmodule("blockchainNodes", i);
         cModule *node2 = getSubmodule("blockchainNodes", (i + 1) % numBlockchainNodes);
@@ -26,6 +27,8 @@ void BlockchainNetwork::initialize() {
     }
 
     // Connect IoT nodes to blockchain nodes
+    // So IoTNodes are separeted from BC nodes; the latter being the ClusterHeads, I assume...
+    // TODO: declare the BC nodes to be ClusterHeads (if that is the intention)
     for (int i = 0; i < numIoTNodes; i++) {
         cModule *iotNode = getSubmodule("iotNodes", i);
         cModule *blockchainNode = getSubmodule("blockchainNodes", i % numBlockchainNodes);

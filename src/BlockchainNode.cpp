@@ -14,7 +14,8 @@ void BlockchainNode::initialize() {
     reward = par("reward");
 
     // Initialize trust scores for simulation
-    for (int i = 0; i < 2; i++) {
+    // TODO: (as mention in IoTNode class) this starting state should be thought over.
+    for (int i = 0; i < 2; i++) { //why is this working for only 2 nodes?
         trustScores[i] = uniform(50, 100); // Random initial trust scores
     }
 
@@ -47,10 +48,11 @@ void BlockchainNode::processServiceRating(int requesterId, int providerId, doubl
     };
 
     blockchain.push_back(newBlock);
+    //does this directly add the new block to the blockchain?
     EV << "Block " << newBlock.blockId << " created with service rating.\n";
 }
 
-int BlockchainNode::selectValidator() {
+int BlockchainNode::selectValidator() {// Emin bunu anlamadi
     double totalTrust = 0;
     for (const auto &pair : trustScores) {
         totalTrust += pair.second;

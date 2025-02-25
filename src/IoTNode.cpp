@@ -12,18 +12,25 @@
 #include <algorithm>
 #include <map>
 
+// Some notes:
+// TODO is a nice tag to have, with which we can follow what is left "to do" :p
+// We should have a ClusterHeads vector ready. Creating one each time we need is costly
 using namespace omnetpp;
 
 Define_Module(IoTNode);
 
 std::vector<IoTNode*> IoTNode::allNodes;
+// TODO: why do we have an allNodes vector in the IoTNode class?
+// if I am not mistaken this should be in the blockchain class or sth
 int IoTNode::numClusterHeads = 3;
 int IoTNode::globalBlockId = 0;
 
 void IoTNode::initialize() {
     serviceRequestEvent = new cMessage("serviceRequestTimer");  // Give a distinct name
-       scheduleAt(simTime() + uniform(1, 5), serviceRequestEvent);
+       scheduleAt(simTime() + uniform(1, 5), serviceRequestEvent); //bunun indentationi neden bi garip ansdfk
     trustScore = uniform(50, 100); // Initial random trust score
+				   // this can stay like this for the time being but
+				   // TODO: in the real sim, this should be decided by a "higher level"
     isClusterHead = false;
     allNodes.push_back(this);
 
@@ -104,11 +111,14 @@ void IoTNode::handleMessage(cMessage *msg) {
 
 
 void IoTNode::electClusterHeads() {
+    //sorts the allNodes array according to the nodes' trustScores
+    //third param is a lambda func.
     std::sort(allNodes.begin(), allNodes.end(), [](IoTNode* a, IoTNode* b) {
         return a->trustScore > b->trustScore;
     });
 
     for (size_t i = 0; i < allNodes.size(); i++) {//bunu da daha farklı yazabiliriz böyle biraz saçma oldu ama doğru çalışıyor olmalı
+						  //en üstteki i node'u seçmek daha hızlı olur sanırım ama meh, ne fark eder...
         allNodes[i]->isClusterHead = (i < numClusterHeads);
     }
     EV << "Updated Cluster Head selection." << endl;
@@ -184,6 +194,7 @@ void IoTNode::sendRating(int providerId) {
 
 void IoTNode::sendTransactionToClusterHead(ServiceRating* transaction) {
     // Ensure cluster heads are up-to-date
+    // do we have to do this in "each" transaction? Bunu sanki chat yazmis gibi :p
     electClusterHeads();
 
     std::vector<IoTNode*> clusterHeads;
@@ -194,12 +205,14 @@ void IoTNode::sendTransactionToClusterHead(ServiceRating* transaction) {
             clusterHeads.push_back(node);
         }
     }
-
+    // I haven't read the entire code yet but this shoudl never happen I think
+    // What happens at the beginning? 
     if (clusterHeads.empty()) {
         throw cRuntimeError("No valid Cluster Head found");
     }
 
     // Select a random Cluster Head
+    // TODO: This should not be random. Each node must have one and only one CH to which it sends.
     int randomIndex = intuniform(0, clusterHeads.size() - 1);
     IoTNode* bestClusterHead = clusterHeads[randomIndex];
 
@@ -209,6 +222,8 @@ void IoTNode::sendTransactionToClusterHead(ServiceRating* transaction) {
     if (routingTable.find(clusterHeadId) == routingTable.end()) {
         EV << "Error: No known route to Cluster Head " << clusterHeadId << endl;
         delete transaction; // Prevent memory leak
+			    // this is not ideal.
+			    // TODO: it should create a new route or sth if there is none!
         return;
     }
 
