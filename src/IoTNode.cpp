@@ -18,7 +18,7 @@
 using namespace omnetpp;
 
 Define_Module(IoTNode);
-
+//!!!!!
 std::vector<IoTNode*> IoTNode::allNodes;
 // TODO: why do we have an allNodes vector in the IoTNode class?
 // if I am not mistaken this should be in the blockchain class or sth
