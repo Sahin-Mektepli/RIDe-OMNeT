@@ -24,7 +24,14 @@ std::vector<IoTNode*> IoTNode::allNodes;
 // if I am not mistaken this should be in the blockchain class or sth
 int IoTNode::numClusterHeads = 3;
 int IoTNode::globalBlockId = 0;
-
+// this is because I want to be able to print the table for debugging. not really necessary
+void printRoutingTable(const std::map<int, int>& routingTable){
+    EV << "Routing Table:\n";
+    EV << "NodeID --> Gate Index\n";
+    for(const auto& entry: routingTable){
+        EV << entry.first << "-->" << entry.second << "\n";
+    }
+}
 void IoTNode::initialize() {
     serviceRequestEvent = new cMessage("serviceRequestTimer");  // Give a distinct name
        scheduleAt(simTime() + uniform(1, 5), serviceRequestEvent); //bunun indentationi neden bi garip ansdfk
@@ -46,6 +53,7 @@ void IoTNode::initialize() {
                }
            }
        }
+    printRoutingTable(routingTable);
    }
 
 void IoTNode::handleMessage(cMessage *msg) {
@@ -235,7 +243,6 @@ void IoTNode::sendTransactionToClusterHead(ServiceRating* transaction) {
     // Send the transaction via the correct output gate
     send(transaction, "inoutGate$o", gateIndex);
 }
-
 
 //bunu kullanmıyorum şu anda
 int IoTNode::selectPoTValidator() {

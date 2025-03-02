@@ -22,6 +22,7 @@ package src;
 network BlockchainNetwork {
     parameters:
         int numNodes = 10;  // Total number of IoT nodes
+	//this should be a parameter
 
     submodules:
         iotNode[10]: IoTNode;
