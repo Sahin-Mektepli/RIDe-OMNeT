@@ -22,66 +22,20 @@ package src;
 network BlockchainNetwork {
     parameters:
         int numNodes = 10;  // Total number of IoT nodes
-	//this should be a parameter
 
     submodules:
-        iotNode[10]: IoTNode;
+        iotNode[numNodes]: IoTNode;
+        cluster2[numNodes]: IoTNode;
 
     connections allowunconnected:
-        // Manually connecting every node to every other node
-        iotNode[0].inoutGate++ <--> iotNode[1].inoutGate++;
-        iotNode[0].inoutGate++ <--> iotNode[2].inoutGate++;
-        iotNode[0].inoutGate++ <--> iotNode[3].inoutGate++;
-        iotNode[0].inoutGate++ <--> iotNode[4].inoutGate++;
-        iotNode[0].inoutGate++ <--> iotNode[5].inoutGate++;
-        iotNode[0].inoutGate++ <--> iotNode[6].inoutGate++;
-        iotNode[0].inoutGate++ <--> iotNode[7].inoutGate++;
-        iotNode[0].inoutGate++ <--> iotNode[8].inoutGate++;
-        iotNode[0].inoutGate++ <--> iotNode[9].inoutGate++;
-
-        iotNode[1].inoutGate++ <--> iotNode[2].inoutGate++;
-        iotNode[1].inoutGate++ <--> iotNode[3].inoutGate++;
-        iotNode[1].inoutGate++ <--> iotNode[4].inoutGate++;
-        iotNode[1].inoutGate++ <--> iotNode[5].inoutGate++;
-        iotNode[1].inoutGate++ <--> iotNode[6].inoutGate++;
-        iotNode[1].inoutGate++ <--> iotNode[7].inoutGate++;
-        iotNode[1].inoutGate++ <--> iotNode[8].inoutGate++;
-        iotNode[1].inoutGate++ <--> iotNode[9].inoutGate++;
-
-        iotNode[2].inoutGate++ <--> iotNode[3].inoutGate++;
-        iotNode[2].inoutGate++ <--> iotNode[4].inoutGate++;
-        iotNode[2].inoutGate++ <--> iotNode[5].inoutGate++;
-        iotNode[2].inoutGate++ <--> iotNode[6].inoutGate++;
-        iotNode[2].inoutGate++ <--> iotNode[7].inoutGate++;
-        iotNode[2].inoutGate++ <--> iotNode[8].inoutGate++;
-        iotNode[2].inoutGate++ <--> iotNode[9].inoutGate++;
-
-        iotNode[3].inoutGate++ <--> iotNode[4].inoutGate++;
-        iotNode[3].inoutGate++ <--> iotNode[5].inoutGate++;
-        iotNode[3].inoutGate++ <--> iotNode[6].inoutGate++;
-        iotNode[3].inoutGate++ <--> iotNode[7].inoutGate++;
-        iotNode[3].inoutGate++ <--> iotNode[8].inoutGate++;
-        iotNode[3].inoutGate++ <--> iotNode[9].inoutGate++;
-
-        iotNode[4].inoutGate++ <--> iotNode[5].inoutGate++;
-        iotNode[4].inoutGate++ <--> iotNode[6].inoutGate++;
-        iotNode[4].inoutGate++ <--> iotNode[7].inoutGate++;
-        iotNode[4].inoutGate++ <--> iotNode[8].inoutGate++;
-        iotNode[4].inoutGate++ <--> iotNode[9].inoutGate++;
-
-        iotNode[5].inoutGate++ <--> iotNode[6].inoutGate++;
-        iotNode[5].inoutGate++ <--> iotNode[7].inoutGate++;
-        iotNode[5].inoutGate++ <--> iotNode[8].inoutGate++;
-        iotNode[5].inoutGate++ <--> iotNode[9].inoutGate++;
-
-        iotNode[6].inoutGate++ <--> iotNode[7].inoutGate++;
-        iotNode[6].inoutGate++ <--> iotNode[8].inoutGate++;
-        iotNode[6].inoutGate++ <--> iotNode[9].inoutGate++;
-
-        iotNode[7].inoutGate++ <--> iotNode[8].inoutGate++;
-        iotNode[7].inoutGate++ <--> iotNode[9].inoutGate++;
-
-        iotNode[8].inoutGate++ <--> iotNode[9].inoutGate++;
+        for i=0.. numNodes-1, for j=i+1.. numNodes-1{
+        	iotNode[i].inoutGate++ <--> iotNode[j].inoutGate++;
+        }
+        for i=0.. numNodes-1, for j=i+1.. numNodes-1{
+        	cluster2[i].inoutGate++ <--> cluster2[j].inoutGate++;
+        }
+       
+        
 }
 
 

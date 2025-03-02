@@ -131,7 +131,11 @@ void IoTNode::electClusterHeads() {
     }
     EV << "Updated Cluster Head selection." << endl;
 }
-
+int findRoute(int requesterId, int providerId){
+    //finds a route from requester to provider if they are not in the same cluster
+    EV << "Error: No known route to Node " << providerId << endl;
+    return 0;
+}
 void IoTNode::initiateServiceRequest() {
     IoTNode* provider = nullptr;
     int attempts = 0;
@@ -149,13 +153,16 @@ void IoTNode::initiateServiceRequest() {
 
     int providerId = provider->getId();
 
+    int gateIndex;
       // Check if there is a recorded gate for this provider
       if (routingTable.find(providerId) == routingTable.end()) {
-          EV << "Error: No known route to Node " << providerId << endl;
+        //if not in the table. find a route
+        gateIndex = findRoute(getId(), providerId); //I think this should work like this, no?
           return;
       }
-
-      int gateIndex = routingTable[providerId];
+    //TODO: this should change in accordance to the findRoute() func used above
+    //findRoute() should return the next node, which is not the provider node but one of the "bridge" nodes to that node
+      gateIndex = routingTable[providerId];
 
       EV << "IoT Node " << getId() << " is sending service request to Node " << providerId
          << " via gate index " << gateIndex << endl;
