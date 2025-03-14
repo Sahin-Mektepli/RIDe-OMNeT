@@ -1,4 +1,4 @@
-/*
+ /*
  * IoTNode.cpp
  *
  *  Created on: 4 Oca 2025
@@ -41,6 +41,17 @@ void IoTNode::initialize() {
     isClusterHead = false;
     allNodes.push_back(this);
 
+    // Define possible service types
+    std::vector<std::string> serviceTypes = {"A", "B", "C", "D"};
+
+    //Her node'a rastgele bir servis tanımlıyoruz şu anda bunu belki daha farklı da yapabiliriz servis tipi içinde başka şeyler de barındıran bir obje olabilir ama gerek var mı emin değilim
+    std::string assignedService = serviceTypes[intuniform(0, serviceTypes.size() - 1)];//her çalıştırışımızda farklı servis verecek ama bu kötü bir şey olmayabilir de
+    EV << "Node " << getId() << " provides service: " << assignedService << endl;
+    providedService = assignedService;
+
+
+
+
     // Populate Routing Table
        for (int i = 0; i < gateSize("inoutGate"); i++) {
            cGate* outGate = gate("inoutGate$o", i);
@@ -54,10 +65,32 @@ void IoTNode::initialize() {
            }
        }
     printRoutingTable(routingTable);
+    // Schedule service table update after all nodes are initialized
+    scheduleAt(simTime() + 0.1, new cMessage("populateServiceTable"));
+
    }
 
 void IoTNode::handleMessage(cMessage *msg) {
+    if (msg->isSelfMessage() && strcmp(msg->getName(), "populateServiceTable") == 0) {
+        EV << "Node " << getId() << " is now filling its service table with direct neighbors..." << endl;//sadece bağlı oldukları ile dolduruyor
 
+        for (int i = 0; i < gateSize("inoutGate"); i++) {
+            cGate* outGate = gate("inoutGate$o", i);
+            if (outGate->isConnected()) {
+                cModule* connectedModule = outGate->getNextGate()->getOwnerModule();
+                IoTNode* neighborNode = dynamic_cast<IoTNode*>(connectedModule);
+
+                if (neighborNode) {
+                    serviceTable[neighborNode->getId()] = neighborNode->providedService;
+                    EV << "Node " << getId() << " learned that Node " << neighborNode->getId()
+                       << " provides service: " << neighborNode->providedService << endl;
+                }
+            }
+        }
+
+        delete msg;  // Clean up the scheduled event
+        return;
+    }
     if (msg->isSelfMessage()) {
             if (strcmp(msg->getName(), "serviceRequestTimer") == 0) {
                 EV << "IoTNode " << getId() << " is initiating a service request." << endl;

@@ -26,6 +26,8 @@ struct Block {
 class IoTNode : public omnetpp::cSimpleModule {
 private:
     std::map<int, int> routingTable; // Maps Node ID → Gate Index
+    std::map<int, std::string> serviceTable; //private olmalı gibi geldi
+
 protected:
     virtual void initialize() override;
     virtual void handleMessage(omnetpp::cMessage *msg) override;
@@ -43,6 +45,7 @@ protected:
     static int numClusterHeads;
     static int globalBlockId;
     std::vector<Block> blockchain;
+    std::string providedService;  // Node'un verdiği servis türü
 
     cMessage *serviceRequestEvent;  // Add this line
 };
