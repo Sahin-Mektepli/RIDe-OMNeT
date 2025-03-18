@@ -1,0 +1,12 @@
+/out/
+/results/
+/src/results/
+/src/.qtenvrc
+RIDe
+RIDe_dbg
+.*
+!/.gitignore
+*.exe
+notes.md
+Makefile
+*_m.*
