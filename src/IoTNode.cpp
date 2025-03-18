@@ -7,6 +7,7 @@
 #include "IoTNode.h"
 #include "BlockchainMessage_m.h"
 #include <algorithm>
+#include <cmath>
 #include <map>
 #include <random>
 #include <string>
@@ -20,6 +21,7 @@ using namespace omnetpp;
 
 Define_Module(IoTNode);
 //!!!!!
+std::vector<Block> IoTNode::blockchain;
 std::vector<IoTNode *> IoTNode::allNodes;
 // TODO: why do we have an allNodes vector in the IoTNode class?
 // if I am not mistaken this should be in the blockchain class or sth
@@ -60,7 +62,7 @@ void IoTNode::initialize() {
       serviceTypes.size() - 1)]; // her çalıştırışımızda farklı servis verecek
                                  // ama bu kötü bir şey olmayabilir de
   EV << "Node " << getId() << " provides service: " << assignedService << endl;
-  providedService = assignedService;
+  providedService = assignedService; // do we need this assignment?
 
   // Populate Routing Table
   for (int i = 0; i < gateSize("inoutGate"); i++) {
@@ -75,7 +77,7 @@ void IoTNode::initialize() {
       }
     }
   }
-  printRoutingTable(routingTable);
+  //  printRoutingTable(routingTable);
   // Schedule service table update after all nodes are initialized
   scheduleAt(simTime() + 0.1, new cMessage("populateServiceTable"));
   // bunun dokumantasyonuna bakarken cancleEvent() komutunu ogrendim ki gayet
@@ -86,13 +88,16 @@ void IoTNode::initialize() {
 }
 
 void printBlockChain(std::vector<Block> blockchain) {
+  EV << "je veux voir tous les block a la fois:\n";
   for (Block &block : blockchain) {
-    EV << "je veux voir tous les block a la fois:\n";
-    EV << block.transactionData;
+    EV << block.transactionData << "\nat time: " << block.timestamp << "\n";
   }
+  EV << "on est finis lire le block!\n\n";
 }
+// assiri uzun bu metod; mumkunse kisalmali aslinda...
 void IoTNode::handleMessage(cMessage *msg) {
-  printBlockChain(blockchain);
+  EV << "My id is: " << getId();
+  printBlockChain(blockchain); // TODO: debug icin bu, silinecek tabii ki!
   if (msg->isSelfMessage() &&
       strcmp(msg->getName(), "populateServiceTable") == 0) {
     EV << "Node " << getId()
@@ -322,7 +327,72 @@ void IoTNode::sendTransactionToClusterHead(ServiceRating *transaction) {
   // Send the transaction via the correct output gate
   send(transaction, "inoutGate$o", gateIndex);
 }
+double IoTNode::calculateIndirectTrust(IoTNode &provider) {
+  // TODO:IMPLEMENT THIS!!!
+  // I feel like we need a array<IoTNode> neighbros for this.
+  return 0;
+}
 
+bool IoTNode::enoughInteractions(IoTNode &provider) {
+  // TODO: IMPLEMENT THIS TOO :p
+  // again, temporary for development purposes
+  if (blockchain.size() < windowSize) {
+    return false;
+  }
+  return true;
+}
+/*calculates the decay factor in the Trust Score calculations
+ * takes the current and block times as argument
+ * this simple implementation just takes the exp of the difference.
+ */
+double IoTNode::calculateDecay(double currentTime, double blockTime) {
+  return std::exp(currentTime - blockTime);
+}
+// calculates DT of 'this' to provider
+// if 'enoughInteractions' which I will implement
+// else, resorts to indirectTrust
+double IoTNode::calculateDirectTrust(IoTNode &provider, double time) {
+  int providerId = provider.getId();
+  int requertorId = getId();         // so that I can follow more easily
+  if (!enoughInteractions(provider)) // TODO: returns just 0 for now...
+    return calculateIndirectTrust(provider);
+  // so there are enough interactions, we calculate DT
+  double dt = 0; // initialise DT
+  for (auto &block : blockchain) {
+    int tmpProvider, tmpRequestor;
+    double rating;
+    // extract ids and rating
+    extract(block.transactionData, rating, tmpRequestor, tmpProvider);
+    // if the block is not relevant, ignore!
+    if ((tmpProvider != providerId) || !(tmpRequestor != requertorId))
+      continue;
+    double blockTime = block.timestamp;
+    double decayFactor = calculateDecay(time, blockTime);
+    dt += rating * decayFactor;
+  }
+  return dt;
+}
+
+/*this is to extract rating and id values from a transaction message in a block
+ * give the message as input and the extracted values will be written in the
+ * other parameters
+ * the input must be in the following format: 'rating: <rating>
+ * from <reqId> to <provId>' a disposition of the colon breaks the function
+ */
+bool IoTNode::extract(const std::string &input, double &rating,
+                      int &requesterId, int &providerId) {
+  // this is to parse the input; rather cool!
+  std::istringstream iss(input);
+  // to store filler words
+  std::string tmp;
+  // this if statement is ugly, but it works, and it is terse!
+  if ((iss >> tmp >> rating) && (iss >> tmp >> requesterId) &&
+      (iss >> tmp >> providerId)) {
+    return true;
+  } else {
+    return false;
+  }
+}
 // bunu kullanmıyorum şu anda
 int IoTNode::selectPoTValidator() {
   double totalTrust = 0.0;
