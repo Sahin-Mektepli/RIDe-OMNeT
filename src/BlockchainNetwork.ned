@@ -31,9 +31,9 @@ network BlockchainNetwork {
         for i=0.. numNodes-1, for j=i+1.. numNodes-1{
         	iotNode[i].inoutGate++ <--> iotNode[j].inoutGate++;
         }
-        for i=0.. numNodes-1, for j=i+1.. numNodes-1{
-        	cluster2[i].inoutGate++ <--> cluster2[j].inoutGate++;
-        }
+      //  for i=0.. numNodes-1, for j=i+1.. numNodes-1{
+      // 	cluster2[i].inoutGate++ <--> cluster2[j].inoutGate++;
+      //  }
        
         
 }
