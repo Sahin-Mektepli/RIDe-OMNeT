@@ -28,11 +28,27 @@ private:
   int windowSize = 3; //3 is just for testing purposes
   std::map<int, int> routingTable;         // Maps Node ID → Gate Index
   std::map<std::string, std::vector<int>> serviceTable; // Store service type with node IDs
+  std::set<int> pendingResponses;
+  std::map<int, double> respondedProviders;
+  std::string requestedServiceType;
 
 
 protected:
   virtual void initialize() override;
   virtual void handleMessage(omnetpp::cMessage *msg) override;
+  // --- Message Handling ---
+  void handleSelfMessage(cMessage *msg);
+  void handleNetworkMessage(cMessage *msg);
+
+  // Service-level handlers
+  void handleServiceRequestMsg(cMessage *msg);
+  void handleServiceResponseMsg(cMessage *msg);
+  void handleFinalServiceRequestMsg(cMessage *msg);
+  void handleFinalServiceResponseMsg(cMessage *msg);
+  void handleServiceRatingMsg(cMessage *msg);
+
+  // Setup
+  void populateServiceTable();
   void electClusterHeads();
   void processClusterHeadDuties();
   void sendTransactionToClusterHead(

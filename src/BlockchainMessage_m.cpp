@@ -573,6 +573,7 @@ void ServiceRequest::copy(const ServiceRequest& other)
 {
     this->requesterId = other.requesterId;
     this->providerId = other.providerId;
+    this->serviceType = other.serviceType;
 }
 
 void ServiceRequest::parsimPack(omnetpp::cCommBuffer *b) const
@@ -580,6 +581,7 @@ void ServiceRequest::parsimPack(omnetpp::cCommBuffer *b) const
     ::omnetpp::cMessage::parsimPack(b);
     doParsimPacking(b,this->requesterId);
     doParsimPacking(b,this->providerId);
+    doParsimPacking(b,this->serviceType);
 }
 
 void ServiceRequest::parsimUnpack(omnetpp::cCommBuffer *b)
@@ -587,6 +589,7 @@ void ServiceRequest::parsimUnpack(omnetpp::cCommBuffer *b)
     ::omnetpp::cMessage::parsimUnpack(b);
     doParsimUnpacking(b,this->requesterId);
     doParsimUnpacking(b,this->providerId);
+    doParsimUnpacking(b,this->serviceType);
 }
 
 int ServiceRequest::getRequesterId() const
@@ -609,6 +612,16 @@ void ServiceRequest::setProviderId(int providerId)
     this->providerId = providerId;
 }
 
+const char * ServiceRequest::getServiceType() const
+{
+    return this->serviceType.c_str();
+}
+
+void ServiceRequest::setServiceType(const char * serviceType)
+{
+    this->serviceType = serviceType;
+}
+
 class ServiceRequestDescriptor : public omnetpp::cClassDescriptor
 {
   private:
@@ -616,6 +629,7 @@ class ServiceRequestDescriptor : public omnetpp::cClassDescriptor
     enum FieldConstants {
         FIELD_requesterId,
         FIELD_providerId,
+        FIELD_serviceType,
     };
   public:
     ServiceRequestDescriptor();
@@ -682,7 +696,7 @@ const char *ServiceRequestDescriptor::getProperty(const char *propertyName) cons
 int ServiceRequestDescriptor::getFieldCount() const
 {
     omnetpp::cClassDescriptor *base = getBaseClassDescriptor();
-    return base ? 2+base->getFieldCount() : 2;
+    return base ? 3+base->getFieldCount() : 3;
 }
 
 unsigned int ServiceRequestDescriptor::getFieldTypeFlags(int field) const
@@ -696,8 +710,9 @@ unsigned int ServiceRequestDescriptor::getFieldTypeFlags(int field) const
     static unsigned int fieldTypeFlags[] = {
         FD_ISEDITABLE,    // FIELD_requesterId
         FD_ISEDITABLE,    // FIELD_providerId
+        FD_ISEDITABLE,    // FIELD_serviceType
     };
-    return (field >= 0 && field < 2) ? fieldTypeFlags[field] : 0;
+    return (field >= 0 && field < 3) ? fieldTypeFlags[field] : 0;
 }
 
 const char *ServiceRequestDescriptor::getFieldName(int field) const
@@ -711,8 +726,9 @@ const char *ServiceRequestDescriptor::getFieldName(int field) const
     static const char *fieldNames[] = {
         "requesterId",
         "providerId",
+        "serviceType",
     };
-    return (field >= 0 && field < 2) ? fieldNames[field] : nullptr;
+    return (field >= 0 && field < 3) ? fieldNames[field] : nullptr;
 }
 
 int ServiceRequestDescriptor::findField(const char *fieldName) const
@@ -721,6 +737,7 @@ int ServiceRequestDescriptor::findField(const char *fieldName) const
     int baseIndex = base ? base->getFieldCount() : 0;
     if (strcmp(fieldName, "requesterId") == 0) return baseIndex + 0;
     if (strcmp(fieldName, "providerId") == 0) return baseIndex + 1;
+    if (strcmp(fieldName, "serviceType") == 0) return baseIndex + 2;
     return base ? base->findField(fieldName) : -1;
 }
 
@@ -735,8 +752,9 @@ const char *ServiceRequestDescriptor::getFieldTypeString(int field) const
     static const char *fieldTypeStrings[] = {
         "int",    // FIELD_requesterId
         "int",    // FIELD_providerId
+        "string",    // FIELD_serviceType
     };
-    return (field >= 0 && field < 2) ? fieldTypeStrings[field] : nullptr;
+    return (field >= 0 && field < 3) ? fieldTypeStrings[field] : nullptr;
 }
 
 const char **ServiceRequestDescriptor::getFieldPropertyNames(int field) const
@@ -821,6 +839,7 @@ std::string ServiceRequestDescriptor::getFieldValueAsString(omnetpp::any_ptr obj
     switch (field) {
         case FIELD_requesterId: return long2string(pp->getRequesterId());
         case FIELD_providerId: return long2string(pp->getProviderId());
+        case FIELD_serviceType: return oppstring2string(pp->getServiceType());
         default: return "";
     }
 }
@@ -839,6 +858,7 @@ void ServiceRequestDescriptor::setFieldValueAsString(omnetpp::any_ptr object, in
     switch (field) {
         case FIELD_requesterId: pp->setRequesterId(string2long(value)); break;
         case FIELD_providerId: pp->setProviderId(string2long(value)); break;
+        case FIELD_serviceType: pp->setServiceType((value)); break;
         default: throw omnetpp::cRuntimeError("Cannot set field %d of class 'ServiceRequest'", field);
     }
 }
@@ -855,6 +875,7 @@ omnetpp::cValue ServiceRequestDescriptor::getFieldValue(omnetpp::any_ptr object,
     switch (field) {
         case FIELD_requesterId: return pp->getRequesterId();
         case FIELD_providerId: return pp->getProviderId();
+        case FIELD_serviceType: return pp->getServiceType();
         default: throw omnetpp::cRuntimeError("Cannot return field %d of class 'ServiceRequest' as cValue -- field index out of range?", field);
     }
 }
@@ -873,6 +894,7 @@ void ServiceRequestDescriptor::setFieldValue(omnetpp::any_ptr object, int field,
     switch (field) {
         case FIELD_requesterId: pp->setRequesterId(omnetpp::checked_int_cast<int>(value.intValue())); break;
         case FIELD_providerId: pp->setProviderId(omnetpp::checked_int_cast<int>(value.intValue())); break;
+        case FIELD_serviceType: pp->setServiceType(value.stringValue()); break;
         default: throw omnetpp::cRuntimeError("Cannot set field %d of class 'ServiceRequest'", field);
     }
 }
@@ -947,6 +969,7 @@ void ServiceResponse::copy(const ServiceResponse& other)
 {
     this->requesterId = other.requesterId;
     this->providerId = other.providerId;
+    this->serviceType = other.serviceType;
 }
 
 void ServiceResponse::parsimPack(omnetpp::cCommBuffer *b) const
@@ -954,6 +977,7 @@ void ServiceResponse::parsimPack(omnetpp::cCommBuffer *b) const
     ::omnetpp::cMessage::parsimPack(b);
     doParsimPacking(b,this->requesterId);
     doParsimPacking(b,this->providerId);
+    doParsimPacking(b,this->serviceType);
 }
 
 void ServiceResponse::parsimUnpack(omnetpp::cCommBuffer *b)
@@ -961,6 +985,7 @@ void ServiceResponse::parsimUnpack(omnetpp::cCommBuffer *b)
     ::omnetpp::cMessage::parsimUnpack(b);
     doParsimUnpacking(b,this->requesterId);
     doParsimUnpacking(b,this->providerId);
+    doParsimUnpacking(b,this->serviceType);
 }
 
 int ServiceResponse::getRequesterId() const
@@ -983,6 +1008,16 @@ void ServiceResponse::setProviderId(int providerId)
     this->providerId = providerId;
 }
 
+const char * ServiceResponse::getServiceType() const
+{
+    return this->serviceType.c_str();
+}
+
+void ServiceResponse::setServiceType(const char * serviceType)
+{
+    this->serviceType = serviceType;
+}
+
 class ServiceResponseDescriptor : public omnetpp::cClassDescriptor
 {
   private:
@@ -990,6 +1025,7 @@ class ServiceResponseDescriptor : public omnetpp::cClassDescriptor
     enum FieldConstants {
         FIELD_requesterId,
         FIELD_providerId,
+        FIELD_serviceType,
     };
   public:
     ServiceResponseDescriptor();
@@ -1056,7 +1092,7 @@ const char *ServiceResponseDescriptor::getProperty(const char *propertyName) con
 int ServiceResponseDescriptor::getFieldCount() const
 {
     omnetpp::cClassDescriptor *base = getBaseClassDescriptor();
-    return base ? 2+base->getFieldCount() : 2;
+    return base ? 3+base->getFieldCount() : 3;
 }
 
 unsigned int ServiceResponseDescriptor::getFieldTypeFlags(int field) const
@@ -1070,8 +1106,9 @@ unsigned int ServiceResponseDescriptor::getFieldTypeFlags(int field) const
     static unsigned int fieldTypeFlags[] = {
         FD_ISEDITABLE,    // FIELD_requesterId
         FD_ISEDITABLE,    // FIELD_providerId
+        FD_ISEDITABLE,    // FIELD_serviceType
     };
-    return (field >= 0 && field < 2) ? fieldTypeFlags[field] : 0;
+    return (field >= 0 && field < 3) ? fieldTypeFlags[field] : 0;
 }
 
 const char *ServiceResponseDescriptor::getFieldName(int field) const
@@ -1085,8 +1122,9 @@ const char *ServiceResponseDescriptor::getFieldName(int field) const
     static const char *fieldNames[] = {
         "requesterId",
         "providerId",
+        "serviceType",
     };
-    return (field >= 0 && field < 2) ? fieldNames[field] : nullptr;
+    return (field >= 0 && field < 3) ? fieldNames[field] : nullptr;
 }
 
 int ServiceResponseDescriptor::findField(const char *fieldName) const
@@ -1095,6 +1133,7 @@ int ServiceResponseDescriptor::findField(const char *fieldName) const
     int baseIndex = base ? base->getFieldCount() : 0;
     if (strcmp(fieldName, "requesterId") == 0) return baseIndex + 0;
     if (strcmp(fieldName, "providerId") == 0) return baseIndex + 1;
+    if (strcmp(fieldName, "serviceType") == 0) return baseIndex + 2;
     return base ? base->findField(fieldName) : -1;
 }
 
@@ -1109,8 +1148,9 @@ const char *ServiceResponseDescriptor::getFieldTypeString(int field) const
     static const char *fieldTypeStrings[] = {
         "int",    // FIELD_requesterId
         "int",    // FIELD_providerId
+        "string",    // FIELD_serviceType
     };
-    return (field >= 0 && field < 2) ? fieldTypeStrings[field] : nullptr;
+    return (field >= 0 && field < 3) ? fieldTypeStrings[field] : nullptr;
 }
 
 const char **ServiceResponseDescriptor::getFieldPropertyNames(int field) const
@@ -1195,6 +1235,7 @@ std::string ServiceResponseDescriptor::getFieldValueAsString(omnetpp::any_ptr ob
     switch (field) {
         case FIELD_requesterId: return long2string(pp->getRequesterId());
         case FIELD_providerId: return long2string(pp->getProviderId());
+        case FIELD_serviceType: return oppstring2string(pp->getServiceType());
         default: return "";
     }
 }
@@ -1213,6 +1254,7 @@ void ServiceResponseDescriptor::setFieldValueAsString(omnetpp::any_ptr object, i
     switch (field) {
         case FIELD_requesterId: pp->setRequesterId(string2long(value)); break;
         case FIELD_providerId: pp->setProviderId(string2long(value)); break;
+        case FIELD_serviceType: pp->setServiceType((value)); break;
         default: throw omnetpp::cRuntimeError("Cannot set field %d of class 'ServiceResponse'", field);
     }
 }
@@ -1229,6 +1271,7 @@ omnetpp::cValue ServiceResponseDescriptor::getFieldValue(omnetpp::any_ptr object
     switch (field) {
         case FIELD_requesterId: return pp->getRequesterId();
         case FIELD_providerId: return pp->getProviderId();
+        case FIELD_serviceType: return pp->getServiceType();
         default: throw omnetpp::cRuntimeError("Cannot return field %d of class 'ServiceResponse' as cValue -- field index out of range?", field);
     }
 }
@@ -1247,6 +1290,7 @@ void ServiceResponseDescriptor::setFieldValue(omnetpp::any_ptr object, int field
     switch (field) {
         case FIELD_requesterId: pp->setRequesterId(omnetpp::checked_int_cast<int>(value.intValue())); break;
         case FIELD_providerId: pp->setProviderId(omnetpp::checked_int_cast<int>(value.intValue())); break;
+        case FIELD_serviceType: pp->setServiceType(value.stringValue()); break;
         default: throw omnetpp::cRuntimeError("Cannot set field %d of class 'ServiceResponse'", field);
     }
 }
@@ -1291,6 +1335,820 @@ void ServiceResponseDescriptor::setFieldStructValuePointer(omnetpp::any_ptr obje
     ServiceResponse *pp = omnetpp::fromAnyPtr<ServiceResponse>(object); (void)pp;
     switch (field) {
         default: throw omnetpp::cRuntimeError("Cannot set field %d of class 'ServiceResponse'", field);
+    }
+}
+
+Register_Class(FinalServiceRequest)
+
+FinalServiceRequest::FinalServiceRequest(const char *name, short kind) : ::omnetpp::cMessage(name, kind)
+{
+}
+
+FinalServiceRequest::FinalServiceRequest(const FinalServiceRequest& other) : ::omnetpp::cMessage(other)
+{
+    copy(other);
+}
+
+FinalServiceRequest::~FinalServiceRequest()
+{
+}
+
+FinalServiceRequest& FinalServiceRequest::operator=(const FinalServiceRequest& other)
+{
+    if (this == &other) return *this;
+    ::omnetpp::cMessage::operator=(other);
+    copy(other);
+    return *this;
+}
+
+void FinalServiceRequest::copy(const FinalServiceRequest& other)
+{
+    this->requesterId = other.requesterId;
+    this->providerId = other.providerId;
+    this->serviceType = other.serviceType;
+}
+
+void FinalServiceRequest::parsimPack(omnetpp::cCommBuffer *b) const
+{
+    ::omnetpp::cMessage::parsimPack(b);
+    doParsimPacking(b,this->requesterId);
+    doParsimPacking(b,this->providerId);
+    doParsimPacking(b,this->serviceType);
+}
+
+void FinalServiceRequest::parsimUnpack(omnetpp::cCommBuffer *b)
+{
+    ::omnetpp::cMessage::parsimUnpack(b);
+    doParsimUnpacking(b,this->requesterId);
+    doParsimUnpacking(b,this->providerId);
+    doParsimUnpacking(b,this->serviceType);
+}
+
+int FinalServiceRequest::getRequesterId() const
+{
+    return this->requesterId;
+}
+
+void FinalServiceRequest::setRequesterId(int requesterId)
+{
+    this->requesterId = requesterId;
+}
+
+int FinalServiceRequest::getProviderId() const
+{
+    return this->providerId;
+}
+
+void FinalServiceRequest::setProviderId(int providerId)
+{
+    this->providerId = providerId;
+}
+
+const char * FinalServiceRequest::getServiceType() const
+{
+    return this->serviceType.c_str();
+}
+
+void FinalServiceRequest::setServiceType(const char * serviceType)
+{
+    this->serviceType = serviceType;
+}
+
+class FinalServiceRequestDescriptor : public omnetpp::cClassDescriptor
+{
+  private:
+    mutable const char **propertyNames;
+    enum FieldConstants {
+        FIELD_requesterId,
+        FIELD_providerId,
+        FIELD_serviceType,
+    };
+  public:
+    FinalServiceRequestDescriptor();
+    virtual ~FinalServiceRequestDescriptor();
+
+    virtual bool doesSupport(omnetpp::cObject *obj) const override;
+    virtual const char **getPropertyNames() const override;
+    virtual const char *getProperty(const char *propertyName) const override;
+    virtual int getFieldCount() const override;
+    virtual const char *getFieldName(int field) const override;
+    virtual int findField(const char *fieldName) const override;
+    virtual unsigned int getFieldTypeFlags(int field) const override;
+    virtual const char *getFieldTypeString(int field) const override;
+    virtual const char **getFieldPropertyNames(int field) const override;
+    virtual const char *getFieldProperty(int field, const char *propertyName) const override;
+    virtual int getFieldArraySize(omnetpp::any_ptr object, int field) const override;
+    virtual void setFieldArraySize(omnetpp::any_ptr object, int field, int size) const override;
+
+    virtual const char *getFieldDynamicTypeString(omnetpp::any_ptr object, int field, int i) const override;
+    virtual std::string getFieldValueAsString(omnetpp::any_ptr object, int field, int i) const override;
+    virtual void setFieldValueAsString(omnetpp::any_ptr object, int field, int i, const char *value) const override;
+    virtual omnetpp::cValue getFieldValue(omnetpp::any_ptr object, int field, int i) const override;
+    virtual void setFieldValue(omnetpp::any_ptr object, int field, int i, const omnetpp::cValue& value) const override;
+
+    virtual const char *getFieldStructName(int field) const override;
+    virtual omnetpp::any_ptr getFieldStructValuePointer(omnetpp::any_ptr object, int field, int i) const override;
+    virtual void setFieldStructValuePointer(omnetpp::any_ptr object, int field, int i, omnetpp::any_ptr ptr) const override;
+};
+
+Register_ClassDescriptor(FinalServiceRequestDescriptor)
+
+FinalServiceRequestDescriptor::FinalServiceRequestDescriptor() : omnetpp::cClassDescriptor(omnetpp::opp_typename(typeid(FinalServiceRequest)), "omnetpp::cMessage")
+{
+    propertyNames = nullptr;
+}
+
+FinalServiceRequestDescriptor::~FinalServiceRequestDescriptor()
+{
+    delete[] propertyNames;
+}
+
+bool FinalServiceRequestDescriptor::doesSupport(omnetpp::cObject *obj) const
+{
+    return dynamic_cast<FinalServiceRequest *>(obj)!=nullptr;
+}
+
+const char **FinalServiceRequestDescriptor::getPropertyNames() const
+{
+    if (!propertyNames) {
+        static const char *names[] = {  nullptr };
+        omnetpp::cClassDescriptor *base = getBaseClassDescriptor();
+        const char **baseNames = base ? base->getPropertyNames() : nullptr;
+        propertyNames = mergeLists(baseNames, names);
+    }
+    return propertyNames;
+}
+
+const char *FinalServiceRequestDescriptor::getProperty(const char *propertyName) const
+{
+    omnetpp::cClassDescriptor *base = getBaseClassDescriptor();
+    return base ? base->getProperty(propertyName) : nullptr;
+}
+
+int FinalServiceRequestDescriptor::getFieldCount() const
+{
+    omnetpp::cClassDescriptor *base = getBaseClassDescriptor();
+    return base ? 3+base->getFieldCount() : 3;
+}
+
+unsigned int FinalServiceRequestDescriptor::getFieldTypeFlags(int field) const
+{
+    omnetpp::cClassDescriptor *base = getBaseClassDescriptor();
+    if (base) {
+        if (field < base->getFieldCount())
+            return base->getFieldTypeFlags(field);
+        field -= base->getFieldCount();
+    }
+    static unsigned int fieldTypeFlags[] = {
+        FD_ISEDITABLE,    // FIELD_requesterId
+        FD_ISEDITABLE,    // FIELD_providerId
+        FD_ISEDITABLE,    // FIELD_serviceType
+    };
+    return (field >= 0 && field < 3) ? fieldTypeFlags[field] : 0;
+}
+
+const char *FinalServiceRequestDescriptor::getFieldName(int field) const
+{
+    omnetpp::cClassDescriptor *base = getBaseClassDescriptor();
+    if (base) {
+        if (field < base->getFieldCount())
+            return base->getFieldName(field);
+        field -= base->getFieldCount();
+    }
+    static const char *fieldNames[] = {
+        "requesterId",
+        "providerId",
+        "serviceType",
+    };
+    return (field >= 0 && field < 3) ? fieldNames[field] : nullptr;
+}
+
+int FinalServiceRequestDescriptor::findField(const char *fieldName) const
+{
+    omnetpp::cClassDescriptor *base = getBaseClassDescriptor();
+    int baseIndex = base ? base->getFieldCount() : 0;
+    if (strcmp(fieldName, "requesterId") == 0) return baseIndex + 0;
+    if (strcmp(fieldName, "providerId") == 0) return baseIndex + 1;
+    if (strcmp(fieldName, "serviceType") == 0) return baseIndex + 2;
+    return base ? base->findField(fieldName) : -1;
+}
+
+const char *FinalServiceRequestDescriptor::getFieldTypeString(int field) const
+{
+    omnetpp::cClassDescriptor *base = getBaseClassDescriptor();
+    if (base) {
+        if (field < base->getFieldCount())
+            return base->getFieldTypeString(field);
+        field -= base->getFieldCount();
+    }
+    static const char *fieldTypeStrings[] = {
+        "int",    // FIELD_requesterId
+        "int",    // FIELD_providerId
+        "string",    // FIELD_serviceType
+    };
+    return (field >= 0 && field < 3) ? fieldTypeStrings[field] : nullptr;
+}
+
+const char **FinalServiceRequestDescriptor::getFieldPropertyNames(int field) const
+{
+    omnetpp::cClassDescriptor *base = getBaseClassDescriptor();
+    if (base) {
+        if (field < base->getFieldCount())
+            return base->getFieldPropertyNames(field);
+        field -= base->getFieldCount();
+    }
+    switch (field) {
+        default: return nullptr;
+    }
+}
+
+const char *FinalServiceRequestDescriptor::getFieldProperty(int field, const char *propertyName) const
+{
+    omnetpp::cClassDescriptor *base = getBaseClassDescriptor();
+    if (base) {
+        if (field < base->getFieldCount())
+            return base->getFieldProperty(field, propertyName);
+        field -= base->getFieldCount();
+    }
+    switch (field) {
+        default: return nullptr;
+    }
+}
+
+int FinalServiceRequestDescriptor::getFieldArraySize(omnetpp::any_ptr object, int field) const
+{
+    omnetpp::cClassDescriptor *base = getBaseClassDescriptor();
+    if (base) {
+        if (field < base->getFieldCount())
+            return base->getFieldArraySize(object, field);
+        field -= base->getFieldCount();
+    }
+    FinalServiceRequest *pp = omnetpp::fromAnyPtr<FinalServiceRequest>(object); (void)pp;
+    switch (field) {
+        default: return 0;
+    }
+}
+
+void FinalServiceRequestDescriptor::setFieldArraySize(omnetpp::any_ptr object, int field, int size) const
+{
+    omnetpp::cClassDescriptor *base = getBaseClassDescriptor();
+    if (base) {
+        if (field < base->getFieldCount()){
+            base->setFieldArraySize(object, field, size);
+            return;
+        }
+        field -= base->getFieldCount();
+    }
+    FinalServiceRequest *pp = omnetpp::fromAnyPtr<FinalServiceRequest>(object); (void)pp;
+    switch (field) {
+        default: throw omnetpp::cRuntimeError("Cannot set array size of field %d of class 'FinalServiceRequest'", field);
+    }
+}
+
+const char *FinalServiceRequestDescriptor::getFieldDynamicTypeString(omnetpp::any_ptr object, int field, int i) const
+{
+    omnetpp::cClassDescriptor *base = getBaseClassDescriptor();
+    if (base) {
+        if (field < base->getFieldCount())
+            return base->getFieldDynamicTypeString(object,field,i);
+        field -= base->getFieldCount();
+    }
+    FinalServiceRequest *pp = omnetpp::fromAnyPtr<FinalServiceRequest>(object); (void)pp;
+    switch (field) {
+        default: return nullptr;
+    }
+}
+
+std::string FinalServiceRequestDescriptor::getFieldValueAsString(omnetpp::any_ptr object, int field, int i) const
+{
+    omnetpp::cClassDescriptor *base = getBaseClassDescriptor();
+    if (base) {
+        if (field < base->getFieldCount())
+            return base->getFieldValueAsString(object,field,i);
+        field -= base->getFieldCount();
+    }
+    FinalServiceRequest *pp = omnetpp::fromAnyPtr<FinalServiceRequest>(object); (void)pp;
+    switch (field) {
+        case FIELD_requesterId: return long2string(pp->getRequesterId());
+        case FIELD_providerId: return long2string(pp->getProviderId());
+        case FIELD_serviceType: return oppstring2string(pp->getServiceType());
+        default: return "";
+    }
+}
+
+void FinalServiceRequestDescriptor::setFieldValueAsString(omnetpp::any_ptr object, int field, int i, const char *value) const
+{
+    omnetpp::cClassDescriptor *base = getBaseClassDescriptor();
+    if (base) {
+        if (field < base->getFieldCount()){
+            base->setFieldValueAsString(object, field, i, value);
+            return;
+        }
+        field -= base->getFieldCount();
+    }
+    FinalServiceRequest *pp = omnetpp::fromAnyPtr<FinalServiceRequest>(object); (void)pp;
+    switch (field) {
+        case FIELD_requesterId: pp->setRequesterId(string2long(value)); break;
+        case FIELD_providerId: pp->setProviderId(string2long(value)); break;
+        case FIELD_serviceType: pp->setServiceType((value)); break;
+        default: throw omnetpp::cRuntimeError("Cannot set field %d of class 'FinalServiceRequest'", field);
+    }
+}
+
+omnetpp::cValue FinalServiceRequestDescriptor::getFieldValue(omnetpp::any_ptr object, int field, int i) const
+{
+    omnetpp::cClassDescriptor *base = getBaseClassDescriptor();
+    if (base) {
+        if (field < base->getFieldCount())
+            return base->getFieldValue(object,field,i);
+        field -= base->getFieldCount();
+    }
+    FinalServiceRequest *pp = omnetpp::fromAnyPtr<FinalServiceRequest>(object); (void)pp;
+    switch (field) {
+        case FIELD_requesterId: return pp->getRequesterId();
+        case FIELD_providerId: return pp->getProviderId();
+        case FIELD_serviceType: return pp->getServiceType();
+        default: throw omnetpp::cRuntimeError("Cannot return field %d of class 'FinalServiceRequest' as cValue -- field index out of range?", field);
+    }
+}
+
+void FinalServiceRequestDescriptor::setFieldValue(omnetpp::any_ptr object, int field, int i, const omnetpp::cValue& value) const
+{
+    omnetpp::cClassDescriptor *base = getBaseClassDescriptor();
+    if (base) {
+        if (field < base->getFieldCount()){
+            base->setFieldValue(object, field, i, value);
+            return;
+        }
+        field -= base->getFieldCount();
+    }
+    FinalServiceRequest *pp = omnetpp::fromAnyPtr<FinalServiceRequest>(object); (void)pp;
+    switch (field) {
+        case FIELD_requesterId: pp->setRequesterId(omnetpp::checked_int_cast<int>(value.intValue())); break;
+        case FIELD_providerId: pp->setProviderId(omnetpp::checked_int_cast<int>(value.intValue())); break;
+        case FIELD_serviceType: pp->setServiceType(value.stringValue()); break;
+        default: throw omnetpp::cRuntimeError("Cannot set field %d of class 'FinalServiceRequest'", field);
+    }
+}
+
+const char *FinalServiceRequestDescriptor::getFieldStructName(int field) const
+{
+    omnetpp::cClassDescriptor *base = getBaseClassDescriptor();
+    if (base) {
+        if (field < base->getFieldCount())
+            return base->getFieldStructName(field);
+        field -= base->getFieldCount();
+    }
+    switch (field) {
+        default: return nullptr;
+    };
+}
+
+omnetpp::any_ptr FinalServiceRequestDescriptor::getFieldStructValuePointer(omnetpp::any_ptr object, int field, int i) const
+{
+    omnetpp::cClassDescriptor *base = getBaseClassDescriptor();
+    if (base) {
+        if (field < base->getFieldCount())
+            return base->getFieldStructValuePointer(object, field, i);
+        field -= base->getFieldCount();
+    }
+    FinalServiceRequest *pp = omnetpp::fromAnyPtr<FinalServiceRequest>(object); (void)pp;
+    switch (field) {
+        default: return omnetpp::any_ptr(nullptr);
+    }
+}
+
+void FinalServiceRequestDescriptor::setFieldStructValuePointer(omnetpp::any_ptr object, int field, int i, omnetpp::any_ptr ptr) const
+{
+    omnetpp::cClassDescriptor *base = getBaseClassDescriptor();
+    if (base) {
+        if (field < base->getFieldCount()){
+            base->setFieldStructValuePointer(object, field, i, ptr);
+            return;
+        }
+        field -= base->getFieldCount();
+    }
+    FinalServiceRequest *pp = omnetpp::fromAnyPtr<FinalServiceRequest>(object); (void)pp;
+    switch (field) {
+        default: throw omnetpp::cRuntimeError("Cannot set field %d of class 'FinalServiceRequest'", field);
+    }
+}
+
+Register_Class(FinalServiceResponse)
+
+FinalServiceResponse::FinalServiceResponse(const char *name, short kind) : ::omnetpp::cMessage(name, kind)
+{
+}
+
+FinalServiceResponse::FinalServiceResponse(const FinalServiceResponse& other) : ::omnetpp::cMessage(other)
+{
+    copy(other);
+}
+
+FinalServiceResponse::~FinalServiceResponse()
+{
+}
+
+FinalServiceResponse& FinalServiceResponse::operator=(const FinalServiceResponse& other)
+{
+    if (this == &other) return *this;
+    ::omnetpp::cMessage::operator=(other);
+    copy(other);
+    return *this;
+}
+
+void FinalServiceResponse::copy(const FinalServiceResponse& other)
+{
+    this->requesterId = other.requesterId;
+    this->providerId = other.providerId;
+    this->serviceType = other.serviceType;
+    this->serviceQuality = other.serviceQuality;
+}
+
+void FinalServiceResponse::parsimPack(omnetpp::cCommBuffer *b) const
+{
+    ::omnetpp::cMessage::parsimPack(b);
+    doParsimPacking(b,this->requesterId);
+    doParsimPacking(b,this->providerId);
+    doParsimPacking(b,this->serviceType);
+    doParsimPacking(b,this->serviceQuality);
+}
+
+void FinalServiceResponse::parsimUnpack(omnetpp::cCommBuffer *b)
+{
+    ::omnetpp::cMessage::parsimUnpack(b);
+    doParsimUnpacking(b,this->requesterId);
+    doParsimUnpacking(b,this->providerId);
+    doParsimUnpacking(b,this->serviceType);
+    doParsimUnpacking(b,this->serviceQuality);
+}
+
+int FinalServiceResponse::getRequesterId() const
+{
+    return this->requesterId;
+}
+
+void FinalServiceResponse::setRequesterId(int requesterId)
+{
+    this->requesterId = requesterId;
+}
+
+int FinalServiceResponse::getProviderId() const
+{
+    return this->providerId;
+}
+
+void FinalServiceResponse::setProviderId(int providerId)
+{
+    this->providerId = providerId;
+}
+
+const char * FinalServiceResponse::getServiceType() const
+{
+    return this->serviceType.c_str();
+}
+
+void FinalServiceResponse::setServiceType(const char * serviceType)
+{
+    this->serviceType = serviceType;
+}
+
+double FinalServiceResponse::getServiceQuality() const
+{
+    return this->serviceQuality;
+}
+
+void FinalServiceResponse::setServiceQuality(double serviceQuality)
+{
+    this->serviceQuality = serviceQuality;
+}
+
+class FinalServiceResponseDescriptor : public omnetpp::cClassDescriptor
+{
+  private:
+    mutable const char **propertyNames;
+    enum FieldConstants {
+        FIELD_requesterId,
+        FIELD_providerId,
+        FIELD_serviceType,
+        FIELD_serviceQuality,
+    };
+  public:
+    FinalServiceResponseDescriptor();
+    virtual ~FinalServiceResponseDescriptor();
+
+    virtual bool doesSupport(omnetpp::cObject *obj) const override;
+    virtual const char **getPropertyNames() const override;
+    virtual const char *getProperty(const char *propertyName) const override;
+    virtual int getFieldCount() const override;
+    virtual const char *getFieldName(int field) const override;
+    virtual int findField(const char *fieldName) const override;
+    virtual unsigned int getFieldTypeFlags(int field) const override;
+    virtual const char *getFieldTypeString(int field) const override;
+    virtual const char **getFieldPropertyNames(int field) const override;
+    virtual const char *getFieldProperty(int field, const char *propertyName) const override;
+    virtual int getFieldArraySize(omnetpp::any_ptr object, int field) const override;
+    virtual void setFieldArraySize(omnetpp::any_ptr object, int field, int size) const override;
+
+    virtual const char *getFieldDynamicTypeString(omnetpp::any_ptr object, int field, int i) const override;
+    virtual std::string getFieldValueAsString(omnetpp::any_ptr object, int field, int i) const override;
+    virtual void setFieldValueAsString(omnetpp::any_ptr object, int field, int i, const char *value) const override;
+    virtual omnetpp::cValue getFieldValue(omnetpp::any_ptr object, int field, int i) const override;
+    virtual void setFieldValue(omnetpp::any_ptr object, int field, int i, const omnetpp::cValue& value) const override;
+
+    virtual const char *getFieldStructName(int field) const override;
+    virtual omnetpp::any_ptr getFieldStructValuePointer(omnetpp::any_ptr object, int field, int i) const override;
+    virtual void setFieldStructValuePointer(omnetpp::any_ptr object, int field, int i, omnetpp::any_ptr ptr) const override;
+};
+
+Register_ClassDescriptor(FinalServiceResponseDescriptor)
+
+FinalServiceResponseDescriptor::FinalServiceResponseDescriptor() : omnetpp::cClassDescriptor(omnetpp::opp_typename(typeid(FinalServiceResponse)), "omnetpp::cMessage")
+{
+    propertyNames = nullptr;
+}
+
+FinalServiceResponseDescriptor::~FinalServiceResponseDescriptor()
+{
+    delete[] propertyNames;
+}
+
+bool FinalServiceResponseDescriptor::doesSupport(omnetpp::cObject *obj) const
+{
+    return dynamic_cast<FinalServiceResponse *>(obj)!=nullptr;
+}
+
+const char **FinalServiceResponseDescriptor::getPropertyNames() const
+{
+    if (!propertyNames) {
+        static const char *names[] = {  nullptr };
+        omnetpp::cClassDescriptor *base = getBaseClassDescriptor();
+        const char **baseNames = base ? base->getPropertyNames() : nullptr;
+        propertyNames = mergeLists(baseNames, names);
+    }
+    return propertyNames;
+}
+
+const char *FinalServiceResponseDescriptor::getProperty(const char *propertyName) const
+{
+    omnetpp::cClassDescriptor *base = getBaseClassDescriptor();
+    return base ? base->getProperty(propertyName) : nullptr;
+}
+
+int FinalServiceResponseDescriptor::getFieldCount() const
+{
+    omnetpp::cClassDescriptor *base = getBaseClassDescriptor();
+    return base ? 4+base->getFieldCount() : 4;
+}
+
+unsigned int FinalServiceResponseDescriptor::getFieldTypeFlags(int field) const
+{
+    omnetpp::cClassDescriptor *base = getBaseClassDescriptor();
+    if (base) {
+        if (field < base->getFieldCount())
+            return base->getFieldTypeFlags(field);
+        field -= base->getFieldCount();
+    }
+    static unsigned int fieldTypeFlags[] = {
+        FD_ISEDITABLE,    // FIELD_requesterId
+        FD_ISEDITABLE,    // FIELD_providerId
+        FD_ISEDITABLE,    // FIELD_serviceType
+        FD_ISEDITABLE,    // FIELD_serviceQuality
+    };
+    return (field >= 0 && field < 4) ? fieldTypeFlags[field] : 0;
+}
+
+const char *FinalServiceResponseDescriptor::getFieldName(int field) const
+{
+    omnetpp::cClassDescriptor *base = getBaseClassDescriptor();
+    if (base) {
+        if (field < base->getFieldCount())
+            return base->getFieldName(field);
+        field -= base->getFieldCount();
+    }
+    static const char *fieldNames[] = {
+        "requesterId",
+        "providerId",
+        "serviceType",
+        "serviceQuality",
+    };
+    return (field >= 0 && field < 4) ? fieldNames[field] : nullptr;
+}
+
+int FinalServiceResponseDescriptor::findField(const char *fieldName) const
+{
+    omnetpp::cClassDescriptor *base = getBaseClassDescriptor();
+    int baseIndex = base ? base->getFieldCount() : 0;
+    if (strcmp(fieldName, "requesterId") == 0) return baseIndex + 0;
+    if (strcmp(fieldName, "providerId") == 0) return baseIndex + 1;
+    if (strcmp(fieldName, "serviceType") == 0) return baseIndex + 2;
+    if (strcmp(fieldName, "serviceQuality") == 0) return baseIndex + 3;
+    return base ? base->findField(fieldName) : -1;
+}
+
+const char *FinalServiceResponseDescriptor::getFieldTypeString(int field) const
+{
+    omnetpp::cClassDescriptor *base = getBaseClassDescriptor();
+    if (base) {
+        if (field < base->getFieldCount())
+            return base->getFieldTypeString(field);
+        field -= base->getFieldCount();
+    }
+    static const char *fieldTypeStrings[] = {
+        "int",    // FIELD_requesterId
+        "int",    // FIELD_providerId
+        "string",    // FIELD_serviceType
+        "double",    // FIELD_serviceQuality
+    };
+    return (field >= 0 && field < 4) ? fieldTypeStrings[field] : nullptr;
+}
+
+const char **FinalServiceResponseDescriptor::getFieldPropertyNames(int field) const
+{
+    omnetpp::cClassDescriptor *base = getBaseClassDescriptor();
+    if (base) {
+        if (field < base->getFieldCount())
+            return base->getFieldPropertyNames(field);
+        field -= base->getFieldCount();
+    }
+    switch (field) {
+        default: return nullptr;
+    }
+}
+
+const char *FinalServiceResponseDescriptor::getFieldProperty(int field, const char *propertyName) const
+{
+    omnetpp::cClassDescriptor *base = getBaseClassDescriptor();
+    if (base) {
+        if (field < base->getFieldCount())
+            return base->getFieldProperty(field, propertyName);
+        field -= base->getFieldCount();
+    }
+    switch (field) {
+        default: return nullptr;
+    }
+}
+
+int FinalServiceResponseDescriptor::getFieldArraySize(omnetpp::any_ptr object, int field) const
+{
+    omnetpp::cClassDescriptor *base = getBaseClassDescriptor();
+    if (base) {
+        if (field < base->getFieldCount())
+            return base->getFieldArraySize(object, field);
+        field -= base->getFieldCount();
+    }
+    FinalServiceResponse *pp = omnetpp::fromAnyPtr<FinalServiceResponse>(object); (void)pp;
+    switch (field) {
+        default: return 0;
+    }
+}
+
+void FinalServiceResponseDescriptor::setFieldArraySize(omnetpp::any_ptr object, int field, int size) const
+{
+    omnetpp::cClassDescriptor *base = getBaseClassDescriptor();
+    if (base) {
+        if (field < base->getFieldCount()){
+            base->setFieldArraySize(object, field, size);
+            return;
+        }
+        field -= base->getFieldCount();
+    }
+    FinalServiceResponse *pp = omnetpp::fromAnyPtr<FinalServiceResponse>(object); (void)pp;
+    switch (field) {
+        default: throw omnetpp::cRuntimeError("Cannot set array size of field %d of class 'FinalServiceResponse'", field);
+    }
+}
+
+const char *FinalServiceResponseDescriptor::getFieldDynamicTypeString(omnetpp::any_ptr object, int field, int i) const
+{
+    omnetpp::cClassDescriptor *base = getBaseClassDescriptor();
+    if (base) {
+        if (field < base->getFieldCount())
+            return base->getFieldDynamicTypeString(object,field,i);
+        field -= base->getFieldCount();
+    }
+    FinalServiceResponse *pp = omnetpp::fromAnyPtr<FinalServiceResponse>(object); (void)pp;
+    switch (field) {
+        default: return nullptr;
+    }
+}
+
+std::string FinalServiceResponseDescriptor::getFieldValueAsString(omnetpp::any_ptr object, int field, int i) const
+{
+    omnetpp::cClassDescriptor *base = getBaseClassDescriptor();
+    if (base) {
+        if (field < base->getFieldCount())
+            return base->getFieldValueAsString(object,field,i);
+        field -= base->getFieldCount();
+    }
+    FinalServiceResponse *pp = omnetpp::fromAnyPtr<FinalServiceResponse>(object); (void)pp;
+    switch (field) {
+        case FIELD_requesterId: return long2string(pp->getRequesterId());
+        case FIELD_providerId: return long2string(pp->getProviderId());
+        case FIELD_serviceType: return oppstring2string(pp->getServiceType());
+        case FIELD_serviceQuality: return double2string(pp->getServiceQuality());
+        default: return "";
+    }
+}
+
+void FinalServiceResponseDescriptor::setFieldValueAsString(omnetpp::any_ptr object, int field, int i, const char *value) const
+{
+    omnetpp::cClassDescriptor *base = getBaseClassDescriptor();
+    if (base) {
+        if (field < base->getFieldCount()){
+            base->setFieldValueAsString(object, field, i, value);
+            return;
+        }
+        field -= base->getFieldCount();
+    }
+    FinalServiceResponse *pp = omnetpp::fromAnyPtr<FinalServiceResponse>(object); (void)pp;
+    switch (field) {
+        case FIELD_requesterId: pp->setRequesterId(string2long(value)); break;
+        case FIELD_providerId: pp->setProviderId(string2long(value)); break;
+        case FIELD_serviceType: pp->setServiceType((value)); break;
+        case FIELD_serviceQuality: pp->setServiceQuality(string2double(value)); break;
+        default: throw omnetpp::cRuntimeError("Cannot set field %d of class 'FinalServiceResponse'", field);
+    }
+}
+
+omnetpp::cValue FinalServiceResponseDescriptor::getFieldValue(omnetpp::any_ptr object, int field, int i) const
+{
+    omnetpp::cClassDescriptor *base = getBaseClassDescriptor();
+    if (base) {
+        if (field < base->getFieldCount())
+            return base->getFieldValue(object,field,i);
+        field -= base->getFieldCount();
+    }
+    FinalServiceResponse *pp = omnetpp::fromAnyPtr<FinalServiceResponse>(object); (void)pp;
+    switch (field) {
+        case FIELD_requesterId: return pp->getRequesterId();
+        case FIELD_providerId: return pp->getProviderId();
+        case FIELD_serviceType: return pp->getServiceType();
+        case FIELD_serviceQuality: return pp->getServiceQuality();
+        default: throw omnetpp::cRuntimeError("Cannot return field %d of class 'FinalServiceResponse' as cValue -- field index out of range?", field);
+    }
+}
+
+void FinalServiceResponseDescriptor::setFieldValue(omnetpp::any_ptr object, int field, int i, const omnetpp::cValue& value) const
+{
+    omnetpp::cClassDescriptor *base = getBaseClassDescriptor();
+    if (base) {
+        if (field < base->getFieldCount()){
+            base->setFieldValue(object, field, i, value);
+            return;
+        }
+        field -= base->getFieldCount();
+    }
+    FinalServiceResponse *pp = omnetpp::fromAnyPtr<FinalServiceResponse>(object); (void)pp;
+    switch (field) {
+        case FIELD_requesterId: pp->setRequesterId(omnetpp::checked_int_cast<int>(value.intValue())); break;
+        case FIELD_providerId: pp->setProviderId(omnetpp::checked_int_cast<int>(value.intValue())); break;
+        case FIELD_serviceType: pp->setServiceType(value.stringValue()); break;
+        case FIELD_serviceQuality: pp->setServiceQuality(value.doubleValue()); break;
+        default: throw omnetpp::cRuntimeError("Cannot set field %d of class 'FinalServiceResponse'", field);
+    }
+}
+
+const char *FinalServiceResponseDescriptor::getFieldStructName(int field) const
+{
+    omnetpp::cClassDescriptor *base = getBaseClassDescriptor();
+    if (base) {
+        if (field < base->getFieldCount())
+            return base->getFieldStructName(field);
+        field -= base->getFieldCount();
+    }
+    switch (field) {
+        default: return nullptr;
+    };
+}
+
+omnetpp::any_ptr FinalServiceResponseDescriptor::getFieldStructValuePointer(omnetpp::any_ptr object, int field, int i) const
+{
+    omnetpp::cClassDescriptor *base = getBaseClassDescriptor();
+    if (base) {
+        if (field < base->getFieldCount())
+            return base->getFieldStructValuePointer(object, field, i);
+        field -= base->getFieldCount();
+    }
+    FinalServiceResponse *pp = omnetpp::fromAnyPtr<FinalServiceResponse>(object); (void)pp;
+    switch (field) {
+        default: return omnetpp::any_ptr(nullptr);
+    }
+}
+
+void FinalServiceResponseDescriptor::setFieldStructValuePointer(omnetpp::any_ptr object, int field, int i, omnetpp::any_ptr ptr) const
+{
+    omnetpp::cClassDescriptor *base = getBaseClassDescriptor();
+    if (base) {
+        if (field < base->getFieldCount()){
+            base->setFieldStructValuePointer(object, field, i, ptr);
+            return;
+        }
+        field -= base->getFieldCount();
+    }
+    FinalServiceResponse *pp = omnetpp::fromAnyPtr<FinalServiceResponse>(object); (void)pp;
+    switch (field) {
+        default: throw omnetpp::cRuntimeError("Cannot set field %d of class 'FinalServiceResponse'", field);
     }
 }
 

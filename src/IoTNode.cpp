@@ -94,6 +94,27 @@ void printBlockChain(std::vector<Block> blockchain) {
   }
   EV << "on est finis lire le block!\n\n";
 }
+
+// ************************************************************
+void IoTNode::populateServiceTable() {
+    EV << "Node " << getId() << " is now filling its service table with direct neighbors..." << endl;
+    for (int i = 0; i < gateSize("inoutGate"); i++) {
+        cGate *outGate = gate("inoutGate$o", i);
+        if (outGate->isConnected()) {
+            cModule *connectedModule = outGate->getNextGate()->getOwnerModule();
+            IoTNode *neighborNode = dynamic_cast<IoTNode *>(connectedModule);
+            if (neighborNode) {
+                std::string neighborService = neighborNode->providedService;
+                int neighborId = neighborNode->getId();
+                serviceTable[neighborService].push_back(neighborId);
+                EV << "Node " << getId() << " learned that Node " << neighborId
+                   << " provides service: " << neighborService << endl;
+            }
+        }
+    }
+    printServiceTable();
+}
+
 void IoTNode::printServiceTable() {
     EV << "Service Table for Node " << getId() << ":\n";
 
@@ -114,109 +135,186 @@ void IoTNode::printServiceTable() {
     }
 }
 
-// assiri uzun bu metod; mumkunse kisalmali aslinda...
-void IoTNode::handleMessage(cMessage *msg) {
-  EV << "My id is: " << getId();
-  //printBlockChain(blockchain); // TODO: debug icin bu, silinecek tabii ki!
-  if (msg->isSelfMessage() &&
-      strcmp(msg->getName(), "populateServiceTable") == 0) {
-    EV << "Node " << getId()
-       << " is now filling its service table with direct neighbors..."
-       << endl; // sadece bağlı oldukları ile dolduruyor
 
-    for (int i = 0; i < gateSize("inoutGate"); i++) {
-      cGate *outGate = gate("inoutGate$o", i);
-      if (outGate->isConnected()) {
-        cModule *connectedModule = outGate->getNextGate()->getOwnerModule();
-        IoTNode *neighborNode = dynamic_cast<IoTNode *>(connectedModule);
+void IoTNode::handleServiceRequestMsg(cMessage *msg) {
+    ServiceRequest *request = check_and_cast<ServiceRequest *>(msg);
+    int requesterId = request->getRequesterId();
+    std::string requestedService = request->getServiceType();
 
-        if (neighborNode) {
-                        std::string neighborService = neighborNode->providedService;
-                        int neighborId = neighborNode->getId();
+    if (providedService != requestedService) {
+        EV << "Node " << getId() << " does NOT provide requested service: " << requestedService << ". Ignoring." << endl;
+        delete request;
+        return;
+    }
 
-                        // Check if the service type exists in the table
-                        if (serviceTable.find(neighborService) != serviceTable.end()) {
-                            // If exists, add the node ID
-                            serviceTable[neighborService].push_back(neighborId);
-                        } else {
-                            // Otherwise, create a new entry
-                            serviceTable[neighborService] = {neighborId};
-                        }
-          EV << "Node " << getId() << " learned that Node "
-             << neighborNode->getId()
-             << " provides service: " << neighborService << endl;
-          // I know that I changed something soo small but this works as a
-          // debugger now
+    EV << "Node " << getId() << " will respond to service request from Node " << requesterId << endl;
+    ServiceResponse *response = new ServiceResponse("serviceResponse");
+    response->setRequesterId(requesterId);
+    response->setProviderId(getId());
+    response->setServiceType(requestedService.c_str());
+
+    if (routingTable.find(requesterId) != routingTable.end()) {
+        int gateIndex = routingTable[requesterId];
+        send(response, "inoutGate$o", gateIndex);
+    } else {
+        EV << "No route to requester " << requesterId << endl;
+        delete response;
+    }
+
+    delete request;
+}
+void IoTNode::handleServiceResponseMsg(cMessage *msg) {
+    ServiceResponse *response = check_and_cast<ServiceResponse *>(msg);
+    int responderId = response->getProviderId();
+    std::string serviceType = response->getServiceType();
+
+    if (requestedServiceType == serviceType) {
+        double dt = calculateDirectTrust(*allNodes[responderId], simTime().dbl());
+        respondedProviders[responderId] = dt;
+        pendingResponses.erase(responderId);
+        EV << "Received service response from Node " << responderId << " with DT = " << dt << endl;
+
+        if (pendingResponses.empty()) {
+            int bestProviderId = -1;
+            double maxTrust = -1;
+
+            for (const auto &entry : respondedProviders) {
+                if (entry.second > maxTrust) {
+                    bestProviderId = entry.first;
+                    maxTrust = entry.second;
+                }
+            }
+
+            if (bestProviderId != -1 && routingTable.find(bestProviderId) != routingTable.end()) {
+                int gateIndex = routingTable[bestProviderId];
+                FinalServiceRequest *finalRequest = new FinalServiceRequest("finalServiceRequest");
+                finalRequest->setRequesterId(getId());
+                finalRequest->setProviderId(bestProviderId);
+                finalRequest->setServiceType(requestedServiceType.c_str());
+                send(finalRequest, "inoutGate$o", gateIndex);
+
+                EV << "Sent FINAL service request to Node " << bestProviderId << " with trust = " << maxTrust << endl;
+            }
         }
-      }
     }
-    printServiceTable();//silinecek bu denemek için yazdım
 
-    delete msg; // Clean up the scheduled event
-    return;
-  }
-  if (msg->isSelfMessage()) {
-    if (strcmp(msg->getName(), "serviceRequestTimer") == 0) {
-      EV << "IoTNode " << getId() << " is initiating a service request."
-         << endl;
-      initiateServiceRequest();
-      scheduleAt(simTime() + uniform(1, 5), msg); // Reschedule next request
-    }
-    return;
-  }
-  EV << "Received message: " << msg->getName()
-     << " (Type: " << msg->getClassName() << ")" << endl;
+    delete response;
+}
+void IoTNode::handleFinalServiceRequestMsg(cMessage *msg) {
+    FinalServiceRequest *request = check_and_cast<FinalServiceRequest *>(msg);
+    int requesterId = request->getRequesterId();
+    std::string requestedService = request->getServiceType();
 
-  if (strcmp(msg->getName(), "serviceRequest") == 0) {
-    ServiceRequest *transaction = dynamic_cast<ServiceRequest *>(msg);
-    if (!transaction) {
-      EV << "Error: Message is not actually a ServiceRequest!" << endl;
-      return;
+    if (providedService != requestedService) {
+        EV << "Node " << getId() << " received final request for " << requestedService
+           << ", but provides " << providedService << ". Ignoring." << endl;
+        delete request;
+        return;
     }
-    handleServiceRequest(transaction->getRequesterId());
 
-  } else if (strcmp(msg->getName(), "serviceResponse") == 0) {
-    ServiceResponse *transaction = dynamic_cast<ServiceResponse *>(msg);
-    if (!transaction) {
-      EV << "Error: Message is not actually a ServiceResponse!" << endl;
-      return;
-    }
-    EV << "IoT Node " << getId() << " received service from Node "
-       << transaction->getProviderId() << endl;
-    sendRating(transaction->getProviderId());
+    EV << "Providing FINAL service to Node " << requesterId << endl;
 
-  } else if (strcmp(msg->getName(), "serviceRating") == 0) {
-    ServiceRating *transaction = dynamic_cast<ServiceRating *>(msg);
-    if (!transaction) {
-      EV << "Error: Message is not actually a ServiceRating!" << endl;
-      return;
+    FinalServiceResponse *response = new FinalServiceResponse("finalServiceResponse");
+    response->setRequesterId(requesterId);
+    response->setProviderId(getId());
+    response->setServiceType(requestedService.c_str());
+    response->setServiceQuality(uniform(3.0, 5.0));//burası şu anda random ama random kalmayacak saldırılara göre değiştireceğiz burayı
+
+    if (routingTable.find(requesterId) != routingTable.end()) {
+        int gateIndex = routingTable[requesterId];
+        send(response, "inoutGate$o", gateIndex);
+    } else {
+        EV << "No route to requester " << requesterId << " for final service!" << endl;
+        delete response;
     }
+
+    delete request;
+}
+void IoTNode::handleFinalServiceResponseMsg(cMessage *msg) {
+    FinalServiceResponse *response = check_and_cast<FinalServiceResponse *>(msg);
+    int providerId = response->getProviderId();
+    double quality = response->getServiceQuality();
+
+    EV << "Node " << getId() << " received final service from " << providerId
+       << " with quality: " << quality << endl;
+
+    sendRating(providerId);
+
+    delete response;
+}
+void IoTNode::handleServiceRatingMsg(cMessage *msg) {
+    ServiceRating *transaction = check_and_cast<ServiceRating *>(msg);
 
     if (isClusterHead) {
-      EV << "Cluster Head Node " << getId() << " adding rating to blockchain."
-         << endl;
-      int blockId =
-          ++globalBlockId; // burada validator için ekstra bir seçim yok çünkü
-                           // zaten en yüksek trust skora sahipler cluster head
-      Block newBlock = {
-          .blockId = blockId,
-          .validatorId = getId(),
-          .transactionData =
-              "Rating: " + std::to_string(transaction->getRating()) + " from " +
-              std::to_string(transaction->getRequesterId()) + " to " +
-              std::to_string(transaction->getProviderId()),
-          .timestamp = simTime().dbl()};
+        EV << "Cluster Head Node " << getId() << " adding rating to blockchain." << endl;
+        int blockId = ++globalBlockId;
+        Block newBlock = {
+            .blockId = blockId,
+            .validatorId = getId(),
+            .transactionData = "Rating: " + std::to_string(transaction->getRating()) +
+                               " from " + std::to_string(transaction->getRequesterId()) +
+                               " to " + std::to_string(transaction->getProviderId()),
+            .timestamp = simTime().dbl()
+        };
 
-      blockchain.push_back(newBlock);
-      EV << "Block " << blockId << " added to blockchain." << endl;
+        blockchain.push_back(newBlock);
+        EV << "Block " << blockId << " added to blockchain." << endl;
     } else {
-      EV << "IoT Node " << getId() << " forwarding rating to a Cluster Head"
-         << endl;
-      sendTransactionToClusterHead(transaction);
+        EV << "Forwarding rating to a Cluster Head" << endl;
+        sendTransactionToClusterHead(transaction);
     }
-  }
-  delete msg;
+
+    delete transaction;
 }
+
+
+void IoTNode::handleNetworkMessage(cMessage *msg) {
+    const char* msgName = msg->getName();
+
+    if (strcmp(msgName, "serviceRequest") == 0) {
+        handleServiceRequestMsg(msg);
+    } else if (strcmp(msgName, "serviceResponse") == 0) {
+        handleServiceResponseMsg(msg);
+    } else if (strcmp(msgName, "finalServiceRequest") == 0) {
+        handleFinalServiceRequestMsg(msg);
+    } else if (strcmp(msgName, "finalServiceResponse") == 0) {
+        handleFinalServiceResponseMsg(msg);
+    } else if (strcmp(msgName, "serviceRating") == 0) {
+        handleServiceRatingMsg(msg);
+    } else {
+        EV << "Unhandled message type: " << msg->getName() << endl;
+        delete msg;
+    }
+}
+
+void IoTNode::handleSelfMessage(cMessage *msg) {
+    const char* msgName = msg->getName();
+
+    if (strcmp(msgName, "populateServiceTable") == 0) {
+        populateServiceTable();
+        delete msg;
+    } else if (strcmp(msgName, "serviceRequestTimer") == 0) {
+        EV << "IoTNode " << getId() << " is initiating a service request." << endl;
+        initiateServiceRequest();
+        scheduleAt(simTime() + uniform(1, 5), msg);  // Reschedule
+    }
+}
+
+// assiri uzun bu metod; mumkunse kisalmali aslinda...
+//bu fonksiyonu böldüm içindeki fonksiyonlar yukarıda yazıyor
+//çoğu eski haliyle aynı sadece final service request ve response fonksiyonlarını ekledim
+void IoTNode::handleMessage(cMessage *msg) {
+    EV << "My id is: " << getId() << endl;
+
+    if (msg->isSelfMessage()) {
+        handleSelfMessage(msg);
+    } else {
+        handleNetworkMessage(msg);
+    }
+}
+
+
+
 
 void IoTNode::electClusterHeads() {
   // sorts the allNodes array according to the nodes' trustScores
@@ -241,44 +339,44 @@ int findRoute(int requesterId, int providerId) {
   return 0;
 }
 void IoTNode::initiateServiceRequest() {
-  IoTNode *provider = nullptr;
-  int attempts = 0;
-  int randomIndex = 0;
-  while ((!provider || provider == this) && attempts < 10) {
-    randomIndex = intuniform(0, allNodes.size() - 1); // Select random node
-    provider = allNodes[randomIndex];                 // Get random provider
-    attempts++;
-  }
+    // Step 1: Choose a random service type
+    std::vector<std::string> serviceTypes = {"A", "B", "C", "D"};
+    std::string chosenService = serviceTypes[intuniform(0, serviceTypes.size() - 1)];
+    EV << "IoT Node " << getId() << " is requesting service type: " << chosenService << endl;
 
-  if (!provider || provider == this) {
-    EV << "IoT Node " << getId() << " could not find a valid provider!" << endl;
-    return;
-  }
+    // Step 2: Look up nodes that provide this service
+    if (serviceTable.find(chosenService) == serviceTable.end()) {
+        EV << "No known providers for service type " << chosenService << endl;
+        return;
+    }
 
-  int providerId = provider->getId();
+    std::vector<int> providerIds = serviceTable[chosenService];
+    if (providerIds.empty()) {
+        EV << "Service list is empty for service type " << chosenService << endl;
+        return;
+    }
 
-  int gateIndex;
-  // Check if there is a recorded gate for this provider
-  if (routingTable.find(providerId) == routingTable.end()) {
-    // if not in the table. find a route
-    gateIndex = findRoute(
-        getId(), providerId); // I think this should work like this, no?
-    return;
-  }
-  // TODO: this should change in accordance to the findRoute() func used above
-  // findRoute() should return the next node, which is not the provider node but
-  // one of the "bridge" nodes to that node
-  gateIndex = routingTable[providerId];
+    requestedServiceType = chosenService;
+    pendingResponses.clear();
+    respondedProviders.clear();
 
-  EV << "IoT Node " << getId() << " is sending service request to Node "
-     << providerId << " via gate index " << gateIndex << endl;
+    // Step 3: Send request to all eligible providers
+    for (int providerId : providerIds) {
+        if (providerId == getId()) continue;  // Don't request from self
+        if (routingTable.find(providerId) == routingTable.end()) continue; // No route
 
-  ServiceRequest *serviceRequest = new ServiceRequest("serviceRequest");
-  serviceRequest->setRequesterId(getId());
-  serviceRequest->setProviderId(providerId);
+        int gateIndex = routingTable[providerId];
+        ServiceRequest *request = new ServiceRequest("serviceRequest");
+        request->setRequesterId(getId());
+        request->setProviderId(providerId);
+        request->setServiceType(chosenService.c_str());
 
-  // Send through the correct gate
-  send(serviceRequest, "inoutGate$o", gateIndex);
+        pendingResponses.insert(providerId);
+        send(request, "inoutGate$o", gateIndex);
+        EV << "Sent service request to Node " << providerId << " for type " << chosenService << endl;
+    }
+
+    // Optional: Set a timeout in case no one replies
 }
 
 void IoTNode::handleServiceRequest(int requesterId) {

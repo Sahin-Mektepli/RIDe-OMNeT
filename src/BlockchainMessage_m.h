@@ -19,6 +19,8 @@
 class BlockchainTransaction;
 class ServiceRequest;
 class ServiceResponse;
+class FinalServiceRequest;
+class FinalServiceResponse;
 class ServiceRating;
 /**
  * Class generated from <tt>src/BlockchainMessage.msg:15</tt> by opp_msgtool.
@@ -85,8 +87,9 @@ inline void doParsimUnpacking(omnetpp::cCommBuffer *b, BlockchainTransaction& ob
  * <pre>
  * message ServiceRequest
  * {
- *     int requesterId;  // ID of the node requesting service
- *     int providerId;   // ID of the node providing service
+ *     int requesterId;
+ *     int providerId;
+ *     string serviceType;
  * }
  * </pre>
  */
@@ -95,6 +98,7 @@ class ServiceRequest : public ::omnetpp::cMessage
   protected:
     int requesterId = 0;
     int providerId = 0;
+    omnetpp::opp_string serviceType;
 
   private:
     void copy(const ServiceRequest& other);
@@ -116,18 +120,22 @@ class ServiceRequest : public ::omnetpp::cMessage
 
     virtual int getProviderId() const;
     virtual void setProviderId(int providerId);
+
+    virtual const char * getServiceType() const;
+    virtual void setServiceType(const char * serviceType);
 };
 
 inline void doParsimPacking(omnetpp::cCommBuffer *b, const ServiceRequest& obj) {obj.parsimPack(b);}
 inline void doParsimUnpacking(omnetpp::cCommBuffer *b, ServiceRequest& obj) {obj.parsimUnpack(b);}
 
 /**
- * Class generated from <tt>src/BlockchainMessage.msg:25</tt> by opp_msgtool.
+ * Class generated from <tt>src/BlockchainMessage.msg:26</tt> by opp_msgtool.
  * <pre>
  * message ServiceResponse
  * {
- *     int requesterId;  // ID of the original requester
- *     int providerId;   // ID of the service provider
+ *     int requesterId;
+ *     int providerId;
+ *     string serviceType;
  * }
  * </pre>
  */
@@ -136,6 +144,7 @@ class ServiceResponse : public ::omnetpp::cMessage
   protected:
     int requesterId = 0;
     int providerId = 0;
+    omnetpp::opp_string serviceType;
 
   private:
     void copy(const ServiceResponse& other);
@@ -157,19 +166,119 @@ class ServiceResponse : public ::omnetpp::cMessage
 
     virtual int getProviderId() const;
     virtual void setProviderId(int providerId);
+
+    virtual const char * getServiceType() const;
+    virtual void setServiceType(const char * serviceType);
 };
 
 inline void doParsimPacking(omnetpp::cCommBuffer *b, const ServiceResponse& obj) {obj.parsimPack(b);}
 inline void doParsimUnpacking(omnetpp::cCommBuffer *b, ServiceResponse& obj) {obj.parsimUnpack(b);}
 
 /**
- * Class generated from <tt>src/BlockchainMessage.msg:30</tt> by opp_msgtool.
+ * Class generated from <tt>src/BlockchainMessage.msg:32</tt> by opp_msgtool.
+ * <pre>
+ * message FinalServiceRequest
+ * {
+ *     int requesterId;
+ *     int providerId;
+ *     string serviceType;
+ * }
+ * </pre>
+ */
+class FinalServiceRequest : public ::omnetpp::cMessage
+{
+  protected:
+    int requesterId = 0;
+    int providerId = 0;
+    omnetpp::opp_string serviceType;
+
+  private:
+    void copy(const FinalServiceRequest& other);
+
+  protected:
+    bool operator==(const FinalServiceRequest&) = delete;
+
+  public:
+    FinalServiceRequest(const char *name=nullptr, short kind=0);
+    FinalServiceRequest(const FinalServiceRequest& other);
+    virtual ~FinalServiceRequest();
+    FinalServiceRequest& operator=(const FinalServiceRequest& other);
+    virtual FinalServiceRequest *dup() const override {return new FinalServiceRequest(*this);}
+    virtual void parsimPack(omnetpp::cCommBuffer *b) const override;
+    virtual void parsimUnpack(omnetpp::cCommBuffer *b) override;
+
+    virtual int getRequesterId() const;
+    virtual void setRequesterId(int requesterId);
+
+    virtual int getProviderId() const;
+    virtual void setProviderId(int providerId);
+
+    virtual const char * getServiceType() const;
+    virtual void setServiceType(const char * serviceType);
+};
+
+inline void doParsimPacking(omnetpp::cCommBuffer *b, const FinalServiceRequest& obj) {obj.parsimPack(b);}
+inline void doParsimUnpacking(omnetpp::cCommBuffer *b, FinalServiceRequest& obj) {obj.parsimUnpack(b);}
+
+/**
+ * Class generated from <tt>src/BlockchainMessage.msg:38</tt> by opp_msgtool.
+ * <pre>
+ * message FinalServiceResponse
+ * {
+ *     int requesterId;
+ *     int providerId;
+ *     string serviceType;
+ *     double serviceQuality;
+ * }
+ * </pre>
+ */
+class FinalServiceResponse : public ::omnetpp::cMessage
+{
+  protected:
+    int requesterId = 0;
+    int providerId = 0;
+    omnetpp::opp_string serviceType;
+    double serviceQuality = 0;
+
+  private:
+    void copy(const FinalServiceResponse& other);
+
+  protected:
+    bool operator==(const FinalServiceResponse&) = delete;
+
+  public:
+    FinalServiceResponse(const char *name=nullptr, short kind=0);
+    FinalServiceResponse(const FinalServiceResponse& other);
+    virtual ~FinalServiceResponse();
+    FinalServiceResponse& operator=(const FinalServiceResponse& other);
+    virtual FinalServiceResponse *dup() const override {return new FinalServiceResponse(*this);}
+    virtual void parsimPack(omnetpp::cCommBuffer *b) const override;
+    virtual void parsimUnpack(omnetpp::cCommBuffer *b) override;
+
+    virtual int getRequesterId() const;
+    virtual void setRequesterId(int requesterId);
+
+    virtual int getProviderId() const;
+    virtual void setProviderId(int providerId);
+
+    virtual const char * getServiceType() const;
+    virtual void setServiceType(const char * serviceType);
+
+    virtual double getServiceQuality() const;
+    virtual void setServiceQuality(double serviceQuality);
+};
+
+inline void doParsimPacking(omnetpp::cCommBuffer *b, const FinalServiceResponse& obj) {obj.parsimPack(b);}
+inline void doParsimUnpacking(omnetpp::cCommBuffer *b, FinalServiceResponse& obj) {obj.parsimUnpack(b);}
+
+/**
+ * Class generated from <tt>src/BlockchainMessage.msg:44</tt> by opp_msgtool.
  * <pre>
  * message ServiceRating
  * {
- *     int requesterId;  // ID of the node giving the rating
- *     int providerId;   // ID of the service provider
- *     double rating;    // Rating given for the service
+ *     int requesterId;
+ *     int providerId;
+ *     double rating;
  * }
  * </pre>
  */
@@ -214,6 +323,8 @@ namespace omnetpp {
 template<> inline BlockchainTransaction *fromAnyPtr(any_ptr ptr) { return check_and_cast<BlockchainTransaction*>(ptr.get<cObject>()); }
 template<> inline ServiceRequest *fromAnyPtr(any_ptr ptr) { return check_and_cast<ServiceRequest*>(ptr.get<cObject>()); }
 template<> inline ServiceResponse *fromAnyPtr(any_ptr ptr) { return check_and_cast<ServiceResponse*>(ptr.get<cObject>()); }
+template<> inline FinalServiceRequest *fromAnyPtr(any_ptr ptr) { return check_and_cast<FinalServiceRequest*>(ptr.get<cObject>()); }
+template<> inline FinalServiceResponse *fromAnyPtr(any_ptr ptr) { return check_and_cast<FinalServiceResponse*>(ptr.get<cObject>()); }
 template<> inline ServiceRating *fromAnyPtr(any_ptr ptr) { return check_and_cast<ServiceRating*>(ptr.get<cObject>()); }
 
 }  // namespace omnetpp
