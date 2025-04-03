@@ -33,7 +33,7 @@ PROJECTRELATIVE_PATH =
 O = $(PROJECT_OUTPUT_DIR)/$(CONFIGNAME)/$(PROJECTRELATIVE_PATH)
 
 # Object files for local .cpp, .msg and .sm files
-OBJS = $O/src/BlockchainNetwork.o $O/src/BlockchainNode.o $O/src/IoTNode.o $O/src/BlockchainMessage_m.o
+OBJS = $O/src/BlockchainNetwork.o $O/src/BlockchainNode.o $O/src/IoTNode.o $O/src/Semi.o $O/src/BlockchainMessage_m.o
 
 # Message files
 MSGFILES = \

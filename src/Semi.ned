@@ -14,32 +14,13 @@
 // 
 
 package src;
-
-
-
-
-
-network BlockchainNetwork {
+simple Semi
+{
     parameters:
-        int numNodes = 10;  // Total number of IoT nodes
-
-    submodules:
-       // iotNode[numNodes]: IoTNode;
-       // cluster2[numNodes]: IoTNode;
-
-
-        iotNode[numNodes]: Semi;
-        cluster2[numNodes]: Semi;
-    connections allowunconnected:
-        for i=0.. numNodes-1, for j=i+1.. numNodes-1{
-        	iotNode[i].inoutGate++ <--> iotNode[j].inoutGate++;
-        }
-      //  for i=0.. numNodes-1, for j=i+1.. numNodes-1{
-      // 	cluster2[i].inoutGate++ <--> cluster2[j].inoutGate++;
-      //  }
-       
-        
+        @display("i=device/laptop");
+       // bool isMalicious = default(false);
+        //string serviceType = default("default");
+        // Add more parameters as needed
+    gates:
+        inout inoutGate[];
 }
-
-
-
