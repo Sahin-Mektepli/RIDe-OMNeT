@@ -332,6 +332,17 @@ void IoTNode::handleMessage(cMessage *msg) {
   }
 }
 
+void IoTNode::updateProviderGeneralTrust(IoTNode &provider,
+                                         double requestorTrust, double rating) {
+  double updatedProvidedTrust =
+      provider.trustScore + genTrustCoef * requestorTrust * rating;
+  double oldTS = provider.trustScore;
+  provider.trustScore = updatedProvidedTrust;
+  EV << "ProviderTS" << oldTS << " got a rating " << rating
+     << "from a node with TS " << requestorTrust << " and was updated to "
+     << updatedProvidedTrust;
+}
+
 void IoTNode::electClusterHeads() {
   // sorts the allNodes array according to the nodes' trustScores
   // third param is a lambda func.
