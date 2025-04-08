@@ -318,7 +318,6 @@ void IoTNode::handleSelfMessage(cMessage *msg) {
   }
 }
 
-// assiri uzun bu metod; mumkunse kisalmali aslinda...
 // bu fonksiyonu böldüm içindeki fonksiyonlar yukarıda yazıyor
 // çoğu eski haliyle aynı sadece final service request ve response
 // fonksiyonlarını ekledim
@@ -334,13 +333,23 @@ void IoTNode::handleMessage(cMessage *msg) {
 
 void IoTNode::updateProviderGeneralTrust(IoTNode &provider,
                                          double requestorTrust, double rating) {
-  double updatedProvidedTrust =
-      provider.trustScore + genTrustCoef * requestorTrust * rating;
-  double oldTS = provider.trustScore;
-  provider.trustScore = updatedProvidedTrust;
+  // if rating is positive, add; else substract the update!
+  double changeInTS = 0;
+  if (rating >= 5) { //"positive" rating
+    changeInTS = rating * requestorTrust;
+  } else { // "negative" rating
+    changeInTS = (-1) * rating * requestorTrust;
+    // NOTE: burada -1 yerine kindarlikla ilgili bir katsayi??
+  }
+  // double updatedProvidedTrust =
+  //     provider.trustScore + genTrustCoef * requestorTrust * rating;
+  double updatedProviderTrust = genTrustCoef * provider.trustScore + changeInTS;
+  provider.trustScore = updatedProviderTrust;
+
+  double oldTS = provider.trustScore; // for debugging
   EV << "ProviderTS" << oldTS << " got a rating " << rating
      << "from a node with TS " << requestorTrust << " and was updated to "
-     << updatedProvidedTrust;
+     << updatedProviderTrust;
 }
 
 void IoTNode::electClusterHeads() {
@@ -579,7 +588,7 @@ double IoTNode::calculateDirectTrust(int requestorId, int providerId,
     return calculateIndirectTrust(requestorId, providerId, time);
   // so there are enough interactions, we calculate DT
   double dt = 0; // initialise DT
-  double positivie_ratings = 0;
+  double positiveRatings = 0;
   double all_ratings = 0;
   // bu ikisi decay'e tabii olacaklar
 
@@ -598,21 +607,20 @@ double IoTNode::calculateDirectTrust(int requestorId, int providerId,
       continue;
     double blockTime = block.timestamp;
     // double decayFactor = calculateDecay(time, blockTime);
-    double decayFactor = 1;
     //   dt += rating * decayFactor;
     double addendum = rating * decayFactor;
     EV << "rating " << rating << '\n';
     if (rating >= 5.0) { // positive rating
-      positivie_ratings += addendum;
+      positiveRatings += addendum;
     } else { // negative rating;
       addendum *= rancorCoef;
       // olumsuzsa kin katsayisiyla carp ki fazla tesir etsin
     }
     all_ratings += addendum;
   }
-  EV << "positive ratings :" << positivie_ratings
+  EV << "positive ratings :" << positiveRatings
      << "\nall ratings: " << all_ratings << '\n';
-  dt = positivie_ratings / all_ratings;
+  dt = positiveRatings / all_ratings;
   return dt;
 }
 // calculates DT of 'this' to provider

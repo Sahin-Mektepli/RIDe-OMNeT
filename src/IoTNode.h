@@ -29,6 +29,7 @@ private:
   int enoughEncounterLimit = 2; // TODO: these two parameters are just examples
   double genTrustCoef = 0.01;
   double rancorCoef = 2;           // defined to be higher than 1
+  double decayFactor = 1;          // WARN: bunu 1'de unutmak, decay yok demek!
   std::map<int, int> routingTable; // Maps Node ID → Gate Index
   //  std::map<int, std::string> serviceTable; // private olmalı gibi geldi
   //  TODO: bu eski hali sil
