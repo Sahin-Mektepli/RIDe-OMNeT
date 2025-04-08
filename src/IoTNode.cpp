@@ -435,6 +435,10 @@ double IoTNode::calculateDirectTrust(int requestorId, int providerId,
     return calculateIndirectTrust(requestorId, providerId, time);
   // so there are enough interactions, we calculate DT
   double dt = 0; // initialise DT
+  double positivie_ratings = 0;
+  double all_ratings = 0;
+  // bu ikisi decay'e tabii olacaklar
+
   // TODO: DT icin zincirin tamamina mi bakacagiz yoksa yalnizca pencereye mi??
   //  bu tercihin tatbiki cok kolay ama uzun zincirler icin performans farki
   //  olabilir sanirim pencere kullanmak daha mantikli, su anlik boyle
@@ -449,8 +453,17 @@ double IoTNode::calculateDirectTrust(int requestorId, int providerId,
       continue;
     double blockTime = block.timestamp;
     double decayFactor = calculateDecay(time, blockTime);
-    dt += rating * decayFactor;
+    //   dt += rating * decayFactor;
+    double addendum = rating * decayFactor;
+    if (rating >= 5.0) { // positive rating
+      positivie_ratings += addendum;
+    } else { // negative rating;
+      addendum *= rancorCoef;
+      // olumsuzsa kin katsayisiyla carp ki fazla tesir etsin
+    }
+    all_ratings += addendum;
   }
+  dt = positivie_ratings / all_ratings;
   return dt;
 }
 

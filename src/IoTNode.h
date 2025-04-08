@@ -28,6 +28,7 @@ private:
   int windowSize = 3;           // 3 is just for testing purposes
   int enoughEncounterLimit = 2; // TODO: these two parameters are just examples
   double genTrustCoef = 0.01;
+  double rancorCoef = 2;                   // defined to be higher than 1
   std::map<int, int> routingTable;         // Maps Node ID → Gate Index
   std::map<int, std::string> serviceTable; // private olmalı gibi geldi
 
