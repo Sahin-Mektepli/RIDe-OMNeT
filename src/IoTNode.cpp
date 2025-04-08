@@ -6,6 +6,7 @@
  */
 #include "IoTNode.h"
 #include "BlockchainMessage_m.h"
+#include "omnetpp/csimulation.h"
 #include <algorithm>
 #include <cmath>
 #include <map>
@@ -86,6 +87,19 @@ void IoTNode::initialize() {
   // (time > requesTime + tolerance) {cancleEvent()...} syntax'i tam anlamadim o
   // yuzden dokumantasyona yeniden bakmak gerekecek
 }
+/**
+ * returns the (general) trust of a node whose id is given
+ */
+double IoTNode::getTrust(int nodeId) {
+  for (auto node : allNodes) {
+    if (node->getId() == nodeId) {
+      return node->trustScore;
+    }
+  }
+  // this is not a good way to catch errors at all.
+  EV << "getTrust method could not find the node with the given ID\n";
+  return 0;
+}
 
 void printBlockChain(std::vector<Block> blockchain) {
   EV << "je veux voir tous les block a la fois:\n";
@@ -97,7 +111,7 @@ void printBlockChain(std::vector<Block> blockchain) {
 // assiri uzun bu metod; mumkunse kisalmali aslinda...
 void IoTNode::handleMessage(cMessage *msg) {
   EV << "My id is: " << getId();
-  printBlockChain(blockchain); // TODO: debug icin bu, silinecek tabii ki!
+  //  printBlockChain(blockchain); // TODO: debug icin bu, silinecek tabii ki!
   if (msg->isSelfMessage() &&
       strcmp(msg->getName(), "populateServiceTable") == 0) {
     EV << "Node " << getId()
@@ -151,12 +165,22 @@ void IoTNode::handleMessage(cMessage *msg) {
       EV << "Error: Message is not actually a ServiceResponse!" << endl;
       return;
     }
-    EV << "IoT Node " << getId() << " received service from Node "
-       << transaction->getProviderId() << endl;
+    int providerId = transaction->getProviderId();
+    calculateDirectTrust(this->getId(), providerId, simTime().dbl());
+    EV << "IoT Node " << getId() << " received service from Node " << providerId
+       << endl;
     sendRating(transaction->getProviderId());
 
   } else if (strcmp(msg->getName(), "serviceRating") == 0) {
+    // TODO: General Trust Calculation goes here
+    // general trust is basically trustScore we have here
+    // it is updated with the rating and general trust of the requester.
     ServiceRating *transaction = dynamic_cast<ServiceRating *>(msg);
+    // TODO: I assume that we can get the TS of the requestor from ServiceRating
+    // with its id this reqiures an all nodes array which we have!
+    double requestorTrust = getTrust(transaction->getRequesterId());
+    double rating = transaction->getRating();
+    IoTNode::updateProviderGeneralTrust(*this, requestorTrust, rating);
     if (!transaction) {
       EV << "Error: Message is not actually a ServiceRating!" << endl;
       return;
@@ -186,6 +210,17 @@ void IoTNode::handleMessage(cMessage *msg) {
     }
   }
   delete msg;
+}
+
+void IoTNode::updateProviderGeneralTrust(IoTNode &provider,
+                                         double requestorTrust, double rating) {
+  double updatedProvidedTrust =
+      provider.trustScore + genTrustCoef * requestorTrust * rating;
+  double oldTS = provider.trustScore;
+  provider.trustScore = updatedProvidedTrust;
+  EV << "ProviderTS" << oldTS << " got a rating " << rating
+     << "from a node with TS " << requestorTrust << " and was updated to "
+     << updatedProvidedTrust;
 }
 
 void IoTNode::electClusterHeads() {
@@ -270,7 +305,8 @@ void IoTNode::handleServiceRequest(int requesterId) {
 }
 
 void IoTNode::sendRating(int providerId) {
-  double rating = uniform(1, 5); // Generate random rating
+  // rating >5 olumlu baskasi olumsuz olsun dedik
+  double rating = uniform(1, 10); // Generate random rating
   EV << "IoT Node " << getId() << " gives a score of " << rating << " to Node "
      << providerId << endl;
 
@@ -327,19 +363,60 @@ void IoTNode::sendTransactionToClusterHead(ServiceRating *transaction) {
   // Send the transaction via the correct output gate
   send(transaction, "inoutGate$o", gateIndex);
 }
-double IoTNode::calculateIndirectTrust(IoTNode &provider) {
-  // TODO:IMPLEMENT THIS!!!
-  // I feel like we need a array<IoTNode> neighbros for this.
+double IoTNode::calculateIndirectTrust(int reqId, int provId, double time) {
+  // TODO: This works for two layers only for now...
+
+  // we know that i does not know j yet, get those who i knows:
+  std::vector<IoTNode *> nodesKnownByRequestor;
+  for (IoTNode *node : allNodes) {
+    int nodeId = node->getId();
+    if (enoughInteractions(reqId, nodeId)) {
+      nodesKnownByRequestor.push_back(node);
+    }
+  }
+  // now check if a node known by i knows j
+  for (IoTNode *node : nodesKnownByRequestor) {
+    int nodeId = node->getId();
+    // if it knows j, return the min of DTinode nad DTnodej
+    if (enoughInteractions(nodeId, provId)) {
+      EV << "for node " << reqId << " node " << nodeId
+         << " is known and it in turn knows " << provId << "\n";
+      return std::min((calculateDirectTrust(provId, nodeId, time)),
+                      (calculateDirectTrust(nodeId, provId, time)));
+    }
+  }
+  // basaramadik abi...
   return 0;
 }
 
-bool IoTNode::enoughInteractions(IoTNode &provider) {
-  // TODO: IMPLEMENT THIS TOO :p
-  // again, temporary for development purposes
-  if (blockchain.size() < windowSize) {
+bool IoTNode::enoughInteractions(int requestorId, int providerId) {
+  if (blockchain.size() < windowSize) { // pencere bile dolmamis!
+    EV << "window is not filled yet!\n";
     return false;
   }
-  return true;
+  std::vector<Block> blocksInWindow(blockchain.end() - windowSize,
+                                    blockchain.end());
+
+  int encounterCounter = 0; // I like naming stuff :p
+  for (Block block : blocksInWindow) {
+
+    double dummyRating = 0;
+    int reqId, provId;
+    extract(block.transactionData, dummyRating, reqId, provId);
+    // mahut blok bizim iki eleman arasinda ise sayaci arttir
+    if (reqId == requestorId && provId == providerId) {
+      ++encounterCounter;
+    }
+  }
+  if (encounterCounter > enoughEncounterLimit) {
+    EV << "Enough interactions between " << requestorId << " and " << providerId
+       << "\n";
+    return true;
+  } else {
+    EV << "not enough past interactions between nodes" << requestorId << " and "
+       << providerId << "\n";
+    return true;
+  }
 }
 /*calculates the decay factor in the Trust Score calculations
  * takes the current and block times as argument
@@ -348,23 +425,27 @@ bool IoTNode::enoughInteractions(IoTNode &provider) {
 double IoTNode::calculateDecay(double currentTime, double blockTime) {
   return std::exp(currentTime - blockTime);
 }
-// calculates DT of 'this' to provider
-// if 'enoughInteractions' which I will implement
-// else, resorts to indirectTrust
-double IoTNode::calculateDirectTrust(IoTNode &provider, double time) {
-  int providerId = provider.getId();
-  int requertorId = getId();         // so that I can follow more easily
-  if (!enoughInteractions(provider)) // TODO: returns just 0 for now...
-    return calculateIndirectTrust(provider);
+/*calculates DT of requestor to provider
+ * if 'enoughInteractions' which I will implement
+ * else, resorts to indirectTrust
+ */
+double IoTNode::calculateDirectTrust(int requestorId, int providerId,
+                                     double time) {
+  if (!enoughInteractions(requestorId, providerId))
+    return calculateIndirectTrust(requestorId, providerId, time);
   // so there are enough interactions, we calculate DT
   double dt = 0; // initialise DT
+  // TODO: DT icin zincirin tamamina mi bakacagiz yoksa yalnizca pencereye mi??
+  //  bu tercihin tatbiki cok kolay ama uzun zincirler icin performans farki
+  //  olabilir sanirim pencere kullanmak daha mantikli, su anlik boyle
+  //  birakiyorum
   for (auto &block : blockchain) {
     int tmpProvider, tmpRequestor;
     double rating;
     // extract ids and rating
     extract(block.transactionData, rating, tmpRequestor, tmpProvider);
     // if the block is not relevant, ignore!
-    if ((tmpProvider != providerId) || !(tmpRequestor != requertorId))
+    if ((tmpProvider != providerId) || !(tmpRequestor != requestorId))
       continue;
     double blockTime = block.timestamp;
     double decayFactor = calculateDecay(time, blockTime);
@@ -373,11 +454,11 @@ double IoTNode::calculateDirectTrust(IoTNode &provider, double time) {
   return dt;
 }
 
-/*this is to extract rating and id values from a transaction message in a block
- * give the message as input and the extracted values will be written in the
- * other parameters
- * the input must be in the following format: 'rating: <rating>
- * from <reqId> to <provId>' a disposition of the colon breaks the function
+/*this is to extract rating and id values from a transaction message in a
+ * block give the message as input and the extracted values will be written in
+ * the other parameters the input must be in the following format: 'rating:
+ * <rating> from <reqId> to <provId>' a disposition of the colon breaks the
+ * function
  */
 bool IoTNode::extract(const std::string &input, double &rating,
                       int &requesterId, int &providerId) {
