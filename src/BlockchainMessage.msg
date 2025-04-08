@@ -18,17 +18,31 @@ message BlockchainTransaction {
     double rating ;    // Rating given by the requester
 }
 message ServiceRequest {
-    int requesterId;  // ID of the node requesting service
-    int providerId;   // ID of the node providing service
+    int requesterId;
+    int providerId;
+    string serviceType;
 }
 
 message ServiceResponse {
-    int requesterId;  // ID of the original requester
-    int providerId;   // ID of the service provider
+    int requesterId;
+    int providerId;
+    string serviceType;
 }
 
+message FinalServiceRequest {
+    int requesterId;
+    int providerId;
+    string serviceType;
+}
+
+message FinalServiceResponse {
+    int requesterId;
+    int providerId;
+    string serviceType;
+    double serviceQuality;
+}
 message ServiceRating {
-    int requesterId;  // ID of the node giving the rating
-    int providerId;   // ID of the service provider
-    double rating;    // Rating given for the service
+    int requesterId;
+    int providerId;
+    double rating;
 }
