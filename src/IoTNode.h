@@ -37,6 +37,22 @@ private:
   std::set<int> pendingResponses;
   std::map<int, double> respondedProviders;
   std::string requestedServiceType;
+  //--rating calculation--
+  double calculateRarity(std::string serviceType); // about how many nodes
+                                                   // can provide that service
+  double calculateRating(double quality, double timeliness, double rarity);
+  double wQ = 1; // weight of quality
+  double wR = 1; // weight of rarity
+  double wT = 1; // weight of timeliness
+
+  //-- attackers --
+  enum AttackerType {
+    BENEVOLENT, // bunu eklemek sacma olabilir ama bulunsun
+    CAMOUFLAGE,
+    BAD_MOUTHING
+  }; // use this and switch statements to control
+  enum AttackerType attackerType = BENEVOLENT; // default
+  double calculateMalRating(enum AttackerType);
 
 protected:
   virtual void initialize() override;
@@ -69,7 +85,7 @@ protected:
   int selectPoTValidator();
   void initiateServiceRequest();
   void handleServiceRequest(int requesterId);
-  void sendRating(int providerId);
+  void sendRating(int providerId, double rating);
   void printServiceTable();
 
   bool extract(const std::string &input, double &rating, int &requesterId,
@@ -90,13 +106,21 @@ protected:
   double getTrust(int nodeId); // returns the general trust of a node given its
                                // id, may be unnecessary
 
+  // Node'a mahsus attribute'ler
   double trustScore;
   bool isClusterHead;
+  double potency = 0;
+  double consistency = 4;      // draws a 'meaningfull' default curve
+  bool benevolent = true;      // WARN: perhaps this is not ideal...
+  std::string providedService; // Node'un verdiği servis türü
+  // WARN: bu vector'e falan cevirilebilir!
+
+  bool givesService(std::string serviceType);
+  double calcQuality(double potency, double consistency);
   static std::vector<IoTNode *> allNodes;
   static int numClusterHeads;
   static int globalBlockId;
   static std::vector<Block> blockchain;
-  std::string providedService; // Node'un verdiği servis türü
 
   cMessage *serviceRequestEvent; // Add this line
 };

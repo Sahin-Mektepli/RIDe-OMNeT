@@ -2,7 +2,7 @@
  * IoTNode.cpp
  *
  *  Created on: 4 Oca 2025
- *      Author: ipekm
+ *      Author: ipekm,sahinm
  */
 #include "IoTNode.h"
 #include "BlockchainMessage_m.h"
@@ -13,6 +13,7 @@
 #include <string>
 #include <vector>
 
+std::default_random_engine gen; // WARN: bunu buraya koyabilir miyim??
 // Some notes:
 // TODO is a nice tag to have, with which we can follow what is left "to do" :p
 // We should have a ClusterHeads vector ready. Creating one each time we need is
@@ -233,9 +234,14 @@ void IoTNode::handleFinalServiceRequestMsg(cMessage *msg) {
   response->setRequesterId(requesterId);
   response->setProviderId(getId());
   response->setServiceType(requestedService.c_str());
-  response->setServiceQuality(
-      uniform(3.0, 5.0)); // burası şu anda random ama random kalmayacak
-                          // saldırılara göre değiştireceğiz burayı
+  response->setServiceQuality(calcQuality(
+      potency,
+      consistency)); // provider kendi potency ve consistency'sini ekliyor
+  // TODO: BU METODU REFAKTOR ETMEK LAZIM KI KOTULER ICIN AYRI BIR ALT-METODU
+  // CAGIRSIN, su an zor geliyo
+  // response->setServiceQuality(
+  //     uniform(3.0, 5.0)); // burası şu anda random ama random kalmayacak
+  // saldırılara göre değiştireceğiz burayı
 
   if (routingTable.find(requesterId) != routingTable.end()) {
     int gateIndex = routingTable[requesterId];
@@ -252,11 +258,19 @@ void IoTNode::handleFinalServiceResponseMsg(cMessage *msg) {
   FinalServiceResponse *response = check_and_cast<FinalServiceResponse *>(msg);
   int providerId = response->getProviderId();
   double quality = response->getServiceQuality();
-
+  std::string serviceType = response->getServiceType(); // lazim
   EV << "Node " << getId() << " received final service from " << providerId
      << " with quality: " << quality << endl;
+  // double providerPotency = getPotency(providerId);
+  // double providerConsistency = getConsistency(providerId);
 
-  sendRating(providerId);
+  // double rating =
+  //     calculateRating(providerPotency, providerConsistency, timeliness,
+  //     rarity);
+  double rarity = calculateRarity(serviceType);
+  double timeliness = 1; // TODO: bunu bilmiyom henuz...
+  double rating = calculateRating(quality, timeliness, rarity);
+  sendRating(providerId, rating);
 
   delete response;
 }
@@ -331,6 +345,8 @@ void IoTNode::handleMessage(cMessage *msg) {
   }
 }
 
+// TODO: bunun hesabini DT gibi bayesian bir seye cevir:
+// yani ki sum(positiveRatings)/sum(all_ratings) olacak
 void IoTNode::updateProviderGeneralTrust(IoTNode &provider,
                                          double requestorTrust, double rating) {
   // if rating is positive, add; else substract the update!
@@ -437,24 +453,104 @@ void IoTNode::handleServiceRequest(int requesterId) {
     delete serviceResponse;
   }
 }
+// TODO: implement these...
+double camouflageRating() { return 0; }
+double badMouthingRating() { return 0; }
+/* rating calculation for malicious nodes
+ * this may need additional parameters...
+ */
+double IoTNode::calculateMalRating(enum AttackerType type) {
+  switch (type) {
+  case CAMOUFLAGE:
+    camouflageRating();
+  case BAD_MOUTHING:
+    badMouthingRating();
+  default:
+    EV << "undefined attacker type issue in the rating calculationg method.\n";
+    return 0;
+  }
+}
 
-void IoTNode::sendRating(int providerId) {
-  // WARN: bu satir (1,5) kalirsa sorun olur
-  double rating = uniform(1, 10); // Generate random rating
-  EV << "IoT Node " << getId() << " gives a score of " << rating << " to Node "
-     << providerId << endl;
+/* returns a double in (-10,10)
+ * potency = mean & consistency = 1/stddev
+ */
+double IoTNode::calcQuality(const double potency, const double consistency) {
+  double quality;
+  double stddev = 1.0 / consistency;
+  std::normal_distribution<double> dist{potency, stddev};
+  quality = dist(gen);
+  if (quality > 10) {
+    quality = 10;
+  } else if (quality < -10) {
+    quality = -10;
+  }
+  return quality;
+}
+bool IoTNode::givesService(std::string serviceType) {
+  if (providedService == serviceType) {
+    return true;
+  } else {
+    return false;
+  }
+}
+/* traverses ALL NODES IN THE SYSTEM, and returns the reciprocal of the number
+ * of ondes that can provide the given service
+ */
+double IoTNode::calculateRarity(std::string serviceType) {
+  int howManyNodes = 0;
+  for (const auto node : allNodes) {
+    if (node->givesService(serviceType)) {
+      ++howManyNodes;
+    }
+  }
+  if (howManyNodes == 0) {
+    return 1; // highest value it can get
+  } else {
+    return 1.0 / howManyNodes;
+  }
+}
+/*
+ * uses Quality, Timeliness and Rarity of the service to calculate a rating
+ * all of which are in (-10,10)
+ * simply takes the _weighted_ average of these three
+ */
+double IoTNode::calculateRating(double quality, double timeliness,
+                                double rarity) {
+  double rating;
+  // double quality = calcQuality(potency, consistency);
+  EV << "QUALITY IS CALCULATED WITH POTENCY: " << potency
+     << " AND CONSISTENCY: " << consistency
+     << " AND WAS FOUND TO BE: " << quality << '\n';
+  // the weighted average of the thre components
+  rating = (wQ * quality + wR * rarity + wT * timeliness) / (wQ + wR + wT);
+  EV << "TIMELINESS IS: " << timeliness
+     << " AND RARITY OF THE SERVICE IS: " << rarity << "\n";
+  EV << "RATING IS CALCULATED AS: " << rating << '\n';
+  return rating;
+}
+void IoTNode::sendRating(int providerId, double rating) {
+  // rating in (-10,10)'e karar verildi
+  double ratingToSend; // the actual rating the requestor sends
+  if (this->benevolent) {
+    ratingToSend = rating;
+  } else { // kotuculse aldigi hizmetin hak ettiginden farkli oy verebilir
+    ratingToSend = calculateMalRating(this->attackerType);
+  }
+  EV << "IoT Node " << getId() << " gives a score of " << ratingToSend
+     << " to Node " << providerId << endl;
 
   ServiceRating *transaction = new ServiceRating("serviceRating");
   transaction->setRequesterId(getId());
   transaction->setProviderId(providerId);
-  transaction->setRating(rating);
+  transaction->setRating(ratingToSend);
 
   sendTransactionToClusterHead(transaction);
 }
 
 void IoTNode::sendTransactionToClusterHead(ServiceRating *transaction) {
   // Ensure cluster heads are up-to-date
-  // do we have to do this in "each" transaction? Bunu sanki chat yazmis gibi :p
+  // do we have to do this in "each" transaction? Bunu sanki chat yazmis
+  // gibi :p
   electClusterHeads();
 
   std::vector<IoTNode *> clusterHeads;
@@ -472,8 +568,8 @@ void IoTNode::sendTransactionToClusterHead(ServiceRating *transaction) {
   }
 
   // Select a random Cluster Head
-  // TODO: This should not be random. Each node must have one and only one CH to
-  // which it sends.
+  // TODO: This should not be random. Each node must have one and only one
+  // CH to which it sends.
   int randomIndex = intuniform(0, clusterHeads.size() - 1);
   IoTNode *bestClusterHead = clusterHeads[randomIndex];
 
@@ -484,8 +580,8 @@ void IoTNode::sendTransactionToClusterHead(ServiceRating *transaction) {
     EV << "Error: No known route to Cluster Head " << clusterHeadId << endl;
     delete transaction; // Prevent memory leak
                         // this is not ideal.
-                        // TODO: it should create a new route or sth if there is
-                        // none!
+                        // TODO: it should create a new route or sth if
+                        // there is none!
     return;
   }
 
@@ -592,7 +688,8 @@ double IoTNode::calculateDirectTrust(int requestorId, int providerId,
   double all_ratings = 0;
   // bu ikisi decay'e tabii olacaklar
 
-  // TODO: DT icin zincirin tamamina mi bakacagiz yoksa yalnizca pencereye mi??
+  // TODO: DT icin zincirin tamamina mi bakacagiz yoksa yalnizca pencereye
+  // mi??
   //  bu tercihin tatbiki cok kolay ama uzun zincirler icin performans farki
   //  olabilir sanirim pencere kullanmak daha mantikli, su anlik boyle
   //  birakiyorum
@@ -648,11 +745,11 @@ double IoTNode::calculateDirectTrust(int requestorId, int providerId,
 //   return dt;
 // }
 
-/*this is to extract rating and id values from a transaction message in a block
- * give the message as input and the extracted values will be written in the
- * other parameters
- * the input must be in the following format: 'rating: <rating>
- * from <reqId> to <provId>' a disposition of the colon breaks the function
+/*this is to extract rating and id values from a transaction message in a
+ * block give the message as input and the extracted values will be written
+ * in the other parameters the input must be in the following format:
+ * 'rating: <rating> from <reqId> to <provId>' a disposition of the colon
+ * breaks the function
  */
 bool IoTNode::extract(const std::string &input, double &rating,
                       int &requesterId, int &providerId) {
