@@ -6,6 +6,7 @@ RIDe
 RIDe_dbg
 .*
 !/.gitignore
+!/.project
 *.exe
 notes.md
 Makefile

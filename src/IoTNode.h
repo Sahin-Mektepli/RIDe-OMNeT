@@ -40,7 +40,8 @@ private:
   //--rating calculation--
   double calculateRarity(std::string serviceType); // about how many nodes
                                                    // can provide that service
-  double calculateRating(double quality, double timeliness, double rarity);
+  double calculateRatingBenevolent(double quality, double timeliness,
+                                   double rarity);
   double wQ = 1; // weight of quality
   double wR = 1; // weight of rarity
   double wT = 1; // weight of timeliness
@@ -53,6 +54,8 @@ private:
   }; // use this and switch statements to control
   enum AttackerType attackerType = BENEVOLENT; // default
   double calculateMalRating(enum AttackerType);
+  double calculateRatingCamouflage(double quality, double timeliness,
+                                   double rarity);
 
 protected:
   virtual void initialize() override;
@@ -115,8 +118,20 @@ protected:
   std::string providedService; // Node'un verdiği servis türü
   // WARN: bu vector'e falan cevirilebilir!
 
+  // -- attack parameters --
+
+  /* change this rate depending on how much camouflage you want the nodes to
+   * perform 1 means it never acts malicously and 0 is always malicious
+   */
+  double camouflageRate = 1;
+  // -- deciding on the rating of a service --
+  double calculateRating(double quality, double timeliness, double rarity);
+
+  // -- sending service, and determining the quality of it --
   bool givesService(std::string serviceType);
   double calcQuality(double potency, double consistency);
+  double calcQualityBenevolent(double potency, double consistency);
+  double calcQualityCamouflage(double potency, double consistency);
   static std::vector<IoTNode *> allNodes;
   static int numClusterHeads;
   static int globalBlockId;

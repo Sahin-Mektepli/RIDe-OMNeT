@@ -14,6 +14,8 @@
 #include <vector>
 
 std::default_random_engine gen; // WARN: bunu buraya koyabilir miyim??
+std::uniform_real_distribution<double> uniform_real_dist{
+    0, 1}; // bu da burda dursun madem
 // Some notes:
 // TODO is a nice tag to have, with which we can follow what is left "to do" :p
 // We should have a ClusterHeads vector ready. Creating one each time we need is
@@ -239,9 +241,6 @@ void IoTNode::handleFinalServiceRequestMsg(cMessage *msg) {
       consistency)); // provider kendi potency ve consistency'sini ekliyor
   // TODO: BU METODU REFAKTOR ETMEK LAZIM KI KOTULER ICIN AYRI BIR ALT-METODU
   // CAGIRSIN, su an zor geliyo
-  // response->setServiceQuality(
-  //     uniform(3.0, 5.0)); // burası şu anda random ama random kalmayacak
-  // saldırılara göre değiştireceğiz burayı
 
   if (routingTable.find(requesterId) != routingTable.end()) {
     int gateIndex = routingTable[requesterId];
@@ -269,7 +268,8 @@ void IoTNode::handleFinalServiceResponseMsg(cMessage *msg) {
   //     rarity);
   double rarity = calculateRarity(serviceType);
   double timeliness = 1; // TODO: bunu bilmiyom henuz...
-  double rating = calculateRating(quality, timeliness, rarity);
+  double rating =
+      calculateRating(quality, timeliness, rarity); // handles attacks too
   sendRating(providerId, rating);
 
   delete response;
@@ -453,28 +453,84 @@ void IoTNode::handleServiceRequest(int requesterId) {
     delete serviceResponse;
   }
 }
-// TODO: implement these...
-double camouflageRating() { return 0; }
-double badMouthingRating() { return 0; }
-/* rating calculation for malicious nodes
- * this may need additional parameters...
+// return true if the node performs camouflage; i.e. behaving "normally"
+bool performsCamouflage(double camouflageRate) {
+  double random = uniform_real_dist(gen); // random number in (0,1)
+  if (random < camouflageRate) { // performing camouflage,normal service
+    return true;
+  } else { // giving bad service
+    return false;
+  }
+}
+/* With a prob of camouflageRate, perform camouflage and return "normal" rating
+ * else, return -10
  */
-double IoTNode::calculateMalRating(enum AttackerType type) {
-  switch (type) {
-  case CAMOUFLAGE:
-    camouflageRating();
-  case BAD_MOUTHING:
-    badMouthingRating();
-  default:
-    EV << "undefined attacker type issue in the rating calculationg method.\n";
-    return 0;
+double IoTNode::calculateRatingCamouflage(double quality, double timeliness,
+                                          double rarity) {
+  if (performsCamouflage(this->camouflageRate)) { // normal rating
+    return calculateRating(quality, timeliness, rarity);
+  } else {
+    return -10;
   }
 }
 
-/* returns a double in (-10,10)
+//"normal" quality if camouflage, -10 else
+double IoTNode::calcQualityCamouflage(double potency, double consistency) {
+  if (performsCamouflage(this->camouflageRate)) { // normal service
+    return calcQualityBenevolent(potency, consistency);
+  } else { // giving bad service
+    return -10;
+  }
+}
+double badMouthingRating() { return 0; }
+/* rating calculation for malicious nodes retired
+ * this may need additional parameters...
+ */
+// double IoTNode::calculateMalRating(enum AttackerType type) {
+//   switch (type) {
+//   case CAMOUFLAGE:
+//     calculateRatingCamouflage(0, 0, 0);
+//   case BAD_MOUTHING:
+//     badMouthingRating();
+//   default:
+//     EV << "undefined attacker type issue in the rating calculationg
+//     method.\n"; return 0;
+//   }
+// }
+
+double IoTNode::calculateRating(double quality, double timeliness,
+                                double rarity) {
+  enum AttackerType type = this->attackerType;
+
+  switch (type) {
+  case BENEVOLENT:
+    return calculateRatingBenevolent(quality, timeliness, rarity);
+  case CAMOUFLAGE:
+    return calculateRatingCamouflage(quality, timeliness, rarity);
+  default:
+    EV << "SOMETHING WENT WRONG WITH calculateRating!!\n";
+    return 0; // should not defualt to here!
+  }
+}
+double IoTNode::calcQuality(const double potency, const double consistency) {
+  enum AttackerType type = this->attackerType;
+  switch (type) {
+  case BENEVOLENT:
+    return calcQualityBenevolent(potency, consistency);
+  case CAMOUFLAGE:
+    return calcQualityCamouflage(potency, consistency);
+  default:
+    EV << "SOMETHING WENT WRONG WITH calcQuality!!\n";
+    return 0; // should not defualt to here!
+  }
+}
+
+/* The "normal" way of calculating the quality of a service
+ * returns a double in (-10,10)
  * potency = mean & consistency = 1/stddev
  */
-double IoTNode::calcQuality(const double potency, const double consistency) {
+double IoTNode::calcQualityBenevolent(const double potency,
+                                      const double consistency) {
   double quality;
   double stddev = 1.0 / consistency;
   std::normal_distribution<double> dist{potency, stddev};
@@ -514,8 +570,8 @@ double IoTNode::calculateRarity(std::string serviceType) {
  * all of which are in (-10,10)
  * simply takes the _weighted_ average of these three
  */
-double IoTNode::calculateRating(double quality, double timeliness,
-                                double rarity) {
+double IoTNode::calculateRatingBenevolent(double quality, double timeliness,
+                                          double rarity) {
   double rating;
   // double quality = calcQuality(potency, consistency);
   EV << "QUALITY IS CALCULATED WITH POTENCY: " << potency
@@ -530,19 +586,13 @@ double IoTNode::calculateRating(double quality, double timeliness,
 }
 void IoTNode::sendRating(int providerId, double rating) {
   // rating in (-10,10)'e karar verildi
-  double ratingToSend; // the actual rating the requestor sends
-  if (this->benevolent) {
-    ratingToSend = rating;
-  } else { // kotuculse aldigi hizmetin hak ettiginden farkli oy verebilir
-    ratingToSend = calculateMalRating(this->attackerType);
-  }
-  EV << "IoT Node " << getId() << " gives a score of " << ratingToSend
-     << " to Node " << providerId << endl;
+  EV << "IoT Node " << getId() << " gives a score of " << rating << " to Node "
+     << providerId << endl;
 
   ServiceRating *transaction = new ServiceRating("serviceRating");
   transaction->setRequesterId(getId());
   transaction->setProviderId(providerId);
-  transaction->setRating(ratingToSend);
+  transaction->setRating(rating);
 
   sendTransactionToClusterHead(transaction);
 }
