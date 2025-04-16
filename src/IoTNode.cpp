@@ -720,6 +720,7 @@ bool IoTNode::enoughInteractions(int requestorId, int providerId) {
 /*calculates the decay factor in the Trust Score calculations
  * takes the current and block times as argument
  * this simple implementation just takes the exp of the difference.
+ * WARN: bu su an kullanilmiyor!!
  */
 double IoTNode::calculateDecay(double currentTime, double blockTime) {
   return std::exp(currentTime - blockTime);
@@ -730,6 +731,7 @@ double IoTNode::calculateDecay(double currentTime, double blockTime) {
  */
 double IoTNode::calculateDirectTrust(int requestorId, int providerId,
                                      double time) {
+  // TODO: divide this method if you want. Too long in this format.
   if (!enoughInteractions(requestorId, providerId))
     return calculateIndirectTrust(requestorId, providerId, time);
   // so there are enough interactions, we calculate DT
@@ -738,7 +740,7 @@ double IoTNode::calculateDirectTrust(int requestorId, int providerId,
   double all_ratings = 0;
   // bu ikisi decay'e tabii olacaklar
 
-  // TODO: DT icin zincirin tamamina mi bakacagiz yoksa yalnizca pencereye
+  // WARN: DT icin zincirin tamamina mi bakacagiz yoksa yalnizca pencereye
   // mi??
   //  bu tercihin tatbiki cok kolay ama uzun zincirler icin performans farki
   //  olabilir sanirim pencere kullanmak daha mantikli, su anlik boyle
@@ -753,14 +755,16 @@ double IoTNode::calculateDirectTrust(int requestorId, int providerId,
     if ((tmpProvider != providerId) || !(tmpRequestor != requestorId))
       continue;
     double blockTime = block.timestamp;
-    // double decayFactor = calculateDecay(time, blockTime);
+    // double decayFactor = calculateDecay(time, blockTime); //
+    // WARN: su an decay yok
     //   dt += rating * decayFactor;
     double addendum = rating * decayFactor;
+    // DT_ij icin j'nin TS'i onemli degil, gormezden geliniyor
     EV << "rating " << rating << '\n';
-    if (rating >= 5.0) { // positive rating
+    if (rating >= 0) { // positive rating
       positiveRatings += addendum;
-    } else { // negative rating;
-      addendum *= rancorCoef;
+    } else {                         // negative rating;
+      addendum *= (-1) * rancorCoef; // negatif oyun mutlak degeri
       // olumsuzsa kin katsayisiyla carp ki fazla tesir etsin
     }
     all_ratings += addendum;
