@@ -12,6 +12,8 @@
 #include <map>
 #include <omnetpp.h>
 #include <vector>
+#include <set>
+
 // Add this at the top of IoTNode.h
 using namespace omnetpp;
 
@@ -24,6 +26,13 @@ struct Block {
 
 class IoTNode : public omnetpp::cSimpleModule {
 private:
+    static int totalBadServicesReceived;
+    static int totalBenevolentNodes;
+    static std::set<int> maliciousNodeIds;
+
+    int badServicesReceived = 0;
+    cMessage* badServiceLogger = nullptr;
+
   //--parameters--
   int windowSize = 20;          // just for testing purposes
   int enoughEncounterLimit = 2; // TODO: these two parameters are just examples
@@ -53,12 +62,14 @@ private:
   enum AttackerType {
     BENEVOLENT, // bunu eklemek sacma olabilir ama bulunsun
     CAMOUFLAGE,
-    BAD_MOUTHING
+    BAD_MOUTHING,
+    MALICIOUS_100
   }; // use this and switch statements to control
   enum AttackerType attackerType = BENEVOLENT; // default
   double calculateMalRating(enum AttackerType);
 
 protected:
+  virtual void finish() override;
   virtual void initialize() override;
   virtual void handleMessage(omnetpp::cMessage *msg) override;
   // --- Message Handling ---

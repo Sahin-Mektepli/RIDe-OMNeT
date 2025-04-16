@@ -1,0 +1,106 @@
+version 3
+run General-0-20250416-12:03:43-23356
+attr configname General
+attr datetime 20250416-12:03:43
+attr datetimef 20250416-120343
+attr experiment General
+attr inifile omnetpp.ini
+attr iterationvars ""
+attr iterationvarsd ""
+attr iterationvarsf ""
+attr measurement ""
+attr network BlockchainNetwork
+attr processid 23356
+attr repetition 0
+attr replication #0
+attr resultdir results
+attr runnumber 0
+attr seedset 0
+config network BlockchainNetwork
+config *.iotNode*.inoutGateSize 10
+config sim-time-limit 100000s
+config *.iotNode*.serviceInterval "uniform(1, 5)"
+config *.numNodes 10
+config **.maliciousNodePercentage 0.3
+
+scalar BlockchainNetwork.iotNode[0] AverageBadServicesAt_10 2
+scalar BlockchainNetwork.iotNode[1] AverageBadServicesAt_10 2
+scalar BlockchainNetwork.iotNode[2] AverageBadServicesAt_10 2
+scalar BlockchainNetwork.iotNode[3] AverageBadServicesAt_10 2
+scalar BlockchainNetwork.iotNode[4] AverageBadServicesAt_10 2
+scalar BlockchainNetwork.iotNode[5] AverageBadServicesAt_10 2
+scalar BlockchainNetwork.iotNode[6] AverageBadServicesAt_10 2
+scalar BlockchainNetwork.iotNode[7] AverageBadServicesAt_10 2
+scalar BlockchainNetwork.iotNode[8] AverageBadServicesAt_10 2
+scalar BlockchainNetwork.iotNode[9] AverageBadServicesAt_10 2
+scalar BlockchainNetwork.iotNode[0] AverageBadServicesAt_20 4.2857142857143
+scalar BlockchainNetwork.iotNode[1] AverageBadServicesAt_20 4.2857142857143
+scalar BlockchainNetwork.iotNode[2] AverageBadServicesAt_20 4.2857142857143
+scalar BlockchainNetwork.iotNode[3] AverageBadServicesAt_20 4.2857142857143
+scalar BlockchainNetwork.iotNode[4] AverageBadServicesAt_20 4.2857142857143
+scalar BlockchainNetwork.iotNode[5] AverageBadServicesAt_20 4.2857142857143
+scalar BlockchainNetwork.iotNode[6] AverageBadServicesAt_20 4.2857142857143
+scalar BlockchainNetwork.iotNode[7] AverageBadServicesAt_20 4.2857142857143
+scalar BlockchainNetwork.iotNode[8] AverageBadServicesAt_20 4.2857142857143
+scalar BlockchainNetwork.iotNode[9] AverageBadServicesAt_20 4.2857142857143
+scalar BlockchainNetwork.iotNode[0] AverageBadServicesAt_30 5.5714285714286
+scalar BlockchainNetwork.iotNode[1] AverageBadServicesAt_30 5.5714285714286
+scalar BlockchainNetwork.iotNode[2] AverageBadServicesAt_30 5.5714285714286
+scalar BlockchainNetwork.iotNode[3] AverageBadServicesAt_30 5.5714285714286
+scalar BlockchainNetwork.iotNode[4] AverageBadServicesAt_30 5.5714285714286
+scalar BlockchainNetwork.iotNode[5] AverageBadServicesAt_30 5.5714285714286
+scalar BlockchainNetwork.iotNode[6] AverageBadServicesAt_30 5.5714285714286
+scalar BlockchainNetwork.iotNode[7] AverageBadServicesAt_30 5.5714285714286
+scalar BlockchainNetwork.iotNode[8] AverageBadServicesAt_30 5.5714285714286
+scalar BlockchainNetwork.iotNode[9] AverageBadServicesAt_30 5.5714285714286
+scalar BlockchainNetwork.iotNode[0] AverageBadServicesAt_40 7.7142857142857
+scalar BlockchainNetwork.iotNode[1] AverageBadServicesAt_40 7.7142857142857
+scalar BlockchainNetwork.iotNode[2] AverageBadServicesAt_40 7.7142857142857
+scalar BlockchainNetwork.iotNode[3] AverageBadServicesAt_40 7.7142857142857
+scalar BlockchainNetwork.iotNode[4] AverageBadServicesAt_40 7.7142857142857
+scalar BlockchainNetwork.iotNode[5] AverageBadServicesAt_40 7.7142857142857
+scalar BlockchainNetwork.iotNode[6] AverageBadServicesAt_40 7.7142857142857
+scalar BlockchainNetwork.iotNode[7] AverageBadServicesAt_40 7.7142857142857
+scalar BlockchainNetwork.iotNode[8] AverageBadServicesAt_40 7.7142857142857
+scalar BlockchainNetwork.iotNode[9] AverageBadServicesAt_40 7.7142857142857
+par BlockchainNetwork.iotNode[0] typename "\"src.IoTNode\""
+par BlockchainNetwork.iotNode[0] maliciousNodePercentage 0.3
+scalar BlockchainNetwork.iotNode[0] FinalBadServicesReceived 7
+scalar BlockchainNetwork.iotNode[0] FinalAverageBadServices 7.8571428571429
+par BlockchainNetwork.iotNode[1] typename "\"src.IoTNode\""
+par BlockchainNetwork.iotNode[1] maliciousNodePercentage 0.3
+scalar BlockchainNetwork.iotNode[1] FinalAverageBadServices 7.8571428571429
+par BlockchainNetwork.iotNode[2] typename "\"src.IoTNode\""
+par BlockchainNetwork.iotNode[2] maliciousNodePercentage 0.3
+scalar BlockchainNetwork.iotNode[2] FinalAverageBadServices 7.8571428571429
+par BlockchainNetwork.iotNode[3] typename "\"src.IoTNode\""
+par BlockchainNetwork.iotNode[3] maliciousNodePercentage 0.3
+scalar BlockchainNetwork.iotNode[3] FinalBadServicesReceived 8
+scalar BlockchainNetwork.iotNode[3] FinalAverageBadServices 7.8571428571429
+par BlockchainNetwork.iotNode[4] typename "\"src.IoTNode\""
+par BlockchainNetwork.iotNode[4] maliciousNodePercentage 0.3
+scalar BlockchainNetwork.iotNode[4] FinalBadServicesReceived 7
+scalar BlockchainNetwork.iotNode[4] FinalAverageBadServices 7.8571428571429
+par BlockchainNetwork.iotNode[5] typename "\"src.IoTNode\""
+par BlockchainNetwork.iotNode[5] maliciousNodePercentage 0.3
+scalar BlockchainNetwork.iotNode[5] FinalBadServicesReceived 11
+scalar BlockchainNetwork.iotNode[5] FinalAverageBadServices 7.8571428571429
+par BlockchainNetwork.iotNode[6] typename "\"src.IoTNode\""
+par BlockchainNetwork.iotNode[6] maliciousNodePercentage 0.3
+scalar BlockchainNetwork.iotNode[6] FinalBadServicesReceived 8
+scalar BlockchainNetwork.iotNode[6] FinalAverageBadServices 7.8571428571429
+par BlockchainNetwork.iotNode[7] typename "\"src.IoTNode\""
+par BlockchainNetwork.iotNode[7] maliciousNodePercentage 0.3
+scalar BlockchainNetwork.iotNode[7] FinalAverageBadServices 7.8571428571429
+par BlockchainNetwork.iotNode[8] typename "\"src.IoTNode\""
+par BlockchainNetwork.iotNode[8] maliciousNodePercentage 0.3
+scalar BlockchainNetwork.iotNode[8] FinalBadServicesReceived 8
+scalar BlockchainNetwork.iotNode[8] FinalAverageBadServices 7.8571428571429
+par BlockchainNetwork.iotNode[9] typename "\"src.IoTNode\""
+par BlockchainNetwork.iotNode[9] maliciousNodePercentage 0.3
+scalar BlockchainNetwork.iotNode[9] FinalBadServicesReceived 6
+scalar BlockchainNetwork.iotNode[9] FinalAverageBadServices 7.8571428571429
+par BlockchainNetwork typename "\"src.BlockchainNetwork\""
+par BlockchainNetwork numNodes 10
+par BlockchainNetwork maliciousNodePercentage 0.3
+

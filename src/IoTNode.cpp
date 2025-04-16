@@ -32,6 +32,10 @@ int windowSize = 2; // TODO: buna karar vermek lazim. takibi kolay olsun diye
                     // gecici bir sey yaziyorum
 // this is because I want to be able to print the table for debugging. not
 // really necessary
+std::set<int> IoTNode::maliciousNodeIds;
+int IoTNode::totalBadServicesReceived = 0;
+int IoTNode::totalBenevolentNodes = 0;
+
 void printRoutingTable(const std::map<int, int> &routingTable) {
   EV << "Routing Table:\n";
   EV << "NodeID --> Gate Index\n";
@@ -86,6 +90,36 @@ void IoTNode::initialize() {
   // iptalini sagliyor. "gec kalan servis"lerin tespitinde kullanilabilir!! if
   // (time > requesTime + tolerance) {cancleEvent()...} syntax'i tam anlamadim o
   // yuzden dokumantasyona yeniden bakmak gerekecek
+  //malicious olanları belirlemek için başka bir yol bulamadım
+  int totalNodes = getParentModule()->par("numNodes");
+  int numMalicious = int(par("maliciousNodePercentage").doubleValue() * totalNodes);
+
+  if (getId() == 2) {  // first node to initialize (OMNeT IDs  start at 2)bunu kontrol ettim gerçekten 2'den başlıyor
+      std::vector<int> allIds;
+      for (int i = 2; i < 2 + totalNodes; ++i) allIds.push_back(i);
+      std::shuffle(allIds.begin(), allIds.end(), gen);
+      maliciousNodeIds.insert(allIds.begin(), allIds.begin() + numMalicious);
+  }
+
+  if (maliciousNodeIds.count(getId()) > 0) {
+      benevolent = false;
+      attackerType = MALICIOUS_100;//saldırının adı değişecek
+      potency = -10;//bunlar kaç olmalı bilmiyorum burada chatgpt'nin yazdığını bıraktım buraya bakalım
+      consistency = 1000;
+  } else {
+      benevolent = true;
+      totalBenevolentNodes++;
+  }
+  if (!benevolent) {
+      getDisplayString().setTagArg("i", 1, "red"); // highlight malicious nodes
+  }
+
+
+  // Start periodic logger(belirli aralıklarla kötü servis sayısını kaydetmek için)
+  badServiceLogger = new cMessage("badServiceLogger");
+  scheduleAt(simTime() + 10.0, badServiceLogger);//10 saniyede bir şu anda
+
+
 }
 
 void printBlockChain(std::vector<Block> blockchain) {
@@ -282,6 +316,11 @@ void IoTNode::handleFinalServiceResponseMsg(cMessage *msg) {
   // double rating =
   //     calculateRating(providerPotency, providerConsistency, timeliness,
   //     rarity);
+  if (benevolent && quality <= 0) {
+
+  badServicesReceived++;
+  totalBadServicesReceived++;
+  }
   double rarity = calculateRarity(serviceType);
   double timeliness = 1; // TODO: bunu bilmiyom henuz...
   double rating = calculateRating(quality, timeliness, rarity);
@@ -337,6 +376,17 @@ void IoTNode::handleNetworkMessage(cMessage *msg) {
 
 void IoTNode::handleSelfMessage(cMessage *msg) {
   const char *msgName = msg->getName();
+  if (strcmp(msg->getName(), "badServiceLogger") == 0) {
+      if (totalBenevolentNodes > 0) {
+          recordScalar(
+              ("AverageBadServicesAt_" + std::to_string((int)simTime().dbl())).c_str(),
+              (double)totalBadServicesReceived / totalBenevolentNodes
+          );
+      }
+      scheduleAt(simTime() + 10.0, msg);  // repeat every 10s
+      return;
+  }
+
 
   if (strcmp(msgName, "populateServiceTable") == 0) {
     populateServiceTable();
@@ -491,7 +541,9 @@ double IoTNode::calculateMalRating(enum AttackerType type) {
 /* returns a double in (-10,10)
  * potency = mean & consistency = 1/stddev
  */
-double IoTNode::calcQuality(const double potency, const double consistency) {
+//sladırıyı da parametre olarak verebiliriz bence
+//bence bu kısmı değiştirmeliyiz iyi ise hep iyi kötü ise hep kötü vermeli, node burada kendi potency ve consistency değerlerini kullanıyorsa parametre olarak vermemize gerek yok bence
+/*double IoTNode::calcQuality(const double potency, const double consistency) {
   double quality;
   double stddev = 1.0 / consistency;
   std::normal_distribution<double> dist{potency, stddev};
@@ -502,7 +554,7 @@ double IoTNode::calcQuality(const double potency, const double consistency) {
     quality = -10;
   }
   return quality;
-}
+}*/
 bool IoTNode::givesService(std::string serviceType) {
   if (providedService == serviceType) {
     return true;
@@ -513,6 +565,34 @@ bool IoTNode::givesService(std::string serviceType) {
 /* traverses ALL NODES IN THE SYSTEM, and returns the reciprocal of the number
  * of ondes that can provide the given service
  */
+
+double IoTNode::calcQuality(const double potency, const double consistency) {
+    if (benevolent) {
+        return 10.0; // Always high-quality service for benevolent nodes
+    }
+
+    // For malicious nodes, act based on attack type
+    switch (attackerType) {
+
+        case BAD_MOUTHING:
+            return -10.0; // bu değişebilir
+        case CAMOUFLAGE:
+            // Pretend to be good: simulate using normal distribution
+            {
+                double stddev = 1.0 / consistency;
+                std::normal_distribution<double> dist{potency, stddev};
+                double quality = dist(gen);
+                if (quality > 10) quality = 10;
+                if (quality < -10) quality = -10;
+                return quality;
+            }
+        case MALICIOUS_100:
+            return -10.0; // Worst possible quality
+        default:
+            return 10.0;  // Fallback (unlikely for attacker)
+    }
+}
+
 double IoTNode::calculateRarity(std::string serviceType) {
   int howManyNodes = 0;
   for (const auto node : allNodes) {
@@ -783,6 +863,23 @@ bool IoTNode::extract(const std::string &input, double &rating,
     return false;
   }
 }
+
+void IoTNode::finish() {
+    if (badServiceLogger != nullptr) {
+        cancelAndDelete(badServiceLogger);
+        badServiceLogger = nullptr;
+    }
+
+    if (benevolent) {
+        recordScalar("FinalBadServicesReceived", badServicesReceived);
+    }
+
+    if (totalBenevolentNodes > 0) {
+        recordScalar("FinalAverageBadServices",
+                     (double)totalBadServicesReceived / totalBenevolentNodes);
+    }
+}
+
 // bunu kullanmıyorum şu anda
 int IoTNode::selectPoTValidator() {
   double totalTrust = 0.0;

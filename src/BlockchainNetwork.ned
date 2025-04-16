@@ -20,11 +20,13 @@ package src;
 
 
 network BlockchainNetwork {
-    parameters:
-        int numNodes = 5;  // Total number of IoT nodes
-
+  parameters:
+    int numNodes;                     // Total number of IoT nodes
+    double maliciousNodePercentage;  // % of nodes to be malicious
     submodules:
-        iotNode[numNodes]: IoTNode;
+        iotNode[numNodes]: IoTNode{
+       	   parameters:
+            maliciousNodePercentage = parent.maliciousNodePercentage;}
        // cluster2[numNodes]: IoTNode;
 
 

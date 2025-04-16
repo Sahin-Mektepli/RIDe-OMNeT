@@ -18,6 +18,7 @@ simple IoTNode
 {
     parameters:
         @display("i=device/pocketpc"); // Use a smartphone icon for IoT nodes
+         double maliciousNodePercentage;
     gates:
         inout inoutGate[];
 }
