@@ -11,6 +11,7 @@
 #include "BlockchainMessage_m.h"
 #include <map>
 #include <omnetpp.h>
+#include <set>
 #include <vector>
 // Add this at the top of IoTNode.h
 using namespace omnetpp;
@@ -24,9 +25,15 @@ struct Block {
 
 class IoTNode : public omnetpp::cSimpleModule {
 private:
+  static int totalBadServicesReceived;
+  static int totalBenevolentNodes;
+  static std::set<int> maliciousNodeIds;
+
+  int badServicesReceived = 0;
+  cMessage *badServiceLogger = nullptr;
   //--parameters--
-  int windowSize = 20;          // just for testing purposes
-  int enoughEncounterLimit = 2; // TODO: these two parameters are just examples
+  int windowSize = 90;          // just for testing purposes
+  int enoughEncounterLimit = 1; // TODO: these two parameters are just examples
   double genTrustCoef = 0.01;
   double rancorCoef = 2;           // defined to be higher than 1
   double decayFactor = 1;          // WARN: bunu 1'de unutmak, decay yok demek!
@@ -42,15 +49,19 @@ private:
                                                    // can provide that service
   double calculateRatingBenevolent(double quality, double timeliness,
                                    double rarity);
-  double wQ = 1; // weight of quality
-  double wR = 1; // weight of rarity
-  double wT = 1; // weight of timeliness
+  double wQ = 10; // weight of quality
+  double wR = 1;  // weight of rarity
+  double wT = 0;  // weight of timeliness
 
+  // -- TS coefficients -- (provider secerken kullanilan TS=a*dt + b*gt)
+  double a = 1;
+  double b = 1;
   //-- attackers --
   enum AttackerType {
     BENEVOLENT, // bunu eklemek sacma olabilir ama bulunsun
     CAMOUFLAGE,
-    BAD_MOUTHING
+    BAD_MOUTHING,
+    MALICIOUS_100
   }; // use this and switch statements to control
   enum AttackerType attackerType = BENEVOLENT; // default
   double calculateMalRating(enum AttackerType);
@@ -58,6 +69,7 @@ private:
                                    double rarity);
 
 protected:
+  virtual void finish() override;
   virtual void initialize() override;
   virtual void handleMessage(omnetpp::cMessage *msg) override;
   // --- Message Handling ---
@@ -104,13 +116,16 @@ protected:
   double
   calculateDecay(double currentTime,
                  double blockTime); // this can be changed for many reasons!
-  void updateProviderGeneralTrust(IoTNode &provider, double requestorTrust,
+  void updateProviderGeneralTrust(IoTNode *provider, double requestorTrust,
                                   double rating);
   double getTrust(int nodeId); // returns the general trust of a node given its
                                // id, may be unnecessary
 
+  IoTNode *getNodeById(int nodeId);
   // Node'a mahsus attribute'ler
   double trustScore;
+  double sumOfPositveRatings = 0;
+  double sumOfAllRatings = 0; // this takes abs of negative ratings.
   bool isClusterHead;
   double potency = 0;
   double consistency = 4;      // draws a 'meaningfull' default curve
