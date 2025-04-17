@@ -35,7 +35,7 @@ int windowSize = 2; // TODO: buna karar vermek lazim. takibi kolay olsun diye
 // this is because I want to be able to print the table for debugging. not
 // really necessary
 std::set<int> IoTNode::maliciousNodeIds;
-int IoTNode::totalBadServiceReceived = 0;
+int IoTNode::totalBadServicesReceived = 0;
 int IoTNode::totalBenevolentNodes = 0;
 void printRoutingTable(const std::map<int, int> &routingTable) {
   EV << "Routing Table:\n";

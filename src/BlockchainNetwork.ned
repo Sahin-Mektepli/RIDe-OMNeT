@@ -20,20 +20,25 @@ package src;
 
 
 network BlockchainNetwork {
-    parameters:
-        int numNodes = 5;  // Total number of IoT nodes
-
+  parameters:
+    int numNodes;                     // Total number of IoT nodes
+    double maliciousNodePercentage;  // % of nodes to be malicious
     submodules:
-        iotNode[numNodes]: IoTNode;
-        //cluster2[numNodes]: IoTNode;
+        iotNode[numNodes]: IoTNode{
+       	   parameters:
+            maliciousNodePercentage = parent.maliciousNodePercentage;}
+       // cluster2[numNodes]: IoTNode;
 
+
+        //iotNode[numNodes]: Semi;
+        //cluster2[numNodes]: Semi;
     connections allowunconnected:
         for i=0.. numNodes-1, for j=i+1.. numNodes-1{
         	iotNode[i].inoutGate++ <--> iotNode[j].inoutGate++;
         }
-        //for i=0.. numNodes-1, for j=i+1.. numNodes-1{
-        //	cluster2[i].inoutGate++ <--> cluster2[j].inoutGate++;
-        //}
+      //  for i=0.. numNodes-1, for j=i+1.. numNodes-1{
+      // 	cluster2[i].inoutGate++ <--> cluster2[j].inoutGate++;
+      //  }
        
         
 }
