@@ -32,7 +32,7 @@ private:
   int badServicesReceived = 0;
   cMessage *badServiceLogger = nullptr;
   //--parameters--
-  int windowSize = 90;          // just for testing purposes
+  int windowSize = 100;         // just for testing purposes90 idi bu
   int enoughEncounterLimit = 1; // TODO: these two parameters are just examples
   double genTrustCoef = 0.01;
   double rancorCoef = 2;           // defined to be higher than 1
@@ -138,7 +138,7 @@ protected:
   /* change this rate depending on how much camouflage you want the nodes to
    * perform 1 means it never acts malicously and 0 is always malicious
    */
-  double camouflageRate = 1;
+  double camouflageRate = 0;
   // -- deciding on the rating of a service --
   double calculateRating(double quality, double timeliness, double rarity);
 

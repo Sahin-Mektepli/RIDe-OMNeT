@@ -48,16 +48,19 @@ void IoTNode::initialize() {
   serviceRequestEvent =
       new cMessage("serviceRequestTimer"); // Give a distinct name
   scheduleAt(simTime() + uniform(1, 5), serviceRequestEvent);
-  trustScore = uniform(
-      50,
-      100); // Initial random trust score
-            // this can stay like this for the time being but
-            // TODO: in the real sim, this should be decided by a "higher level"
+  trustScore =
+      uniform(0.5, 1.0); // start with moderate to high trust between 0.5 to 1.0
+                         // Initial random trust score
+                         // this can stay like this for the time being but
+  // TODO: in the real sim, this should be decided by a "higher level"
   isClusterHead = false;
   allNodes.push_back(this);
 
   // Define possible service types
-  std::vector<std::string> serviceTypes = {"A", "B", "C", "D"};
+  std::vector<std::string> serviceTypes = {
+      "A", "B", "C", "D",
+      "E"}; // bunu azalttım şimdilik!!! initiateServiceRequest'e bak orada da
+            // servis tipleri var
 
   // Her node'a rastgele bir servis tanımlıyoruz şu anda bunu belki daha farklı
   // da yapabiliriz servis tipi içinde başka şeyler de barındıran bir obje
@@ -106,13 +109,19 @@ void IoTNode::initialize() {
 
   if (maliciousNodeIds.count(getId()) > 0) {
     benevolent = false;
-    attackerType = MALICIOUS_100; // saldırının adı değişecek
+    attackerType = CAMOUFLAGE; // saldırının adı değişecek
     potency = -10; // bunlar kaç olmalı bilmiyorum burada chatgpt'nin yazdığını
                    // bıraktım buraya bakalım
+    // WARN: bunlarin ne oldugu hic onemli degil
+    // Zaten kullandiklari metotlar bu degerlere bakmiyor.
+    // Hatta cok cok iyi degerler verip gercekten o metotlarin cagirildigini
+    // test bile edebiliriz!
     consistency = 1000;
   } else {
     benevolent = true;
     totalBenevolentNodes++;
+    potency = 9; // quality 8-9 arası olacak diye düşündüm
+    consistency = 2.0;
   }
   if (!benevolent) {
     getDisplayString().setTagArg("i", 1, "red"); // highlight malicious nodes
@@ -286,8 +295,6 @@ void IoTNode::handleFinalServiceRequestMsg(cMessage *msg) {
   response->setServiceQuality(calcQuality(
       potency,
       consistency)); // provider kendi potency ve consistency'sini ekliyor
-  // TODO: BU METODU REFAKTOR ETMEK LAZIM KI KOTULER ICIN AYRI BIR ALT-METODU
-  // CAGIRSIN, su an zor geliyo
 
   if (routingTable.find(requesterId) != routingTable.end()) {
     int gateIndex = routingTable[requesterId];
@@ -309,16 +316,19 @@ void IoTNode::handleFinalServiceResponseMsg(cMessage *msg) {
      << " with quality: " << quality << endl;
   if (benevolent && quality <= 0) {
     badServicesReceived++;
-    totalBadServiceReceived++;
+    totalBadServicesReceived++;
   }
   double rarity = calculateRarity(serviceType);
   double timeliness = 10; // TODO: bunu bilmiyom henuz...
   double rating =
       calculateRating(quality, timeliness, rarity); // handles attacks too
 
+  EV << "received service with quality: " << quality
+     << "\ntimeliness: " << timeliness << "\nrarity: " << rarity << "\n";
   sendRating(providerId, rating);
   IoTNode *provider = getNodeById(providerId);
-  updateProviderGeneralTrust(provider, this->trustScore, rating);
+  updateProviderGeneralTrust(provider, trustScore,
+                             rating); // şimdilik this kısmını sildim
   // WARN: bu metod normalde pointer degil, objenin kendisni aliyordu
   // cok dusuk de olsa duzgun yazmamis olma ihtimalim var
   // hata olursa buraya bakin
@@ -409,21 +419,30 @@ void IoTNode::handleMessage(cMessage *msg) {
 void IoTNode::updateProviderGeneralTrust(IoTNode *provider,
                                          double requestorTrust, double rating) {
   double oldTS = provider->trustScore;
-  double changeInTS = rating * requestorTrust;
-  if (rating > 0) {
-    provider->sumOfPositveRatings += changeInTS;
-    provider->sumOfAllRatings += changeInTS;
-  } else {
-    provider->sumOfAllRatings += (-rancorCoef) * (changeInTS);
-    // NOTE: burada -1 yerine kindarlikla ilgili bir katsayi??
-  }
-  provider->trustScore =
-      provider->sumOfPositveRatings / provider->sumOfAllRatings;
+  double weightedRating = rating * requestorTrust;
 
-  double updatedProviderTrust = provider->trustScore;
-  EV << "ProviderTS" << oldTS << " got a rating " << rating
-     << "from a node with TS " << requestorTrust << " and was updated to "
-     << updatedProviderTrust;
+  if (rating >= 0) {
+    provider->sumOfPositveRatings += weightedRating;
+    provider->sumOfAllRatings += weightedRating;
+  } else {
+    provider->sumOfAllRatings +=
+        std::abs(weightedRating) *
+        rancorCoef; // mutlak değere çevirdim önceki ile aynı şeyi yapıyor
+                    // aslında değiştirmesem de olabilirdi
+  }
+
+  provider->trustScore = std::clamp(
+      provider->sumOfPositveRatings /
+          (provider->sumOfAllRatings +
+           1e-6), // NaN olmasın diye ekledim 1e-6'yı
+      0.1, 1.0    // böyle yazınca trust skor 0.1'den küçük gelirse 0.1'e
+                  // eşitleniyor, 1'den büyük olursa da 1'e (aslında bu mümkün
+                  // değil ama ne olur ne olmaz ekledim)
+  );
+
+  EV << "ProviderTS " << oldTS << " got a rating " << rating
+     << " from a node with TS " << requestorTrust << " and was updated to "
+     << provider->trustScore << "\n";
 }
 
 void IoTNode::electClusterHeads() {
@@ -450,7 +469,10 @@ int findRoute(int requesterId, int providerId) {
 }
 void IoTNode::initiateServiceRequest() {
   // Step 1: Choose a random service type
-  std::vector<std::string> serviceTypes = {"A", "B", "C", "D"};
+  std::vector<std::string> serviceTypes = {
+      "A", "B", "C", "D",
+      "E"}; // şimdilik böyle yukarıda da var bundan nodeları oluştururken
+            // yazmışım teke düşürsek daha kolay olabilir
   std::string chosenService =
       serviceTypes[intuniform(0, serviceTypes.size() - 1)];
   EV << "IoT Node " << getId()
@@ -535,8 +557,15 @@ double IoTNode::calculateRatingCamouflage(double quality, double timeliness,
 //"normal" quality if camouflage, -10 else
 double IoTNode::calcQualityCamouflage(double potency, double consistency) {
   if (performsCamouflage(this->camouflageRate)) { // normal service
-    return calcQualityBenevolent(potency, consistency);
-  } else { // giving bad service
+    // return calcQualityBenevolent(potency, consistency);//burada hata var
+    // bence çünkü kötü node'un potency'si farklı
+    // e- yok, hatadan degil aslinda dizayn oyleydi:
+    // potency o dugumun ne "yapabildigine" dair, ne yaptigina degil
+    // O yuzden kotucul bir dugumun fonksiyonu farkli degerlerle calisiyor
+    // Tabii, bu sekilde calismak da mumkun
+    // su haliyle tamamen pozitif kaliteler hesaplaniyor (daha cok 7 civari)
+    return calcQualityBenevolent(7, 2.0); // bu değer değişebilir
+  } else {                                // giving bad service
     return -10;
   }
 }
@@ -572,6 +601,9 @@ double IoTNode::calcQuality(const double potency, const double consistency) {
 /* The "normal" way of calculating the quality of a service
  * returns a double in (-10,10)
  * potency = mean & consistency = 1/stddev
+ * mean = 9 ve stddev = 0.5 icin kalitenin (8,10) olma ihtimali 85'ten fazla
+ * zira ki P(-2<z<2)=0.85 ve P(-1<z<1)=68 denebilir
+ * ki, z=(x-mean)/stddev
  */
 double IoTNode::calcQualityBenevolent(const double potency,
                                       const double consistency) {
@@ -719,12 +751,24 @@ double IoTNode::calculateIndirectTrust(int reqId, int provId, double time) {
   // TODO: bunu buyuk oranda debug icin 0.1 koydum
 }
 bool IoTNode::enoughInteractions(int requestorId, int providerId) {
-  if (blockchain.size() < windowSize) { // pencere bile dolmamis!
+  /*if (blockchain.size() < windowSize) { // pencere bile dolmamis!
     EV << "window is not filled yet!\n";
     return false;
   }
   std::vector<Block> blocksInWindow(blockchain.end() - windowSize,
-                                    blockchain.end());
+                                    blockchain.end());*/
+  // bu kısımı değiştirdim eski halinde ile window size dolmamışsa eskiden
+  // hesaplama yapılmıyordu ama o zamana kadar eklenmiş blokları kullanabiliriz
+  // bence çünkü window size çok büyük de olabilir diğer makalelerde 1000
+  // yapmışlar
+  std::vector<Block> blocksInWindow;
+  if (blockchain.size() < windowSize) {
+    EV << "Blockchain not full — using available " << blockchain.size()
+       << " blocks.\n";
+    blocksInWindow.assign(blockchain.begin(), blockchain.end());
+  } else {
+    blocksInWindow.assign(blockchain.end() - windowSize, blockchain.end());
+  }
 
   int encounterCounter = 0; // I like naming stuff :p
   for (Block block : blocksInWindow) {
@@ -737,7 +781,8 @@ bool IoTNode::enoughInteractions(int requestorId, int providerId) {
       ++encounterCounter;
     }
   }
-  if (encounterCounter > enoughEncounterLimit) {
+  if (encounterCounter > enoughEncounterLimit) { // bu kısıma bağlı aslında DT
+                                                 // mi yoksa IT mi çalışacağı
     EV << "Enough interactions between " << requestorId << " and " << providerId
        << "\n";
     return true;
@@ -803,6 +848,7 @@ double IoTNode::calculateDirectTrust(int requestorId, int providerId,
   EV << "positive ratings :" << positiveRatings
      << "\nall ratings: " << all_ratings << '\n';
   dt = positiveRatings / all_ratings;
+  EV << "DT = " << dt << '\n';
   return dt;
 }
 
