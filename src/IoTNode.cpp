@@ -48,6 +48,8 @@ void IoTNode::initialize() {
   serviceRequestEvent =
       new cMessage("serviceRequestTimer"); // Give a distinct name
   scheduleAt(simTime() + uniform(1, 5), serviceRequestEvent);
+  // WARN: BUNUN SU AN HICBIR ANLAMI YOK
+  // ZATEN TS'YI BAYESIAN HESAPLIYORUZ
   trustScore =
       uniform(0.5, 1.0); // start with moderate to high trust between 0.5 to 1.0
                          // Initial random trust score
@@ -57,10 +59,10 @@ void IoTNode::initialize() {
   allNodes.push_back(this);
 
   // Define possible service types
-  std::vector<std::string> serviceTypes = {
-      "A", "B", "C", "D",
-      "E"}; // bunu azalttım şimdilik!!! initiateServiceRequest'e bak orada da
-            // servis tipleri var
+  std::vector<std::string> serviceTypes = {"A", "B"};
+  // std::vector<std::string> serviceTypes = {"A", "B", "C", "D", "E"};
+  // bunu azalttım şimdilik!!! initiateServiceRequest'e bak orada da
+  // servis tipleri var
 
   // Her node'a rastgele bir servis tanımlıyoruz şu anda bunu belki daha farklı
   // da yapabiliriz servis tipi içinde başka şeyler de barındıran bir obje
@@ -72,6 +74,7 @@ void IoTNode::initialize() {
   EV << "Node " << getId() << " provides service: " << assignedService << endl;
   providedService = assignedService; // do we need this assignment?
 
+  // TODO:bu da baska fonksiyona alinabilir
   // Populate Routing Table
   for (int i = 0; i < gateSize("inoutGate"); i++) {
     cGate *outGate = gate("inoutGate$o", i);
@@ -130,7 +133,7 @@ void IoTNode::initialize() {
   // Start periodic logger(belirli aralıklarla kötü servis sayısını kaydetmek
   // için)
   badServiceLogger = new cMessage("badServiceLogger");
-  scheduleAt(simTime() + 10.0, badServiceLogger); // 10 saniyede bir şu anda
+  scheduleAt(simTime() + 5.0, badServiceLogger); // 10 saniyede bir şu anda
 }
 
 void printBlockChain(std::vector<Block> blockchain) {
@@ -421,6 +424,8 @@ void IoTNode::updateProviderGeneralTrust(IoTNode *provider,
   double oldTS = provider->trustScore;
   double weightedRating = rating * requestorTrust;
 
+  EV << "Provider sumOfPositivieRatings is: " << provider->sumOfPositveRatings
+     << "\nProvider sumOfAllRatings is: " << provider->sumOfAllRatings << endl;
   if (rating >= 0) {
     provider->sumOfPositveRatings += weightedRating;
     provider->sumOfAllRatings += weightedRating;

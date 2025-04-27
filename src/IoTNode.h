@@ -124,6 +124,8 @@ protected:
   IoTNode *getNodeById(int nodeId);
   // Node'a mahsus attribute'ler
   double trustScore;
+  // WARN:sumOf'lari baska bir degerde baslatirsak simulasyonu sifirdan almamis
+  // oluruz!
   double sumOfPositveRatings = 0;
   double sumOfAllRatings = 0; // this takes abs of negative ratings.
   bool isClusterHead;
@@ -138,7 +140,7 @@ protected:
   /* change this rate depending on how much camouflage you want the nodes to
    * perform 1 means it never acts malicously and 0 is always malicious
    */
-  double camouflageRate = 0;
+  double camouflageRate = 0.5;
   // -- deciding on the rating of a service --
   double calculateRating(double quality, double timeliness, double rarity);
 
