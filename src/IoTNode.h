@@ -79,6 +79,8 @@ protected:
   void handleNetworkMessage(cMessage *msg);
 
   // Service-level handlers
+  cMessage *populateServiceTableEvent = nullptr; //donup hata vermesini engellemek için yaptığım bir deneme
+
 
   void handleServiceRequestMsg(cMessage *msg);
 
@@ -92,6 +94,7 @@ protected:
 
   // Setup
   void populateServiceTable();
+
   void electClusterHeads();
   void processClusterHeadDuties();
   void sendTransactionToClusterHead(
@@ -124,8 +127,8 @@ protected:
   IoTNode *getNodeById(int nodeId);
   // Node'a mahsus attribute'ler
   double trustScore;
-  double sumOfPositveRatings = 0;
-  double sumOfAllRatings = 0; // this takes abs of negative ratings.
+  double sumOfPositveRatings = 50;
+  double sumOfAllRatings = 100; // this takes abs of negative ratings.
   bool isClusterHead;
   double potency = 0;
   double consistency = 4;      // draws a 'meaningfull' default curve
@@ -138,7 +141,7 @@ protected:
   /* change this rate depending on how much camouflage you want the nodes to
    * perform 1 means it never acts malicously and 0 is always malicious
    */
-  double camouflageRate = 0;
+  double camouflageRate = 0.3;
   // -- deciding on the rating of a service --
   double calculateRating(double quality, double timeliness, double rarity);
 
