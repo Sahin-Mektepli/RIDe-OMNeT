@@ -83,9 +83,7 @@ void IoTNode::initialize() {
   }
   //  printRoutingTable(routingTable);
   // Schedule service table update after all nodes are initialized
-  populateServiceTableEvent = new cMessage("populateServiceTable");
-  scheduleAt(simTime() + 0.1, populateServiceTableEvent);
-
+  scheduleAt(simTime() + 0.1, new cMessage("populateServiceTable"));
   // bunun dokumantasyonuna bakarken cancleEvent() komutunu ogrendim ki gayet
   // onemli olabilir: scheduleAt'in hazirladigi mesajin belli bir zamanad
   // iptalini sagliyor. "gec kalan servis"lerin tespitinde kullanilabilir!! if
@@ -95,7 +93,7 @@ void IoTNode::initialize() {
   int totalNodes = getParentModule()->par("numNodes");
   int numMalicious =
       int(par("maliciousNodePercentage").doubleValue() * totalNodes);
-  //EV << "******************************"<<numMalicious;
+  EV << "******************************"<<numMalicious;
   if (getId() == 2) { // first node to initialize (OMNeT IDs  start at 2)bunu
                       // kontrol ettim gerçekten 2'den başlıyor
     std::vector<int> allIds;
@@ -374,42 +372,27 @@ void IoTNode::handleNetworkMessage(cMessage *msg) {
 }
 
 void IoTNode::handleSelfMessage(cMessage *msg) {
-    const char *msgName = msg->getName();
+  const char *msgName = msg->getName();
 
-    if (strcmp(msgName, "badServiceLogger") == 0) {
-        if (totalBenevolentNodes > 0) {
-            recordScalar(
-                ("AverageBadServicesAt_" + std::to_string((int)simTime().dbl())).c_str(),
-                (double)totalBadServicesReceived / totalBenevolentNodes);
-        }
-        scheduleAt(simTime() + 10.0, badServiceLogger); // reschedule
-        return;
+  if (strcmp(msg->getName(), "badServiceLogger") == 0) {
+    if (totalBenevolentNodes > 0) {
+      recordScalar(
+          ("AverageBadServicesAt_" + std::to_string((int)simTime().dbl()))
+              .c_str(),
+          (double)totalBadServicesReceived / totalBenevolentNodes);
     }
-
-    if (strcmp(msgName, "populateServiceTable") == 0) {
-        populateServiceTable();
-        cancelAndDelete(populateServiceTableEvent);
-        populateServiceTableEvent = nullptr;
-        return;
-    }
-
-    if (strcmp(msgName, "serviceRequestTimer") == 0) {
-        EV << "IoTNode " << getId() << " is initiating a service request." << endl;
-        initiateServiceRequest();
-
-        if (serviceRequestEvent != nullptr) {
-            scheduleAt(simTime() + uniform(1, 5), serviceRequestEvent);
-        } else {
-            EV << "Warning: serviceRequestEvent is nullptr, cannot reschedule!" << endl;
-        }
-        return;
-    }
-
-    // Unexpected self-message case
-    EV << "Warning: Unhandled self-message: " << msgName << endl;
+    scheduleAt(simTime() + 10.0, msg); // repeat every 10s
+    return;
+  }
+  if (strcmp(msgName, "populateServiceTable") == 0) {
+    populateServiceTable();
     delete msg;
+  } else if (strcmp(msgName, "serviceRequestTimer") == 0) {
+    EV << "IoTNode " << getId() << " is initiating a service request." << endl;
+    initiateServiceRequest();
+    scheduleAt(simTime() + uniform(1, 5), msg); // Reschedule
+  }
 }
-
 
 // bu fonksiyonu böldüm içindeki fonksiyonlar yukarıda yazıyor
 // çoğu eski haliyle aynı sadece final service request ve response
@@ -664,42 +647,52 @@ void IoTNode::sendRating(int providerId, double rating) {
   sendTransactionToClusterHead(transaction);
 }
 
-void IoTNode::sendTransactionToClusterHead(ServiceRating *transaction) {//hatayı düzeltmek için deneme yapıyorum
-    electClusterHeads();
+void IoTNode::sendTransactionToClusterHead(ServiceRating *transaction) {
+  // Ensure cluster heads are up-to-date
+  // do we have to do this in "each" transaction? Bunu sanki chat yazmis
+  // gibi :p
+  electClusterHeads();
 
-    std::vector<IoTNode *> clusterHeads;
-    for (IoTNode *node : allNodes) {
-        if (node->isClusterHead) {
-            clusterHeads.push_back(node);
-        }
+  std::vector<IoTNode *> clusterHeads;
+
+  // Collect all available Cluster Heads
+  for (IoTNode *node : allNodes) {
+    if (node->isClusterHead) {
+      clusterHeads.push_back(node);
     }
+  }
+  // I haven't read the entire code yet but this shoudl never happen I think
+  // What happens at the beginning?
+  if (clusterHeads.empty()) {
+    throw cRuntimeError("No valid Cluster Head found");
+  }
 
-    if (clusterHeads.empty()) {
-        EV << "No Cluster Heads available!" << endl;
-        delete transaction;
-        return;
-    }
+  // Select a random Cluster Head
+  // TODO: This should not be random. Each node must have one and only one
+  // CH to which it sends.
+  int randomIndex = intuniform(0, clusterHeads.size() - 1);
+  IoTNode *bestClusterHead = clusterHeads[randomIndex];
 
-    // Try to find a reachable Cluster Head
-    IoTNode* selectedClusterHead = nullptr;
-    for (auto node : clusterHeads) {
-        int chId = node->getId();
-        if (routingTable.find(chId) != routingTable.end()) {
-            selectedClusterHead = node;
-            break;
-        }
-    }
+  int clusterHeadId = bestClusterHead->getId();
 
-    if (selectedClusterHead == nullptr) {
-        EV << "No reachable Cluster Head found!" << endl;
-        delete transaction;
-        return;
-    }
+  // Check if there's a known route to the selected Cluster Head
+  if (routingTable.find(clusterHeadId) == routingTable.end()) {
+    EV << "Error: No known route to Cluster Head " << clusterHeadId << endl;
+    delete transaction; // Prevent memory leak
+                        // this is not ideal.
+                        // TODO: it should create a new route or sth if
+                        // there is none!
+    return;
+  }
 
-    int gateIndex = routingTable[selectedClusterHead->getId()];
-    send(transaction, "inoutGate$o", gateIndex);
+  int gateIndex = routingTable[clusterHeadId];
+
+  EV << "IoT Node " << getId() << " forwarding transaction to Cluster Head "
+     << clusterHeadId << " via gate index " << gateIndex << endl;
+
+  // Send the transaction via the correct output gate
+  send(transaction, "inoutGate$o", gateIndex);
 }
-
 
 double IoTNode::calculateIndirectTrust(int reqId, int provId, double time) {
   // WARN: This works for two layers only for now...
@@ -854,14 +847,6 @@ void IoTNode::finish() {
     cancelAndDelete(badServiceLogger);
     badServiceLogger = nullptr;
   }
-  if (serviceRequestEvent != nullptr) {
-         cancelAndDelete(serviceRequestEvent);
-         serviceRequestEvent = nullptr;
-     }
-  if (populateServiceTableEvent != nullptr) {
-         cancelAndDelete(populateServiceTableEvent);
-         populateServiceTableEvent = nullptr;
-     }
 
   if (benevolent) {
     recordScalar("FinalBadServicesReceived", badServicesReceived);
@@ -871,13 +856,6 @@ void IoTNode::finish() {
     recordScalar("FinalAverageBadServices",
                  (double)totalBadServicesReceived / totalBenevolentNodes);
   }
-
-
-  allNodes.clear();
-  blockchain.clear();
-  maliciousNodeIds.clear();
-
-
 
 
 }

@@ -79,8 +79,6 @@ protected:
   void handleNetworkMessage(cMessage *msg);
 
   // Service-level handlers
-  cMessage *populateServiceTableEvent = nullptr; //donup hata vermesini engellemek için yaptığım bir deneme
-
 
   void handleServiceRequestMsg(cMessage *msg);
 
@@ -94,7 +92,6 @@ protected:
 
   // Setup
   void populateServiceTable();
-
   void electClusterHeads();
   void processClusterHeadDuties();
   void sendTransactionToClusterHead(
@@ -127,8 +124,8 @@ protected:
   IoTNode *getNodeById(int nodeId);
   // Node'a mahsus attribute'ler
   double trustScore;
-  double sumOfPositveRatings = 50;
-  double sumOfAllRatings = 100; // this takes abs of negative ratings.
+  double sumOfPositveRatings = 0;
+  double sumOfAllRatings = 0; // this takes abs of negative ratings.
   bool isClusterHead;
   double potency = 0;
   double consistency = 4;      // draws a 'meaningfull' default curve
