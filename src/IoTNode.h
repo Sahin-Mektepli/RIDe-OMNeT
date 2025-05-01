@@ -35,7 +35,7 @@ private:
   int windowSize = 100;          // just for testing purposes90 idi bu
   int enoughEncounterLimit = 1; // TODO: these two parameters are just examples
   double genTrustCoef = 0.01;
-  double rancorCoef = 2;           // defined to be higher than 1
+  double rancorCoef = 1.0;           // defined to be higher than 1
   double decayFactor = 1;          // WARN: bunu 1'de unutmak, decay yok demek!
   std::map<int, int> routingTable; // Maps Node ID → Gate Index
   //  std::map<int, std::string> serviceTable; // private olmalı gibi geldi
@@ -107,9 +107,9 @@ protected:
                int &providerId);
   double
   calculateDirectTrust(int requestorId, int providerId,
-                       double time); // between a single i,j pair at time t
+                       double time ,int depth); // between a single i,j pair at time t
   double calculateIndirectTrust(int requestor, int provider,
-                                double time); // if DT cannot be
+                                double time, int depth); // if DT cannot be
                                               // calculated
   bool enoughInteractions(int requestorId, int provider);
   // can I calculate DT for i and j? (this = i)
@@ -124,8 +124,8 @@ protected:
   IoTNode *getNodeById(int nodeId);
   // Node'a mahsus attribute'ler
   double trustScore;
-  double sumOfPositveRatings = 0;
-  double sumOfAllRatings = 0; // this takes abs of negative ratings.
+  double sumOfPositveRatings = 5;
+  double sumOfAllRatings = 10; // this takes abs of negative ratings.
   bool isClusterHead;
   double potency = 0;
   double consistency = 4;      // draws a 'meaningfull' default curve
