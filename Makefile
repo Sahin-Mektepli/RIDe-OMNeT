@@ -1,5 +1,5 @@
 #
-# OMNeT++/OMNEST Makefile for BlockchainSimulation2
+# OMNeT++/OMNEST Makefile for RIDe
 #
 # This file was generated with the command:
 #  opp_makemake -f --deep -O out -I.
@@ -7,7 +7,7 @@
 
 # Name of target to be created (-o option)
 TARGET_DIR = .
-TARGET_NAME = BlockchainSimulation2$(D)
+TARGET_NAME = RIDe$(D)
 TARGET = $(TARGET_NAME)$(EXE_SUFFIX)
 TARGET_IMPLIB = $(TARGET_NAME)$(IMPLIB_SUFFIX)
 TARGET_IMPDEF = $(TARGET_NAME)$(IMPDEF_SUFFIX)
@@ -33,7 +33,13 @@ PROJECTRELATIVE_PATH =
 O = $(PROJECT_OUTPUT_DIR)/$(CONFIGNAME)/$(PROJECTRELATIVE_PATH)
 
 # Object files for local .cpp, .msg and .sm files
-OBJS = $O/src/BlockchainNetwork.o $O/src/BlockchainNode.o $O/src/IoTNode.o $O/src/Semi.o $O/src/BlockchainMessage_m.o
+OBJS = \
+    $O/src/BlockchainNetwork.o \
+    $O/src/BlockchainNode.o \
+    $O/src/IoTNode.o \
+    $O/src/Semi.o \
+    $O/src/SemiNode.o \
+    $O/src/BlockchainMessage_m.o
 
 # Message files
 MSGFILES = \

@@ -1,228 +1,30 @@
 version 3
-run General-0-20250501-19:13:16-16404
+run General-0-20250504-01:31:53-18728
 attr configname General
-attr datetime 20250501-19:13:16
-attr datetimef 20250501-191316
+attr datetime 20250504-01:31:53
+attr datetimef 20250504-013153
 attr experiment General
 attr inifile omnetpp.ini
 attr iterationvars ""
 attr iterationvarsd ""
 attr iterationvarsf ""
 attr measurement ""
-attr network BlockchainNetwork
-attr processid 16404
+attr network SemiNetwork
+attr processid 18728
 attr repetition 0
 attr replication #0
 attr resultdir results
 attr runnumber 0
-attr seedset 0
-config network BlockchainNetwork
+attr seedset 42
+config network SemiNetwork
 config *.iotNode*.inoutGateSize 10
 config sim-time-limit 150s
 config *.iotNode*.serviceInterval "uniform(1, 5)"
-config *.numNodes 30
+config *.numNodes 3
 config **.maliciousNodePercentage 0.3
+config seed-set 42
 
-scalar BlockchainNetwork.iotNode[0] AverageBadServicesAt_10 0.33333333333333
-scalar BlockchainNetwork.iotNode[1] AverageBadServicesAt_10 0.33333333333333
-scalar BlockchainNetwork.iotNode[2] AverageBadServicesAt_10 0.33333333333333
-scalar BlockchainNetwork.iotNode[3] AverageBadServicesAt_10 0.33333333333333
-scalar BlockchainNetwork.iotNode[4] AverageBadServicesAt_10 0.33333333333333
-scalar BlockchainNetwork.iotNode[5] AverageBadServicesAt_10 0.33333333333333
-scalar BlockchainNetwork.iotNode[6] AverageBadServicesAt_10 0.33333333333333
-scalar BlockchainNetwork.iotNode[7] AverageBadServicesAt_10 0.33333333333333
-scalar BlockchainNetwork.iotNode[8] AverageBadServicesAt_10 0.33333333333333
-scalar BlockchainNetwork.iotNode[9] AverageBadServicesAt_10 0.33333333333333
-scalar BlockchainNetwork.iotNode[10] AverageBadServicesAt_10 0.33333333333333
-scalar BlockchainNetwork.iotNode[11] AverageBadServicesAt_10 0.33333333333333
-scalar BlockchainNetwork.iotNode[12] AverageBadServicesAt_10 0.33333333333333
-scalar BlockchainNetwork.iotNode[13] AverageBadServicesAt_10 0.33333333333333
-scalar BlockchainNetwork.iotNode[14] AverageBadServicesAt_10 0.33333333333333
-scalar BlockchainNetwork.iotNode[15] AverageBadServicesAt_10 0.33333333333333
-scalar BlockchainNetwork.iotNode[16] AverageBadServicesAt_10 0.33333333333333
-scalar BlockchainNetwork.iotNode[17] AverageBadServicesAt_10 0.33333333333333
-scalar BlockchainNetwork.iotNode[18] AverageBadServicesAt_10 0.33333333333333
-scalar BlockchainNetwork.iotNode[19] AverageBadServicesAt_10 0.33333333333333
-scalar BlockchainNetwork.iotNode[20] AverageBadServicesAt_10 0.33333333333333
-scalar BlockchainNetwork.iotNode[21] AverageBadServicesAt_10 0.33333333333333
-scalar BlockchainNetwork.iotNode[22] AverageBadServicesAt_10 0.33333333333333
-scalar BlockchainNetwork.iotNode[23] AverageBadServicesAt_10 0.33333333333333
-scalar BlockchainNetwork.iotNode[24] AverageBadServicesAt_10 0.33333333333333
-scalar BlockchainNetwork.iotNode[25] AverageBadServicesAt_10 0.33333333333333
-scalar BlockchainNetwork.iotNode[26] AverageBadServicesAt_10 0.33333333333333
-scalar BlockchainNetwork.iotNode[27] AverageBadServicesAt_10 0.33333333333333
-scalar BlockchainNetwork.iotNode[28] AverageBadServicesAt_10 0.33333333333333
-scalar BlockchainNetwork.iotNode[29] AverageBadServicesAt_10 0.33333333333333
-scalar BlockchainNetwork.iotNode[0] AverageBadServicesAt_20 0.42857142857143
-scalar BlockchainNetwork.iotNode[1] AverageBadServicesAt_20 0.42857142857143
-scalar BlockchainNetwork.iotNode[2] AverageBadServicesAt_20 0.42857142857143
-scalar BlockchainNetwork.iotNode[3] AverageBadServicesAt_20 0.42857142857143
-scalar BlockchainNetwork.iotNode[4] AverageBadServicesAt_20 0.42857142857143
-scalar BlockchainNetwork.iotNode[5] AverageBadServicesAt_20 0.42857142857143
-scalar BlockchainNetwork.iotNode[6] AverageBadServicesAt_20 0.42857142857143
-scalar BlockchainNetwork.iotNode[7] AverageBadServicesAt_20 0.42857142857143
-scalar BlockchainNetwork.iotNode[8] AverageBadServicesAt_20 0.42857142857143
-scalar BlockchainNetwork.iotNode[9] AverageBadServicesAt_20 0.42857142857143
-scalar BlockchainNetwork.iotNode[10] AverageBadServicesAt_20 0.42857142857143
-scalar BlockchainNetwork.iotNode[11] AverageBadServicesAt_20 0.42857142857143
-scalar BlockchainNetwork.iotNode[12] AverageBadServicesAt_20 0.42857142857143
-scalar BlockchainNetwork.iotNode[13] AverageBadServicesAt_20 0.42857142857143
-scalar BlockchainNetwork.iotNode[14] AverageBadServicesAt_20 0.42857142857143
-scalar BlockchainNetwork.iotNode[15] AverageBadServicesAt_20 0.42857142857143
-scalar BlockchainNetwork.iotNode[16] AverageBadServicesAt_20 0.42857142857143
-scalar BlockchainNetwork.iotNode[17] AverageBadServicesAt_20 0.42857142857143
-scalar BlockchainNetwork.iotNode[18] AverageBadServicesAt_20 0.42857142857143
-scalar BlockchainNetwork.iotNode[19] AverageBadServicesAt_20 0.42857142857143
-scalar BlockchainNetwork.iotNode[20] AverageBadServicesAt_20 0.42857142857143
-scalar BlockchainNetwork.iotNode[21] AverageBadServicesAt_20 0.42857142857143
-scalar BlockchainNetwork.iotNode[22] AverageBadServicesAt_20 0.42857142857143
-scalar BlockchainNetwork.iotNode[23] AverageBadServicesAt_20 0.42857142857143
-scalar BlockchainNetwork.iotNode[24] AverageBadServicesAt_20 0.42857142857143
-scalar BlockchainNetwork.iotNode[25] AverageBadServicesAt_20 0.42857142857143
-scalar BlockchainNetwork.iotNode[26] AverageBadServicesAt_20 0.42857142857143
-scalar BlockchainNetwork.iotNode[27] AverageBadServicesAt_20 0.42857142857143
-scalar BlockchainNetwork.iotNode[28] AverageBadServicesAt_20 0.42857142857143
-scalar BlockchainNetwork.iotNode[29] AverageBadServicesAt_20 0.42857142857143
-scalar BlockchainNetwork.iotNode[0] AverageBadServicesAt_30 0.42857142857143
-scalar BlockchainNetwork.iotNode[1] AverageBadServicesAt_30 0.42857142857143
-scalar BlockchainNetwork.iotNode[2] AverageBadServicesAt_30 0.42857142857143
-scalar BlockchainNetwork.iotNode[3] AverageBadServicesAt_30 0.42857142857143
-scalar BlockchainNetwork.iotNode[4] AverageBadServicesAt_30 0.42857142857143
-scalar BlockchainNetwork.iotNode[5] AverageBadServicesAt_30 0.42857142857143
-scalar BlockchainNetwork.iotNode[6] AverageBadServicesAt_30 0.42857142857143
-scalar BlockchainNetwork.iotNode[7] AverageBadServicesAt_30 0.42857142857143
-scalar BlockchainNetwork.iotNode[8] AverageBadServicesAt_30 0.42857142857143
-scalar BlockchainNetwork.iotNode[9] AverageBadServicesAt_30 0.42857142857143
-scalar BlockchainNetwork.iotNode[10] AverageBadServicesAt_30 0.42857142857143
-scalar BlockchainNetwork.iotNode[11] AverageBadServicesAt_30 0.42857142857143
-scalar BlockchainNetwork.iotNode[12] AverageBadServicesAt_30 0.42857142857143
-scalar BlockchainNetwork.iotNode[13] AverageBadServicesAt_30 0.42857142857143
-scalar BlockchainNetwork.iotNode[14] AverageBadServicesAt_30 0.42857142857143
-scalar BlockchainNetwork.iotNode[15] AverageBadServicesAt_30 0.42857142857143
-scalar BlockchainNetwork.iotNode[16] AverageBadServicesAt_30 0.42857142857143
-scalar BlockchainNetwork.iotNode[17] AverageBadServicesAt_30 0.42857142857143
-scalar BlockchainNetwork.iotNode[18] AverageBadServicesAt_30 0.42857142857143
-scalar BlockchainNetwork.iotNode[19] AverageBadServicesAt_30 0.42857142857143
-scalar BlockchainNetwork.iotNode[20] AverageBadServicesAt_30 0.42857142857143
-scalar BlockchainNetwork.iotNode[21] AverageBadServicesAt_30 0.42857142857143
-scalar BlockchainNetwork.iotNode[22] AverageBadServicesAt_30 0.42857142857143
-scalar BlockchainNetwork.iotNode[23] AverageBadServicesAt_30 0.42857142857143
-scalar BlockchainNetwork.iotNode[24] AverageBadServicesAt_30 0.42857142857143
-scalar BlockchainNetwork.iotNode[25] AverageBadServicesAt_30 0.42857142857143
-scalar BlockchainNetwork.iotNode[26] AverageBadServicesAt_30 0.42857142857143
-scalar BlockchainNetwork.iotNode[27] AverageBadServicesAt_30 0.42857142857143
-scalar BlockchainNetwork.iotNode[28] AverageBadServicesAt_30 0.42857142857143
-scalar BlockchainNetwork.iotNode[29] AverageBadServicesAt_30 0.42857142857143
-scalar BlockchainNetwork.iotNode[0] AverageBadServicesAt_40 0.42857142857143
-scalar BlockchainNetwork.iotNode[1] AverageBadServicesAt_40 0.42857142857143
-scalar BlockchainNetwork.iotNode[2] AverageBadServicesAt_40 0.42857142857143
-scalar BlockchainNetwork.iotNode[3] AverageBadServicesAt_40 0.42857142857143
-scalar BlockchainNetwork.iotNode[4] AverageBadServicesAt_40 0.42857142857143
-scalar BlockchainNetwork.iotNode[5] AverageBadServicesAt_40 0.42857142857143
-scalar BlockchainNetwork.iotNode[6] AverageBadServicesAt_40 0.42857142857143
-scalar BlockchainNetwork.iotNode[7] AverageBadServicesAt_40 0.42857142857143
-scalar BlockchainNetwork.iotNode[8] AverageBadServicesAt_40 0.42857142857143
-scalar BlockchainNetwork.iotNode[9] AverageBadServicesAt_40 0.42857142857143
-scalar BlockchainNetwork.iotNode[10] AverageBadServicesAt_40 0.42857142857143
-scalar BlockchainNetwork.iotNode[11] AverageBadServicesAt_40 0.42857142857143
-scalar BlockchainNetwork.iotNode[12] AverageBadServicesAt_40 0.42857142857143
-scalar BlockchainNetwork.iotNode[13] AverageBadServicesAt_40 0.42857142857143
-scalar BlockchainNetwork.iotNode[14] AverageBadServicesAt_40 0.42857142857143
-scalar BlockchainNetwork.iotNode[15] AverageBadServicesAt_40 0.42857142857143
-scalar BlockchainNetwork.iotNode[16] AverageBadServicesAt_40 0.42857142857143
-scalar BlockchainNetwork.iotNode[17] AverageBadServicesAt_40 0.42857142857143
-scalar BlockchainNetwork.iotNode[18] AverageBadServicesAt_40 0.42857142857143
-scalar BlockchainNetwork.iotNode[19] AverageBadServicesAt_40 0.42857142857143
-scalar BlockchainNetwork.iotNode[20] AverageBadServicesAt_40 0.42857142857143
-scalar BlockchainNetwork.iotNode[21] AverageBadServicesAt_40 0.42857142857143
-scalar BlockchainNetwork.iotNode[22] AverageBadServicesAt_40 0.42857142857143
-scalar BlockchainNetwork.iotNode[23] AverageBadServicesAt_40 0.42857142857143
-scalar BlockchainNetwork.iotNode[24] AverageBadServicesAt_40 0.42857142857143
-scalar BlockchainNetwork.iotNode[25] AverageBadServicesAt_40 0.42857142857143
-scalar BlockchainNetwork.iotNode[26] AverageBadServicesAt_40 0.42857142857143
-scalar BlockchainNetwork.iotNode[27] AverageBadServicesAt_40 0.42857142857143
-scalar BlockchainNetwork.iotNode[28] AverageBadServicesAt_40 0.42857142857143
-scalar BlockchainNetwork.iotNode[29] AverageBadServicesAt_40 0.42857142857143
-scalar BlockchainNetwork.iotNode[0] AverageBadServicesAt_50 0.47619047619048
-scalar BlockchainNetwork.iotNode[1] AverageBadServicesAt_50 0.47619047619048
-scalar BlockchainNetwork.iotNode[2] AverageBadServicesAt_50 0.47619047619048
-scalar BlockchainNetwork.iotNode[3] AverageBadServicesAt_50 0.47619047619048
-scalar BlockchainNetwork.iotNode[4] AverageBadServicesAt_50 0.47619047619048
-scalar BlockchainNetwork.iotNode[5] AverageBadServicesAt_50 0.47619047619048
-scalar BlockchainNetwork.iotNode[6] AverageBadServicesAt_50 0.47619047619048
-scalar BlockchainNetwork.iotNode[7] AverageBadServicesAt_50 0.47619047619048
-scalar BlockchainNetwork.iotNode[8] AverageBadServicesAt_50 0.47619047619048
-scalar BlockchainNetwork.iotNode[9] AverageBadServicesAt_50 0.47619047619048
-scalar BlockchainNetwork.iotNode[10] AverageBadServicesAt_50 0.47619047619048
-scalar BlockchainNetwork.iotNode[11] AverageBadServicesAt_50 0.47619047619048
-scalar BlockchainNetwork.iotNode[12] AverageBadServicesAt_50 0.47619047619048
-scalar BlockchainNetwork.iotNode[13] AverageBadServicesAt_50 0.47619047619048
-scalar BlockchainNetwork.iotNode[14] AverageBadServicesAt_50 0.47619047619048
-scalar BlockchainNetwork.iotNode[15] AverageBadServicesAt_50 0.47619047619048
-scalar BlockchainNetwork.iotNode[16] AverageBadServicesAt_50 0.47619047619048
-scalar BlockchainNetwork.iotNode[17] AverageBadServicesAt_50 0.47619047619048
-scalar BlockchainNetwork.iotNode[18] AverageBadServicesAt_50 0.47619047619048
-scalar BlockchainNetwork.iotNode[19] AverageBadServicesAt_50 0.47619047619048
-scalar BlockchainNetwork.iotNode[20] AverageBadServicesAt_50 0.47619047619048
-scalar BlockchainNetwork.iotNode[21] AverageBadServicesAt_50 0.47619047619048
-scalar BlockchainNetwork.iotNode[22] AverageBadServicesAt_50 0.47619047619048
-scalar BlockchainNetwork.iotNode[23] AverageBadServicesAt_50 0.47619047619048
-scalar BlockchainNetwork.iotNode[24] AverageBadServicesAt_50 0.47619047619048
-scalar BlockchainNetwork.iotNode[25] AverageBadServicesAt_50 0.47619047619048
-scalar BlockchainNetwork.iotNode[26] AverageBadServicesAt_50 0.47619047619048
-scalar BlockchainNetwork.iotNode[27] AverageBadServicesAt_50 0.47619047619048
-scalar BlockchainNetwork.iotNode[28] AverageBadServicesAt_50 0.47619047619048
-scalar BlockchainNetwork.iotNode[29] AverageBadServicesAt_50 0.47619047619048
-scalar BlockchainNetwork.iotNode[0] AverageBadServicesAt_60 0.47619047619048
-scalar BlockchainNetwork.iotNode[1] AverageBadServicesAt_60 0.47619047619048
-scalar BlockchainNetwork.iotNode[2] AverageBadServicesAt_60 0.47619047619048
-scalar BlockchainNetwork.iotNode[3] AverageBadServicesAt_60 0.47619047619048
-scalar BlockchainNetwork.iotNode[4] AverageBadServicesAt_60 0.47619047619048
-scalar BlockchainNetwork.iotNode[5] AverageBadServicesAt_60 0.47619047619048
-scalar BlockchainNetwork.iotNode[6] AverageBadServicesAt_60 0.47619047619048
-scalar BlockchainNetwork.iotNode[7] AverageBadServicesAt_60 0.47619047619048
-scalar BlockchainNetwork.iotNode[8] AverageBadServicesAt_60 0.47619047619048
-scalar BlockchainNetwork.iotNode[9] AverageBadServicesAt_60 0.47619047619048
-scalar BlockchainNetwork.iotNode[10] AverageBadServicesAt_60 0.47619047619048
-scalar BlockchainNetwork.iotNode[11] AverageBadServicesAt_60 0.47619047619048
-scalar BlockchainNetwork.iotNode[12] AverageBadServicesAt_60 0.47619047619048
-scalar BlockchainNetwork.iotNode[13] AverageBadServicesAt_60 0.47619047619048
-scalar BlockchainNetwork.iotNode[14] AverageBadServicesAt_60 0.47619047619048
-scalar BlockchainNetwork.iotNode[15] AverageBadServicesAt_60 0.47619047619048
-scalar BlockchainNetwork.iotNode[16] AverageBadServicesAt_60 0.47619047619048
-scalar BlockchainNetwork.iotNode[17] AverageBadServicesAt_60 0.47619047619048
-scalar BlockchainNetwork.iotNode[18] AverageBadServicesAt_60 0.47619047619048
-scalar BlockchainNetwork.iotNode[19] AverageBadServicesAt_60 0.47619047619048
-scalar BlockchainNetwork.iotNode[20] AverageBadServicesAt_60 0.47619047619048
-scalar BlockchainNetwork.iotNode[21] AverageBadServicesAt_60 0.47619047619048
-scalar BlockchainNetwork.iotNode[22] AverageBadServicesAt_60 0.47619047619048
-scalar BlockchainNetwork.iotNode[23] AverageBadServicesAt_60 0.47619047619048
-scalar BlockchainNetwork.iotNode[24] AverageBadServicesAt_60 0.47619047619048
-scalar BlockchainNetwork.iotNode[25] AverageBadServicesAt_60 0.47619047619048
-scalar BlockchainNetwork.iotNode[26] AverageBadServicesAt_60 0.47619047619048
-scalar BlockchainNetwork.iotNode[27] AverageBadServicesAt_60 0.47619047619048
-scalar BlockchainNetwork.iotNode[28] AverageBadServicesAt_60 0.47619047619048
-scalar BlockchainNetwork.iotNode[29] AverageBadServicesAt_60 0.47619047619048
-scalar BlockchainNetwork.iotNode[0] AverageBadServicesAt_70 0.52380952380952
-scalar BlockchainNetwork.iotNode[1] AverageBadServicesAt_70 0.52380952380952
-scalar BlockchainNetwork.iotNode[2] AverageBadServicesAt_70 0.52380952380952
-scalar BlockchainNetwork.iotNode[3] AverageBadServicesAt_70 0.52380952380952
-scalar BlockchainNetwork.iotNode[4] AverageBadServicesAt_70 0.52380952380952
-scalar BlockchainNetwork.iotNode[5] AverageBadServicesAt_70 0.52380952380952
-scalar BlockchainNetwork.iotNode[6] AverageBadServicesAt_70 0.52380952380952
-scalar BlockchainNetwork.iotNode[7] AverageBadServicesAt_70 0.52380952380952
-scalar BlockchainNetwork.iotNode[8] AverageBadServicesAt_70 0.52380952380952
-scalar BlockchainNetwork.iotNode[9] AverageBadServicesAt_70 0.52380952380952
-scalar BlockchainNetwork.iotNode[10] AverageBadServicesAt_70 0.52380952380952
-scalar BlockchainNetwork.iotNode[11] AverageBadServicesAt_70 0.52380952380952
-scalar BlockchainNetwork.iotNode[12] AverageBadServicesAt_70 0.52380952380952
-scalar BlockchainNetwork.iotNode[13] AverageBadServicesAt_70 0.52380952380952
-scalar BlockchainNetwork.iotNode[14] AverageBadServicesAt_70 0.52380952380952
-scalar BlockchainNetwork.iotNode[15] AverageBadServicesAt_70 0.52380952380952
-scalar BlockchainNetwork.iotNode[16] AverageBadServicesAt_70 0.52380952380952
-scalar BlockchainNetwork.iotNode[17] AverageBadServicesAt_70 0.52380952380952
-scalar BlockchainNetwork.iotNode[18] AverageBadServicesAt_70 0.52380952380952
-scalar BlockchainNetwork.iotNode[19] AverageBadServicesAt_70 0.52380952380952
-scalar BlockchainNetwork.iotNode[20] AverageBadServicesAt_70 0.52380952380952
-scalar BlockchainNetwork.iotNode[21] AverageBadServicesAt_70 0.52380952380952
-scalar BlockchainNetwork.iotNode[22] AverageBadServicesAt_70 0.5238095238095
+scalar SemiNetwork.iotNode[0] AverageBadServicesAt_10 0
+scalar SemiNetwork.iotNode[1] AverageBadServicesAt_10 0
+scalar SemiNetwork.iotNode[2] AverageBadServicesAt_10 0
+

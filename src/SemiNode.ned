@@ -14,10 +14,11 @@
 // 
 
 package src;
-simple Semi
+simple SemiNode
 {
     parameters:
         @display("i=device/laptop");
+        double maliciousNodePercentage;
        // bool isMalicious = default(false);
         //string serviceType = default("default");
         // Add more parameters as needed

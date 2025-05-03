@@ -1,6 +1,6 @@
-out/gcc-release//src/IoTNode.o: src/IoTNode.cpp src/IoTNode.h \
+out/gcc-release//src/SemiNode.o: src/SemiNode.cpp src/SemiNode.h \
  src/BlockchainMessage_m.h \
  /home/ouz/Desktop/omnetpp-6.1/include/omnetpp.h
-src/IoTNode.h:
+src/SemiNode.h:
 src/BlockchainMessage_m.h:
 /home/ouz/Desktop/omnetpp-6.1/include/omnetpp.h:
