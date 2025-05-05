@@ -1,8 +1,8 @@
 version 3
-run General-0-20250504-01:31:53-18728
+run General-0-20250505-03:03:59-32771
 attr configname General
-attr datetime 20250504-01:31:53
-attr datetimef 20250504-013153
+attr datetime 20250505-03:03:59
+attr datetimef 20250505-030359
 attr experiment General
 attr inifile omnetpp.ini
 attr iterationvars ""
@@ -10,7 +10,7 @@ attr iterationvarsd ""
 attr iterationvarsf ""
 attr measurement ""
 attr network SemiNetwork
-attr processid 18728
+attr processid 32771
 attr repetition 0
 attr replication #0
 attr resultdir results
@@ -20,11 +20,35 @@ config network SemiNetwork
 config *.iotNode*.inoutGateSize 10
 config sim-time-limit 150s
 config *.iotNode*.serviceInterval "uniform(1, 5)"
-config *.numNodes 3
+config *.numNodes 5
 config **.maliciousNodePercentage 0.3
 config seed-set 42
 
 scalar SemiNetwork.iotNode[0] AverageBadServicesAt_10 0
 scalar SemiNetwork.iotNode[1] AverageBadServicesAt_10 0
 scalar SemiNetwork.iotNode[2] AverageBadServicesAt_10 0
+scalar SemiNetwork.iotNode[3] AverageBadServicesAt_10 0
+scalar SemiNetwork.iotNode[4] AverageBadServicesAt_10 0
+par SemiNetwork.iotNode[0] typename "\"src.SemiNode\""
+par SemiNetwork.iotNode[0] maliciousNodePercentage 0.3
+scalar SemiNetwork.iotNode[0] FinalBadServicesReceived 0
+scalar SemiNetwork.iotNode[0] FinalAverageBadServices 0
+par SemiNetwork.iotNode[1] typename "\"src.SemiNode\""
+par SemiNetwork.iotNode[1] maliciousNodePercentage 0.3
+scalar SemiNetwork.iotNode[1] FinalBadServicesReceived 0
+scalar SemiNetwork.iotNode[1] FinalAverageBadServices 0
+par SemiNetwork.iotNode[2] typename "\"src.SemiNode\""
+par SemiNetwork.iotNode[2] maliciousNodePercentage 0.3
+scalar SemiNetwork.iotNode[2] FinalBadServicesReceived 0
+scalar SemiNetwork.iotNode[2] FinalAverageBadServices 0
+par SemiNetwork.iotNode[3] typename "\"src.SemiNode\""
+par SemiNetwork.iotNode[3] maliciousNodePercentage 0.3
+scalar SemiNetwork.iotNode[3] FinalAverageBadServices 0
+par SemiNetwork.iotNode[4] typename "\"src.SemiNode\""
+par SemiNetwork.iotNode[4] maliciousNodePercentage 0.3
+scalar SemiNetwork.iotNode[4] FinalBadServicesReceived 0
+scalar SemiNetwork.iotNode[4] FinalAverageBadServices 0
+par SemiNetwork typename "\"src.SemiNetwork\""
+par SemiNetwork numNodes 5
+par SemiNetwork maliciousNodePercentage 0.3
 

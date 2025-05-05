@@ -33,6 +33,11 @@ struct InteractionRecord {
   simtime_t timestamp;
 };
 
+// static const std::vector<std::string> serviceTypes = {"A", "B", "C", "D",
+// "E"};
+static const std::vector<std::string> serviceTypes = {"A"};
+// bunu ayri ayri yerlere koymamali
+
 class SemiNode : public omnetpp::cSimpleModule {
 private:
   static int totalBadServicesReceived;
@@ -125,12 +130,29 @@ protected:
   double
   calculateDecay(double currentTime,
                  double blockTime); // this can be changed for many reasons!
+  const double semiDecayConst =
+      1; // WARN: I have no idea what this should be...
+  double semiDecay(int thisId, int nodeId, double timeDif);
   void updateProviderGeneralTrust(SemiNode *provider, double requestorTrust,
                                   double rating);
   double getTrust(int nodeId); // returns the general trust of a node given its
                                // id, may be unnecessary
 
   SemiNode *getNodeById(int nodeId);
+
+  // -- Seminin mahsusati --
+
+  // Calculate the response trust of req to res(ponder)
+  double responseTrustTo(int reqId, int resId);
+  // Rating trust of this to the given node
+  double ratingTrustTo(int reqId, int resId);
+
+  // DT of this to node
+  double semiDT(int thisId, int nodeId);
+  double semiIT(int thisId, int nodeId);
+  std::vector<int> findRecommenders(int provInodeId);
+  double totalTrust(int thisId, int nodeId);
+
   // Node'a mahsus attribute'ler
   double trustScore;
   double sumOfPositveRatings = 5;
@@ -147,7 +169,7 @@ protected:
   /* change this rate depending on how much camouflage you want the nodes to
    * perform 1 means it never acts malicously and 0 is always malicious
    */
-  double camouflageRate = 0.3;
+  double camouflageRate = 0;
   // -- deciding on the rating of a service --
   double calculateRating(double quality, double timeliness, double rarity);
 

@@ -7,8 +7,11 @@
  */
 #include "SemiNode.h"
 #include "BlockchainMessage_m.h"
+#include "omnetpp/csimulation.h"
 #include <algorithm>
 #include <cmath>
+#include <ctime>
+#include <filesystem>
 #include <map>
 #include <random>
 #include <string>
@@ -19,19 +22,173 @@ std::uniform_real_distribution<double> uniform_real_distS{0, 1};
 using namespace omnetpp;
 
 Define_Module(SemiNode);
-//!!!!!
+
+// TODO: bunlari henuz guncellemiyorum
+// a mapping from nodes to a mapping from nodes to counters
+static std::map<SemiNode *, std::map<int, int>> nodeResponseCounts;
+// how many times this node requested from these nodes nodeId-->counter
+static std::map<SemiNode *, std::map<int, int>> nodeRequestCounts;
+
 std::vector<Block> SemiNode::blockchain;
 std::vector<SemiNode *> SemiNode::allNodes;
-// TODO: why do we have an allNodes vector in the SemiNode class?
-// if I am not mistaken this should be in the blockchain class or sth
 int SemiNode::numClusterHeads = 3;
 int SemiNode::globalBlockId = 0;
-// gecici bir sey yaziyorum
-// this is because I want to be able to print the table for debugging. not
-// really necessary
+
 std::set<int> SemiNode::maliciousNodeIds;
 int SemiNode::totalBadServicesReceived = 0;
 int SemiNode::totalBenevolentNodes = 0;
+
+int totalRequestFromItoJ(int reqId, int provId) {
+  int totalRequests = 0;
+  for (auto nodeRow : nodeRequestCounts) {
+    // requestor icin olan sayaclara geldik
+    if (nodeRow.first->getId() == reqId) {
+
+      for (auto mapping : nodeRow.second) {
+        if (mapping.first == provId) {
+          totalRequests = mapping.second;
+        }
+      }
+    }
+  }
+  return totalRequests;
+}
+int positiveResponseToIfromJ(int reqId, int provId) {
+  int positiveResponses = 0;
+  for (auto nodeRow : nodeResponseCounts) {
+    // requestor icin olan sayaclara geldik
+    if (nodeRow.first->getId() == reqId) {
+
+      for (auto mapping : nodeRow.second) {
+        if (mapping.first == provId) {
+          positiveResponses = mapping.second;
+        }
+      }
+    }
+  }
+  return positiveResponses;
+}
+double SemiNode::responseTrustTo(int thisId, int nodeId) {
+  // find the node in both maps
+  int totalRequests = totalRequestFromItoJ(thisId, nodeId);
+  if (totalRequests == 0) {
+    return 0;
+  }
+  int positiveResponses = positiveResponseToIfromJ(thisId, nodeId);
+
+  return (double)positiveResponses / totalRequests;
+}
+
+double SemiNode::semiDecay(int thisId, int nodeId, double timeDif) {
+  // I need positive response number again...
+  int positiveResponses = positiveResponseToIfromJ(thisId, nodeId);
+
+  double exponandum = 0;
+  double firstTerm = -(semiDecayConst / positiveResponses);
+  exponandum = firstTerm * timeDif;
+  return exp(exponandum);
+}
+
+double SemiNode::ratingTrustTo(int thisId, int nodeId) {
+  double ratings = 0.0;
+  double decays = 0;
+  // examine the blocks in the window
+  std::vector<Block> blocksInWindow;
+  if ((int)blockchain.size() < windowSize) {
+    blocksInWindow.assign(blockchain.begin(), blockchain.end());
+  } else {
+    blocksInWindow.assign(blockchain.end() - windowSize, blockchain.end());
+  }
+  for (auto &block : blocksInWindow) {
+    int tmpProvider, tmpRequestor;
+    double rating;
+    if (!extract(block.transactionData, rating, tmpRequestor, tmpProvider))
+      continue;
+    if ((tmpProvider != nodeId) || (tmpRequestor != thisId))
+      continue;
+    double blockTime = block.timestamp;
+
+    double timeDif = simTime().dbl() - blockTime;
+    // sum up the rating of this to node with decay
+    double decay = semiDecay(thisId, nodeId, timeDif);
+    double addendum = rating * decay;
+    ratings += addendum;
+    decays += decay;
+  }
+  if (ratings == 0 || decays == 0) {
+    // defaut deger vermemisler napim...
+    return 0.5;
+  }
+  // over all the decay coefs (for some reason)
+  return ratings / decays;
+}
+
+// just responseTrust * ratingTrust
+double SemiNode::semiDT(int thisId, int nodeId) {
+  double rest = responseTrustTo(thisId, nodeId);
+  double rat = ratingTrustTo(thisId, nodeId);
+  EV << "response trust and rating trust are" << rest << "  " << rat << endl;
+  return rest * rat;
+}
+
+// tavsiye dugumlerini sanirim ayni bir kume olarak almak lazim ama su an bu
+// sekilde tatbik etmek kabil
+std::vector<int> SemiNode::findRecommenders(int provId) {
+  // i dunno how to spell
+  std::vector<int> recommendors;
+  for (auto node : allNodes) {
+    if (enoughInteractions(node->getId(), provId)) {
+      recommendors.push_back(node->getId());
+    }
+  }
+  return recommendors;
+}
+// recTrust of this node i, to a recommender k, about node j
+double recommendationTrust(int thisId, int recId, int provId) {
+  // find out the difference between the previous recommendation trust and the
+  // rating of the service resulted because of that recom
+  double diff = 0;
+  // WARN: bunu su an yazamayacagim sanirim...
+  // mesajlasma protokolunun tamamen halledilmils olmasi gerekiyor bunun icin...
+  return 0.5;
+}
+double SemiNode::semiIT(int thisId, int nodeId) {
+  // a set of recommenders should be created
+  std::vector<int> recommenderIds = findRecommenders(nodeId);
+
+  // sum of dt_kj * recommendationTrust_ik
+  // over sum of recTrust_ik s
+  double recAndDirectTrusts = 0;
+  double sumOfRecTrusts = 0;
+  for (int recId : recommenderIds) {
+    // bildigim butun konvansiyonlara muhalif kod yazma speedrun'i
+    double DT_kj = semiDT(recId, nodeId);
+    double recTrust_ik = recommendationTrust(thisId, recId, nodeId);
+    recAndDirectTrusts += DT_kj * recTrust_ik;
+    sumOfRecTrusts += recTrust_ik;
+  }
+  if (recAndDirectTrusts == 0 || sumOfRecTrusts == 0) {
+    // defualt deger yok.......
+    return 0.5;
+  }
+  // vallahi boyle yaziyor makalede...
+  return recAndDirectTrusts / sumOfRecTrusts;
+}
+
+// a*DT $ b*IT
+double SemiNode::totalTrust(int thisId, int nodeId) {
+  double DT_ij = semiDT(thisId, nodeId);
+  double IT_ij = semiIT(thisId, nodeId);
+
+  EV << "DT of " << thisId << " to " << nodeId << " is " << DT_ij << endl;
+  EV << "IT of " << thisId << " to " << nodeId << " is " << IT_ij << endl;
+  double alpha = 1;
+  double beta = 1;
+  // WARN: bunlarin tatbikine aklim ermiyor su an...
+
+  return alpha * DT_ij + beta * IT_ij;
+}
+
 void SemiNode::printRoutingTable(const std::map<int, int> &routingTable) {
   EV << "Routing Table:\n";
   EV << "NodeID --> Gate Index\n";
@@ -47,19 +204,15 @@ void SemiNode::initialize() {
       uniform(0.5, 1.0); // start with moderate to high trust between 0.5 to 1.0
                          // Initial random trust score
                          // this can stay like this for the time being but
-  // TODO: in the real sim, this should be decided by a "higher level"
   isClusterHead = false;
   allNodes.push_back(this);
 
   // Define possible service types
-  std::vector<std::string> serviceTypes = {
-      "A", "B", "C", "D",
-      "E"}; // bunu azalttım şimdilik!!! initiateServiceRequest'e bak orada da
-            // servis tipleri var
+  // std::vector<std::string> serviceTypes = {"A", "B", "C", "D", "E"};
+  // std::vector<std::string> serviceTypes = {"A"};
+  // bunu azalttım şimdilik!!! initiateServiceRequest'e bak orada da
+  // servis tipleri var
 
-  // Her node'a rastgele bir servis tanımlıyoruz şu anda bunu belki daha farklı
-  // da yapabiliriz servis tipi içinde başka şeyler de barındıran bir obje
-  // olabilir ama gerek var mı emin değilim
   std::string assignedService = serviceTypes[intuniform(
       0,
       serviceTypes.size() - 1)]; // her çalıştırışımızda farklı servis verecek
@@ -223,16 +376,17 @@ void SemiNode::handleServiceResponseMsg(cMessage *msg) {
     EV << "I am about to calculate the DT of" << requestorId << " to "
        << responderId << "here is the entire BC";
     printBlockChain(blockchain);
-    double dt =
-        calculateDirectTrust(requestorId, responderId, simTime().dbl(), 0);
-    // WARN: 'bu' dugumun 'responder'a DT'ini hesaplar.
+    // double dt =
+    //     calculateDirectTrust(requestorId, responderId, simTime().dbl(), 0);
     // General Trust
-    double gt = getNodeById(responderId)->trustScore;
+    // double gt = getNodeById(responderId)->trustScore;
 
-    respondedProviders[responderId] = (a * dt + b * gt);
+    // respondedProviders[responderId] = (a * dt + b * gt);
+    double tt = totalTrust(requestorId, responderId);
+    respondedProviders[responderId] = tt;
     pendingResponses.erase(responderId);
     EV << "Received service response from Node " << responderId
-       << " with DT = " << dt << " and GT " << gt << endl;
+       << " with TT = " << tt << endl;
 
     if (pendingResponses.empty()) {
       int bestProviderId = -1;
@@ -286,8 +440,6 @@ void SemiNode::handleFinalServiceRequestMsg(cMessage *msg) {
   response->setServiceQuality(calcQuality(
       potency,
       consistency)); // provider kendi potency ve consistency'sini ekliyor
-  // TODO: BU METODU REFAKTOR ETMEK LAZIM KI KOTULER ICIN AYRI BIR ALT-METODU
-  // CAGIRSIN, su an zor geliyo
 
   if (routingTable.find(requesterId) != routingTable.end()) {
     int gateIndex = routingTable[requesterId];
@@ -449,10 +601,11 @@ void SemiNode::electClusterHeads() {
               // doğru çalışıyor olmalı
     // en üstteki i node'u seçmek daha hızlı olur sanırım ama meh, ne fark
     // eder...
-    allNodes[i]->isClusterHead = (i < numClusterHeads);
+    allNodes[i]->isClusterHead = ((int)i < numClusterHeads);
   }
   EV << "Updated Cluster Head selection." << endl;
 }
+// kiyamam ben buna...
 int SemiNode::findRoute(int requesterId, int providerId) {
   // finds a route from requester to provider if they are not in the same
   // cluster
@@ -461,10 +614,10 @@ int SemiNode::findRoute(int requesterId, int providerId) {
 }
 void SemiNode::initiateServiceRequest() {
   // Step 1: Choose a random service type
-  std::vector<std::string> serviceTypes = {
-      "A", "B", "C", "D",
-      "E"}; // şimdilik böyle yukarıda da var bundan nodeları oluştururken
-            // yazmışım teke düşürsek daha kolay olabilir
+  // std::vector<std::string> serviceTypes = {
+  //     "A", "B", "C", "D",
+  //     "E"}; // şimdilik böyle yukarıda da var bundan nodeları oluştururken
+  // yazmışım teke düşürsek daha kolay olabilir
   std::string chosenService =
       serviceTypes[intuniform(0, serviceTypes.size() - 1)];
   EV << "IoT Node " << getId()
@@ -710,41 +863,43 @@ void SemiNode::sendTransactionToClusterHead(ServiceRating *transaction) {
   send(transaction, "inoutGate$o", gateIndex);
 }
 
-double SemiNode::calculateIndirectTrust(int reqId, int provId, double time,
-                                        int depth) {
-  const int MAX_TRUST_RECURSION_DEPTH = 7;
-
-  if (depth > MAX_TRUST_RECURSION_DEPTH) {
-    EV << "[IT] Max recursion depth reached from " << reqId << " to " << provId
-       << "\n";
-    return 0.1; // Fallback trust
-  }
-
-  EV << "[IT] Indirect trust from " << reqId << " to " << provId
-     << " | depth = " << depth << "\n";
-
-  std::vector<SemiNode *> nodesKnownByRequestor;
-  for (SemiNode *node : allNodes) {
-    int nodeId = node->getId();
-    if (nodeId == provId || nodeId == reqId)
-      continue;
-    if (enoughInteractions(reqId, nodeId)) {
-      nodesKnownByRequestor.push_back(node);
-    }
-  }
-
-  for (SemiNode *node : nodesKnownByRequestor) {
-    int nodeId = node->getId();
-    if (enoughInteractions(nodeId, provId)) {
-      EV << "Node " << reqId << " knows " << nodeId << ", who knows " << provId
-         << "\n";
-      return std::min(calculateDirectTrust(provId, nodeId, time, depth + 1),
-                      calculateDirectTrust(nodeId, provId, time, depth + 1));
-    }
-  }
-
-  return 0.1;
-}
+// double SemiNode::calculateIndirectTrust(int reqId, int provId, double time,
+//                                         int depth) {
+//   const int MAX_TRUST_RECURSION_DEPTH = 7;
+//
+//   if (depth > MAX_TRUST_RECURSION_DEPTH) {
+//     EV << "[IT] Max recursion depth reached from " << reqId << " to " <<
+//     provId
+//        << "\n";
+//     return 0.1; // Fallback trust
+//   }
+//
+//   EV << "[IT] Indirect trust from " << reqId << " to " << provId
+//      << " | depth = " << depth << "\n";
+//
+//   std::vector<SemiNode *> nodesKnownByRequestor;
+//   for (SemiNode *node : allNodes) {
+//     int nodeId = node->getId();
+//     if (nodeId == provId || nodeId == reqId)
+//       continue;
+//     if (enoughInteractions(reqId, nodeId)) {
+//       nodesKnownByRequestor.push_back(node);
+//     }
+//   }
+//
+//   for (SemiNode *node : nodesKnownByRequestor) {
+//     int nodeId = node->getId();
+//     if (enoughInteractions(nodeId, provId)) {
+//       EV << "Node " << reqId << " knows " << nodeId << ", who knows " <<
+//       provId
+//          << "\n";
+//       return std::min(calculateDirectTrust(provId, nodeId, time, depth + 1),
+//                       calculateDirectTrust(nodeId, provId, time, depth + 1));
+//     }
+//   }
+//
+//   return 0.1;
+// }
 
 bool SemiNode::enoughInteractions(int requestorId, int providerId) {
   /*if (blockchain.size() < windowSize) { // pencere bile dolmamis!
@@ -794,48 +949,48 @@ bool SemiNode::enoughInteractions(int requestorId, int providerId) {
  * this simple implementation just takes the exp of the difference.
  * WARN: bu su an kullanilmiyor!!
  */
-double SemiNode::calculateDecay(double currentTime, double blockTime) {
-  return std::exp(currentTime - blockTime);
-}
+// double SemiNode::calculateDecay(double currentTime, double blockTime) {
+//   return std::exp(currentTime - blockTime);
+// }
 /*calculates DT of requestor to provider
- * if 'enoughInteractions' which I will implement
+ * if 'enoughInteractions'
  * else, resorts to indirectTrust
  */
-double SemiNode::calculateDirectTrust(int requestorId, int providerId,
-                                      double time, int depth) {
-  EV << "[DT] Direct trust from " << requestorId << " to " << providerId
-     << " | depth = " << depth << "\n";
-
-  if (!enoughInteractions(requestorId, providerId))
-    return calculateIndirectTrust(requestorId, providerId, time, depth + 1);
-
-  double positiveRatings = 0.0;
-  double all_ratings = 0.0;
-
-  for (auto &block : blockchain) {
-    int tmpProvider, tmpRequestor;
-    double rating;
-    if (!extract(block.transactionData, rating, tmpRequestor, tmpProvider))
-      continue;
-    if ((tmpProvider != providerId) || (tmpRequestor != requestorId))
-      continue;
-
-    double addendum = rating * decayFactor;
-    if (rating >= 0) {
-      positiveRatings += addendum;
-    } else {
-      addendum *= (-1) * rancorCoef;
-    }
-    all_ratings += addendum;
-  }
-
-  /*if (std::abs(all_ratings) < 1e-6) {
-      return 0.5;
-  }*/
-
-  double dt = positiveRatings / all_ratings;
-  return std::clamp(dt, 0.0, 1.0);
-}
+// double SemiNode::calculateDirectTrust(int requestorId, int providerId,
+//                                       double time, int depth) {
+//   EV << "[DT] Direct trust from " << requestorId << " to " << providerId
+//      << " | depth = " << depth << "\n";
+//
+//   if (!enoughInteractions(requestorId, providerId))
+//     return calculateIndirectTrust(requestorId, providerId, time, depth + 1);
+//
+//   double positiveRatings = 0.0;
+//   double all_ratings = 0.0;
+//
+//   for (auto &block : blockchain) {
+//     int tmpProvider, tmpRequestor;
+//     double rating;
+//     if (!extract(block.transactionData, rating, tmpRequestor, tmpProvider))
+//       continue;
+//     if ((tmpProvider != providerId) || (tmpRequestor != requestorId))
+//       continue;
+//
+//     double addendum = rating * decayFactor;
+//     if (rating >= 0) {
+//       positiveRatings += addendum;
+//     } else {
+//       addendum *= (-1) * rancorCoef;
+//     }
+//     all_ratings += addendum;
+//   }
+//
+//   /*if (std::abs(all_ratings) < 1e-6) {
+//       return 0.5;
+//   }*/
+//
+//   double dt = positiveRatings / all_ratings;
+//   return std::clamp(dt, 0.0, 1.0);
+// }
 
 /*this is to extract rating and id values from a transaction message in a
  * block give the message as input and the extracted values will be written
