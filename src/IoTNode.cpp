@@ -90,6 +90,10 @@ void IoTNode::initialize() {
   // (time > requesTime + tolerance) {cancleEvent()...} syntax'i tam anlamadim o
   // yuzden dokumantasyona yeniden bakmak gerekecek
   // malicious olanları belirlemek için başka bir yol bulamadım
+
+
+
+
   int totalNodes = getParentModule()->par("numNodes");
   int numMalicious =
       int(par("maliciousNodePercentage").doubleValue() * totalNodes);
@@ -225,7 +229,7 @@ void IoTNode::handleServiceResponseMsg(cMessage *msg) {
     EV << "I am about to calculate the DT of" << requestorId << " to "
        << responderId << "here is the entire BC";
     printBlockChain(blockchain);
-    double dt = calculateDirectTrust(requestorId, responderId, simTime().dbl(),0);
+    double dt = calculateDirectTrust(requestorId, responderId, simTime().dbl());
     // WARN: 'bu' dugumun 'responder'a DT'ini hesaplar.
     // General Trust
     double gt = getNodeById(responderId)->trustScore;
@@ -381,6 +385,27 @@ void IoTNode::handleSelfMessage(cMessage *msg) {
               .c_str(),
           (double)totalBadServicesReceived / totalBenevolentNodes);
     }
+    //belirli sürede bir(şu anda 10 saniye) tekrar ettiği için badServiceLogger'ın içine yazdım bu opportunistic saldırıyı başlatan kısmı
+    if (!opportunisticAttackTriggered && simTime().dbl() >= opportunisticAttackTime) {
+        opportunisticAttackTriggered = true;
+        IoTNode* mostTrusted = *std::max_element(allNodes.begin(), allNodes.end(),
+            [](IoTNode* a, IoTNode* b) { return a->trustScore < b->trustScore; });
+
+        mostTrusted->attackerType = CAMOUFLAGE;
+        mostTrusted->camouflageRate = 0.0; // hep kötücül davranıyor şu anda aslında kamuflaj dememeliydik o yüzden ama böyle yapıp %100 kötücüle çevirmek daha kolay geldi
+        mostTrusted->benevolent = false;
+        mostTrusted->getDisplayString().setTagArg("i", 1, "orange");//rengi değişiyor
+
+
+        EV << "Opportunistic attack triggered! Node " << mostTrusted->getId() << " is now malicious.\n";
+        opportunisticNode = mostTrusted;
+    }
+    if (opportunisticAttackTriggered) {//kötü davranmaya başlayan node'un trust skorunu kaydetmek için
+        recordScalar(("OpportunisticNodeTrustScoreAt_" + std::to_string((int)simTime().dbl())).c_str(),
+                     opportunisticNode->trustScore);
+    }
+
+
     scheduleAt(simTime() + 10.0, msg); // repeat every 10s
     return;
   }
@@ -698,39 +723,35 @@ void IoTNode::sendTransactionToClusterHead(ServiceRating *transaction) {
   send(transaction, "inoutGate$o", gateIndex);
 }
 
-double IoTNode::calculateIndirectTrust(int reqId, int provId, double time, int depth) {
-    const int MAX_TRUST_RECURSION_DEPTH = 7;
+double IoTNode::calculateIndirectTrust(int reqId, int provId, double time) {
+  // WARN: This works for two layers only for now...
 
-    if (depth > MAX_TRUST_RECURSION_DEPTH) {
-        EV << "[IT] Max recursion depth reached from " << reqId << " to " << provId << "\n";
-        return 0.1; // Fallback trust
+  // we know that i does not know j yet, get those who i knows:
+  std::vector<IoTNode *> nodesKnownByRequestor;
+  for (IoTNode *node : allNodes) {
+    int nodeId = node->getId();
+    if (nodeId == provId || nodeId == reqId) {
+      // kendisine ve istemciye bakmasi gerekmiyor
+      continue;
     }
-
-    EV << "[IT] Indirect trust from " << reqId << " to " << provId
-       << " | depth = " << depth << "\n";
-
-    std::vector<IoTNode *> nodesKnownByRequestor;
-    for (IoTNode *node : allNodes) {
-        int nodeId = node->getId();
-        if (nodeId == provId || nodeId == reqId) continue;
-        if (enoughInteractions(reqId, nodeId)) {
-            nodesKnownByRequestor.push_back(node);
-        }
+    if (enoughInteractions(reqId, nodeId)) {
+      nodesKnownByRequestor.push_back(node);
     }
-
-    for (IoTNode *node : nodesKnownByRequestor) {
-        int nodeId = node->getId();
-        if (enoughInteractions(nodeId, provId)) {
-            EV << "Node " << reqId << " knows " << nodeId
-               << ", who knows " << provId << "\n";
-            return std::min(
-                calculateDirectTrust(provId, nodeId, time, depth + 1),
-                calculateDirectTrust(nodeId, provId, time, depth + 1)
-            );
-        }
+  }
+  // now check if a node known by i knows j
+  for (IoTNode *node : nodesKnownByRequestor) {
+    int nodeId = node->getId();
+    // if it knows j, return the min of DTinode and DTnodej
+    if (enoughInteractions(nodeId, provId)) {
+      EV << "for node " << reqId << " node " << nodeId
+         << " is known and it in turn knows " << provId << "\n";
+      return std::min((calculateDirectTrust(reqId, nodeId, time)),
+                      (calculateDirectTrust(nodeId, provId, time)));
     }
+  }
 
-    return 0.1;
+  return 0.1;
+  // TODO: bunu buyuk oranda debug icin 0.1 koydum
 }
 
 bool IoTNode::enoughInteractions(int requestorId, int providerId) {
@@ -784,37 +805,51 @@ double IoTNode::calculateDecay(double currentTime, double blockTime) {
  * if 'enoughInteractions' which I will implement
  * else, resorts to indirectTrust
  */
-double IoTNode::calculateDirectTrust(int requestorId, int providerId, double time, int depth) {
-    EV << "[DT] Direct trust from " << requestorId << " to " << providerId
-       << " | depth = " << depth << "\n";
+double IoTNode::calculateDirectTrust(int requestorId, int providerId,
+                                     double time) {
+  // TODO: divide this method if you want. Too long in this format.
+  if (!enoughInteractions(requestorId, providerId))
+    return calculateIndirectTrust(requestorId, providerId, time);
+  // so there are enough interactions, we calculate DT
+  double dt = 0; // initialise DT
+  double positiveRatings = 0;
+  double all_ratings = 0;
+  // bu ikisi decay'e tabii olacaklar
 
-    if (!enoughInteractions(requestorId, providerId))
-        return calculateIndirectTrust(requestorId, providerId, time, depth + 1);
-
-    double positiveRatings = 0.0;
-    double all_ratings = 0.0;
-
-    for (auto &block : blockchain) {
-        int tmpProvider, tmpRequestor;
-        double rating;
-        if (!extract(block.transactionData, rating, tmpRequestor, tmpProvider)) continue;
-        if ((tmpProvider != providerId) || (tmpRequestor != requestorId)) continue;
-
-        double addendum = rating * decayFactor;
-        if (rating >= 0) {
-            positiveRatings += addendum;
-        } else {
-            addendum *= (-1) * rancorCoef;
-        }
-        all_ratings += addendum;
+  // WARN: DT icin zincirin tamamina mi bakacagiz yoksa yalnizca pencereye
+  // mi??
+  //  bu tercihin tatbiki cok kolay ama uzun zincirler icin performans farki
+  //  olabilir sanirim pencere kullanmak daha mantikli, su anlik boyle
+  //  birakiyorum
+  EV << "calculating DT of " << requestorId << " to " << providerId << '\n';
+  for (auto &block : blockchain) {
+    int tmpProvider, tmpRequestor;
+    double rating;
+    // extract ids and rating
+    extract(block.transactionData, rating, tmpRequestor, tmpProvider);
+    // if the block is not relevant, ignore!
+    if ((tmpProvider != providerId) || !(tmpRequestor != requestorId))
+      continue;
+    double blockTime = block.timestamp;
+    // double decayFactor = calculateDecay(time, blockTime); //
+    // WARN: su an decay yok
+    //   dt += rating * decayFactor;
+    double addendum = rating * decayFactor;
+    // DT_ij icin j'nin TS'i onemli degil, gormezden geliniyor
+    EV << "rating " << rating << '\n';
+    if (rating >= 0) { // positive rating
+      positiveRatings += addendum;
+    } else {                         // negative rating;
+      addendum *= (-1) * rancorCoef; // negatif oyun mutlak degeri
+      // olumsuzsa kin katsayisiyla carp ki fazla tesir etsin
     }
-
-    /*if (std::abs(all_ratings) < 1e-6) {
-        return 0.5;
-    }*/
-
-    double dt = positiveRatings / all_ratings;
-    return std::clamp(dt, 0.0, 1.0);
+    all_ratings += addendum;
+  }
+  EV << "positive ratings :" << positiveRatings
+     << "\nall ratings: " << all_ratings << '\n';
+  dt = positiveRatings / all_ratings;
+  EV << "DT = " << dt << '\n';
+  return dt;
 }
 
 /*this is to extract rating and id values from a transaction message in a

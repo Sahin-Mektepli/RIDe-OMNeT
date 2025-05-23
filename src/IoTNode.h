@@ -29,13 +29,15 @@ private:
   static int totalBenevolentNodes;
   static std::set<int> maliciousNodeIds;
 
+
+
   int badServicesReceived = 0;
   cMessage *badServiceLogger = nullptr;
   //--parameters--
   int windowSize = 100;          // just for testing purposes90 idi bu
   int enoughEncounterLimit = 1; // TODO: these two parameters are just examples
   double genTrustCoef = 0.01;
-  double rancorCoef = 1.0;           // defined to be higher than 1
+  double rancorCoef = 2.0;           // defined to be higher than 1
   double decayFactor = 1;          // WARN: bunu 1'de unutmak, decay yok demek!
   std::map<int, int> routingTable; // Maps Node ID → Gate Index
   //  std::map<int, std::string> serviceTable; // private olmalı gibi geldi
@@ -107,9 +109,9 @@ protected:
                int &providerId);
   double
   calculateDirectTrust(int requestorId, int providerId,
-                       double time ,int depth); // between a single i,j pair at time t
+                       double time ); // between a single i,j pair at time t
   double calculateIndirectTrust(int requestor, int provider,
-                                double time, int depth); // if DT cannot be
+                                double time); // if DT cannot be
                                               // calculated
   bool enoughInteractions(int requestorId, int provider);
   // can I calculate DT for i and j? (this = i)
@@ -138,7 +140,7 @@ protected:
   /* change this rate depending on how much camouflage you want the nodes to
    * perform 1 means it never acts malicously and 0 is always malicious
    */
-  double camouflageRate = 0.3;
+  double camouflageRate = 0.0;
   // -- deciding on the rating of a service --
   double calculateRating(double quality, double timeliness, double rarity);
 
@@ -153,6 +155,12 @@ protected:
   static std::vector<Block> blockchain;
 
   cMessage *serviceRequestEvent; // Add this line
+
+  //oppurtunistic attack: trust skoru en yüksek olan iyi node belirli bir zamanadan(opportunisticAttackTime) sonra kötü dvaranmaya başlarsa ne olur onu test ediyoruz
+    double opportunisticAttackTime = 50; // .ini dosyasından değiştirmezsek buradaki geçerli oluyor (sadece buraya da yazabilirdim aslında)
+    bool opportunisticAttackTriggered = false;
+    IoTNode* opportunisticNode = nullptr;
+
 };
 
 #endif
