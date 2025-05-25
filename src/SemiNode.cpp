@@ -25,9 +25,9 @@ Define_Module(SemiNode);
 
 // TODO: bunlari henuz guncellemiyorum
 // a mapping from nodes to a mapping from nodes to counters
-static std::map<SemiNode *, std::map<int, int>> nodeResponseCounts;
+static std::map<int, std::map<int, int>> nodeResponseCounts;
 // how many times this node requested from these nodes nodeId-->counter
-static std::map<SemiNode *, std::map<int, int>> nodeRequestCounts;
+static std::map<int, std::map<int, int>> nodeRequestCounts;
 
 std::vector<Block> SemiNode::blockchain;
 std::vector<SemiNode *> SemiNode::allNodes;
@@ -38,38 +38,37 @@ std::set<int> SemiNode::maliciousNodeIds;
 int SemiNode::totalBadServicesReceived = 0;
 int SemiNode::totalBenevolentNodes = 0;
 
+/*
+ * How many times did I request a service from J
+ * Works the same as the response counter function
+ */
 int totalRequestFromItoJ(int reqId, int provId) {
-  int totalRequests = 0;
-  for (auto nodeRow : nodeRequestCounts) {
-    // requestor icin olan sayaclara geldik
-    if (nodeRow.first->getId() == reqId) {
-
-      for (auto mapping : nodeRow.second) {
-        if (mapping.first == provId) {
-          totalRequests = mapping.second;
-        }
-      }
-    }
-  }
-  return totalRequests;
+  return nodeRequestCounts[reqId][provId];
 }
+
+// i'nin j'den "resmi" bir istemde bulundugu halde cagir
+// bu istemlerin sayisini bir arttirir
+void incRequestOfIFromJ(int reqId, int provId) {
+  ++nodeRequestCounts[reqId][provId];
+}
+
+/*
+ * Terribly named but still conveys the message.
+ * Returns the *total* number of returns from the provider to a request from the
+ * requestor
+ */
 int positiveResponseToIfromJ(int reqId, int provId) {
-  int positiveResponses = 0;
-  for (auto nodeRow : nodeResponseCounts) {
-    // requestor icin olan sayaclara geldik
-    if (nodeRow.first->getId() == reqId) {
-
-      for (auto mapping : nodeRow.second) {
-        if (mapping.first == provId) {
-          positiveResponses = mapping.second;
-        }
-      }
-    }
-  }
-  return positiveResponses;
+  return nodeResponseCounts[reqId][provId];
 }
+
+// mukabili olan fonksiyonla ayni, donutleri arttiriyor
+void incResponseToIFromJ(int reqId, int provId) {
+  ++nodeResponseCounts[reqId][provId];
+}
+
+// RT_ij =  how many times j responded /how many times i asked
 double SemiNode::responseTrustTo(int thisId, int nodeId) {
-  // find the node in both maps
+  // find the counts from both maps
   int totalRequests = totalRequestFromItoJ(thisId, nodeId);
   if (totalRequests == 0) {
     return 0;
@@ -89,6 +88,7 @@ double SemiNode::semiDecay(int thisId, int nodeId, double timeDif) {
   return exp(exponandum);
 }
 
+// WARN: YANLIS BU, 8 FALAN GELIYOR
 double SemiNode::ratingTrustTo(int thisId, int nodeId) {
   double ratings = 0.0;
   double decays = 0;
@@ -417,10 +417,17 @@ void SemiNode::handleServiceResponseMsg(cMessage *msg) {
 
   delete response;
 }
+
 void SemiNode::handleFinalServiceRequestMsg(cMessage *msg) {
+  // this function is called after i (req) and j (prov) have done a "handshake"
+  // and i is "making a formal request of j".
+  // therefore the request counter must increment.
   FinalServiceRequest *request = check_and_cast<FinalServiceRequest *>(msg);
   int requesterId = request->getRequesterId();
   std::string requestedService = request->getServiceType();
+
+  // refer above
+  incRequestOfIFromJ(requesterId, this->getId());
 
   if (providedService != requestedService) {
     EV << "Node " << getId() << " received final request for "
@@ -430,6 +437,9 @@ void SemiNode::handleFinalServiceRequestMsg(cMessage *msg) {
     return;
   }
 
+  // wait, this code assumes that j provides the service to i right after
+  // receiving the final request!
+  // therefore, the response trust should always be 1??
   EV << "Providing FINAL service to Node " << requesterId << endl;
 
   FinalServiceResponse *response =
@@ -453,9 +463,14 @@ void SemiNode::handleFinalServiceRequestMsg(cMessage *msg) {
   delete request;
 }
 void SemiNode::handleFinalServiceResponseMsg(cMessage *msg) {
+  // istemci bir cevap ve uzerine hizmet aldi
+  // yani ki olumlu donuslerin sayisi arttirilmali!
   FinalServiceResponse *response = check_and_cast<FinalServiceResponse *>(msg);
   int providerId = response->getProviderId();
   double quality = response->getServiceQuality();
+
+  incResponseToIFromJ(this->getId(), providerId);
+
   std::string serviceType = response->getServiceType(); // lazim
   EV << "Node " << getId() << " received final service from " << providerId
      << " with quality: " << quality << endl;
@@ -534,6 +549,7 @@ void SemiNode::handleSelfMessage(cMessage *msg) {
           (double)totalBadServicesReceived / totalBenevolentNodes);
     }
     scheduleAt(simTime() + 10.0, msg); // repeat every 10s
+    // WARN: bunun suresini azaltmak fark yaratir mi acaba?
     return;
   }
   if (strcmp(msgName, "populateServiceTable") == 0) {
@@ -944,53 +960,6 @@ bool SemiNode::enoughInteractions(int requestorId, int providerId) {
     return false;
   }
 }
-/*calculates the decay factor in the Trust Score calculations
- * takes the current and block times as argument
- * this simple implementation just takes the exp of the difference.
- * WARN: bu su an kullanilmiyor!!
- */
-// double SemiNode::calculateDecay(double currentTime, double blockTime) {
-//   return std::exp(currentTime - blockTime);
-// }
-/*calculates DT of requestor to provider
- * if 'enoughInteractions'
- * else, resorts to indirectTrust
- */
-// double SemiNode::calculateDirectTrust(int requestorId, int providerId,
-//                                       double time, int depth) {
-//   EV << "[DT] Direct trust from " << requestorId << " to " << providerId
-//      << " | depth = " << depth << "\n";
-//
-//   if (!enoughInteractions(requestorId, providerId))
-//     return calculateIndirectTrust(requestorId, providerId, time, depth + 1);
-//
-//   double positiveRatings = 0.0;
-//   double all_ratings = 0.0;
-//
-//   for (auto &block : blockchain) {
-//     int tmpProvider, tmpRequestor;
-//     double rating;
-//     if (!extract(block.transactionData, rating, tmpRequestor, tmpProvider))
-//       continue;
-//     if ((tmpProvider != providerId) || (tmpRequestor != requestorId))
-//       continue;
-//
-//     double addendum = rating * decayFactor;
-//     if (rating >= 0) {
-//       positiveRatings += addendum;
-//     } else {
-//       addendum *= (-1) * rancorCoef;
-//     }
-//     all_ratings += addendum;
-//   }
-//
-//   /*if (std::abs(all_ratings) < 1e-6) {
-//       return 0.5;
-//   }*/
-//
-//   double dt = positiveRatings / all_ratings;
-//   return std::clamp(dt, 0.0, 1.0);
-// }
 
 /*this is to extract rating and id values from a transaction message in a
  * block give the message as input and the extracted values will be written
