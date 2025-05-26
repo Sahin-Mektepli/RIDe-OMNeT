@@ -10,6 +10,7 @@
 #include "omnetpp/csimulation.h"
 #include <algorithm>
 #include <cmath>
+#include <cstdlib>
 #include <ctime>
 #include <filesystem>
 #include <map>
@@ -28,6 +29,11 @@ Define_Module(SemiNode);
 static std::map<int, std::map<int, int>> nodeResponseCounts;
 // how many times this node requested from these nodes nodeId-->counter
 static std::map<int, std::map<int, int>> nodeRequestCounts;
+// how many times did k recommend j to i
+// [req][prov][rec]
+static std::map<int, std::map<int, std::map<int, int>>>
+    nodeRecommendationCounts;
+// I hate type names in Cpp...
 
 std::vector<Block> SemiNode::blockchain;
 std::vector<SemiNode *> SemiNode::allNodes;
@@ -61,6 +67,16 @@ int positiveResponseToIfromJ(int reqId, int provId) {
   return nodeResponseCounts[reqId][provId];
 }
 
+// how many times did k recommend j to i
+void incRecToIOfJByK(int reqId, int provId, int recId) {
+  ++nodeRecommendationCounts[reqId][provId][recId];
+}
+// How many times did recId recommended prov to req
+int recommendationNumber(int reqId, int provId, int recommenderId) {
+  return nodeRecommendationCounts[reqId][provId][recommenderId];
+  ;
+}
+
 // mukabili olan fonksiyonla ayni, donutleri arttiriyor
 void incResponseToIFromJ(int reqId, int provId) {
   ++nodeResponseCounts[reqId][provId];
@@ -78,6 +94,15 @@ double SemiNode::responseTrustTo(int thisId, int nodeId) {
   return (double)positiveResponses / totalRequests;
 }
 
+// DONE: bu daha bitmedi, bittieeee
+double SemiNode::recommendationDecay(int reqId, int provId, int recommenderId,
+                                     double timeDif) {
+  // exp (-coef / recomNumber * timeDif)
+  int recomNumber = recommendationNumber(reqId, provId, recommenderId);
+
+  return exp((-1) * recomDecayConstantCr / recomNumber * timeDif);
+}
+
 double SemiNode::semiDecay(int thisId, int nodeId, double timeDif) {
   // I need positive response number again...
   int positiveResponses = positiveResponseToIfromJ(thisId, nodeId);
@@ -88,17 +113,24 @@ double SemiNode::semiDecay(int thisId, int nodeId, double timeDif) {
   return exp(exponandum);
 }
 
-// WARN: YANLIS BU, 8 FALAN GELIYOR
-double SemiNode::ratingTrustTo(int thisId, int nodeId) {
-  double ratings = 0.0;
-  double decays = 0;
-  // examine the blocks in the window
+std::vector<Block> SemiNode::takeBlocksInWindow() {
   std::vector<Block> blocksInWindow;
   if ((int)blockchain.size() < windowSize) {
     blocksInWindow.assign(blockchain.begin(), blockchain.end());
   } else {
     blocksInWindow.assign(blockchain.end() - windowSize, blockchain.end());
   }
+  return blocksInWindow;
+}
+
+// DONE: YANLIS BU, 8 FALAN GELIYOR, tamam, sorun rating'in (0,1)'de olmamasi
+// sum (ratings to j * decay)
+double SemiNode::ratingTrustTo(int thisId, int nodeId) {
+  double ratings = 0.0;
+  double decays = 0.0;
+  // examine the blocks in the window
+  std::vector<Block> blocksInWindow = takeBlocksInWindow();
+
   for (auto &block : blocksInWindow) {
     int tmpProvider, tmpRequestor;
     double rating;
@@ -120,7 +152,7 @@ double SemiNode::ratingTrustTo(int thisId, int nodeId) {
     return 0.5;
   }
   // over all the decay coefs (for some reason)
-  return ratings / decays;
+  return ratings / decays * 0.1; // bizde rating'ler (-10,10)'da...
 }
 
 // just responseTrust * ratingTrust
@@ -144,13 +176,52 @@ std::vector<int> SemiNode::findRecommenders(int provId) {
   return recommendors;
 }
 // recTrust of this node i, to a recommender k, about node j
-double recommendationTrust(int thisId, int recId, int provId) {
+double SemiNode::recommendationTrust(int reqId, int provId, int recId) {
   // find out the difference between the previous recommendation trust and the
   // rating of the service resulted because of that recom
-  double diff = 0;
   // WARN: bunu su an yazamayacagim sanirim...
   // mesajlasma protokolunun tamamen halledilmils olmasi gerekiyor bunun icin...
-  return 0.5;
+
+  // sum over a time window:
+  // RR_ik(t) * DR_ik(t) --> numerator
+  // DR_ik(t) --> denominator
+
+  double numerator = 0;
+  double denominator = 0;
+
+  // inspect the part of the BC that is relevant
+  std::vector<Block> blocksInWindow = takeBlocksInWindow();
+  int blockReqId, blockProvId;
+  double rating;
+  for (const auto &block : blocksInWindow) {
+    extract(block.transactionData, rating, blockReqId, blockProvId);
+    // trying to see if the block is relevant
+    if (blockReqId != reqId || blockProvId != provId) {
+      continue;
+    }
+    // if the block is relevant, go on
+    double blockTime = block.timestamp;
+    double timeDif = simTime().dbl() - blockTime;
+
+    double decayParameter = recommendationDecay(reqId, provId, recId, timeDif);
+
+    // bu, mevzubahis oylamanin verildigi anda i'nin j'ye verdigi oy ile
+    // k'nin j'ye ne kadar guvendiginin farki.
+    double diff;
+    double directTrust_kj = semiDT(recId, provId); // direct trust of k to j
+    double rating_ij = rating;                     // the rating of i to j
+    diff = std::abs(directTrust_kj - rating_ij);
+
+    // recommendation rating of i to k is max(1 - diff_ik*2 , 0)
+    double recomRating_ik = std::max(1 - diff * 2, 0.0);
+
+    numerator += recomRating_ik * decayParameter;
+    denominator += decayParameter;
+  }
+  if (numerator == 0) {
+    return 0.5;
+  }
+  return numerator / denominator;
 }
 double SemiNode::semiIT(int thisId, int nodeId) {
   // a set of recommenders should be created
@@ -182,9 +253,10 @@ double SemiNode::totalTrust(int thisId, int nodeId) {
 
   EV << "DT of " << thisId << " to " << nodeId << " is " << DT_ij << endl;
   EV << "IT of " << thisId << " to " << nodeId << " is " << IT_ij << endl;
-  double alpha = 1;
-  double beta = 1;
+  double alpha = 0.5;
+  double beta = 0.5;
   // WARN: bunlarin tatbikine aklim ermiyor su an...
+  // ama toplamlari 1 olmali :p
 
   return alpha * DT_ij + beta * IT_ij;
 }

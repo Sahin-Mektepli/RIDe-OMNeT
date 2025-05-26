@@ -129,10 +129,10 @@ protected:
   // can I calculate DT for i and j? (this = i)
   double
   calculateDecay(double currentTime,
-                 double blockTime); // this can be changed for many reasons!
-  const double semiDecayConst =
-      1; // WARN: I have no idea what this should be...
+                 double blockTime);  // this can be changed for many reasons!
+  const double semiDecayConst = 0.5; // DONE: makalede bu da yaziyormus
   double semiDecay(int thisId, int nodeId, double timeDif);
+  double recomDecayConstantCr = 10; // makaleden meluf
   void updateProviderGeneralTrust(SemiNode *provider, double requestorTrust,
                                   double rating);
   double getTrust(int nodeId); // returns the general trust of a node given its
@@ -151,6 +151,9 @@ protected:
   double semiDT(int thisId, int nodeId);
   double semiIT(int thisId, int nodeId);
   std::vector<int> findRecommenders(int provInodeId);
+  double recommendationTrust(int thisId, int recId, int provId);
+  double recommendationDecay(int reqId, int provId, int recommenderId,
+                             double timeDif);
   double totalTrust(int thisId, int nodeId);
 
   // Node'a mahsus attribute'ler
@@ -188,6 +191,7 @@ protected:
   // public:
   // -- ihtilaf yuzunden buraya bazi gereksiz tanimlar ekliyorum--
   void printBlockChain(std::vector<Block> blockchain);
+  std::vector<Block> takeBlocksInWindow();
   bool performsCamouflage(double camouflageRate);
   double badMouthingRating();
   void printRoutingTable(const std::map<int, int> &routingTable);
