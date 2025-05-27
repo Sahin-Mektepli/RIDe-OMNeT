@@ -259,15 +259,25 @@ double calcAlpha(double a, double b) { return a / (a + b); }
 double SemiNode::aWeight(int reqId, int provId) {
   double NS_ji = positiveResponseToIfromJ(reqId, provId);
   double logarithmand = 1 + std::min(NS_ji, m);
+  if (logarithmand == 1) { // results in dividing by zero
+    ++logarithmand;        // they did not have a default, again..
+  }
   double base = m + 1;
-  return std::log(logarithmand) /
-         std::log(base); // I don't think there is a func in the library to take
-                         // the logartithm with a certain base.
+  double logarithm =
+      std::log(logarithmand) /
+      std::log(base); // I don't think there is a func in the library to take
+                      // the logartithm with a certain base.
+  EV << "logarithman: " << logarithmand << " and base: " << base << "gives "
+     << logarithm << '\n';
+  return logarithm;
 }
 // log(l+1)_(1+min(N_phi,l))
 double SemiNode::bWeight(int provId) {
   double N_phi = numberOfRecommendors(provId);
   double logarithmand = 1 + std::min(N_phi, l);
+  if (logarithmand == 1) { // results in dividing by zero
+    ++logarithmand;        // they did not have a default, again..
+  }
   double base = l + 1;
   return std::log(logarithmand) / std::log(base);
 }
