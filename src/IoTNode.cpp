@@ -873,6 +873,58 @@ bool IoTNode::extract(const std::string &input, double &rating,
   }
 }
 void IoTNode::finish() {
+
+    //Accuracy için
+    if (getId() == 2) {//tek bir node içinde hesplamak için yazdım bu kısmı node id'leri 2'den başlıyor omnet'te
+        std::vector<std::pair<double, bool>> trustAndLabel;
+
+        for (IoTNode* node : allNodes) {
+            trustAndLabel.emplace_back(node->trustScore, node->benevolent);
+        }
+
+        double bestF1 = 0.0;
+        double bestThreshold = 0.5;  // default threshold
+        double bestPrecision = 0.0, bestRecall = 0.0, bestAccuracy = 0.0;
+
+        for (double threshold = 0.0; threshold <= 1.0; threshold += 0.01) {
+            int TP = 0, TN = 0, FP = 0, FN = 0;
+
+            for (const auto& [score, isBenevolent] : trustAndLabel) {
+                bool predictedBenevolent = (score >= threshold);
+                //bu önemli!!!!
+                //positive= malicious bu testlerde çünkü amacımız kötüyü bulmak
+                if (!isBenevolent && !predictedBenevolent) TP++; // kötü olana kötü demiş
+                else if (isBenevolent && predictedBenevolent) TN++;// iyi olana iyi demiş
+                else if (!isBenevolent && predictedBenevolent) FN++;// kötüye iyi demiş
+                else if (isBenevolent && !predictedBenevolent) FP++;// iyiye kötü demiş
+            }
+
+            double precision = (double)TP / (TP + FP + 1e-6);
+            double recall = (double)TP / (TP + FN + 1e-6);
+            double f1 = 2 * precision * recall / (precision + recall + 1e-6);
+            double accuracy = (double)(TP + TN) / (TP + TN + FP + FN + 1e-6);
+
+            if (f1 > bestF1) {
+                bestF1 = f1;
+                bestThreshold = threshold;
+                bestPrecision = precision;
+                bestRecall = recall;
+                bestAccuracy = accuracy;
+            }
+        }
+
+        // Record best metrics
+        recordScalar("BestThreshold", bestThreshold);
+        recordScalar("BestF1Score", bestF1);
+        recordScalar("BestPrecision", bestPrecision);
+        recordScalar("BestRecall", bestRecall);
+        recordScalar("BestAccuracy", bestAccuracy);
+    }
+
+
+
+
+
   if (badServiceLogger != nullptr) {
     cancelAndDelete(badServiceLogger);
     badServiceLogger = nullptr;
@@ -886,6 +938,7 @@ void IoTNode::finish() {
     recordScalar("FinalAverageBadServices",
                  (double)totalBadServicesReceived / totalBenevolentNodes);
   }
+
 
 
 }

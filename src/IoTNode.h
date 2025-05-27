@@ -157,7 +157,7 @@ protected:
   cMessage *serviceRequestEvent; // Add this line
 
   //oppurtunistic attack: trust skoru en yüksek olan iyi node belirli bir zamanadan(opportunisticAttackTime) sonra kötü dvaranmaya başlarsa ne olur onu test ediyoruz
-    double opportunisticAttackTime = 50; // .ini dosyasından değiştirmezsek buradaki geçerli oluyor (sadece buraya da yazabilirdim aslında)
+    double opportunisticAttackTime = 500;
     bool opportunisticAttackTriggered = false;
     IoTNode* opportunisticNode = nullptr;
 
