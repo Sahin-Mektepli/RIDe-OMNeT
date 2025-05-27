@@ -71,6 +71,11 @@ private:
   // -- TS coefficients -- (provider secerken kullanilan TS=a*dt + b*gt)
   double a = 1;
   double b = 1;
+  // -- Semi DT IT dengesini tayin etmekye mustamel l ve m kardinalleri:
+  double m = 10;
+  double l = 25;
+  double aWeight(int reqId, int provId);
+  double bWeight(int provId);
   //-- attackers --
   enum AttackerType {
     BENEVOLENT, // bunu eklemek sacma olabilir ama bulunsun
@@ -151,6 +156,7 @@ protected:
   double semiDT(int thisId, int nodeId);
   double semiIT(int thisId, int nodeId);
   std::vector<int> findRecommenders(int provInodeId);
+  int numberOfRecommendors(int provId);
   double recommendationTrust(int thisId, int recId, int provId);
   double recommendationDecay(int reqId, int provId, int recommenderId,
                              double timeDif);

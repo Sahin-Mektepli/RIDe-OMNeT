@@ -175,12 +175,20 @@ std::vector<int> SemiNode::findRecommenders(int provId) {
   }
   return recommendors;
 }
+// How many nodes can recommend THE PROVIDER. N_phi
+int SemiNode::numberOfRecommendors(int provId) {
+  int counter{};
+  for (const auto &node : allNodes) {
+    if (enoughInteractions(node->getId(), provId)) {
+      ++counter;
+    }
+  }
+  return counter;
+}
 // recTrust of this node i, to a recommender k, about node j
 double SemiNode::recommendationTrust(int reqId, int provId, int recId) {
   // find out the difference between the previous recommendation trust and the
   // rating of the service resulted because of that recom
-  // WARN: bunu su an yazamayacagim sanirim...
-  // mesajlasma protokolunun tamamen halledilmils olmasi gerekiyor bunun icin...
 
   // sum over a time window:
   // RR_ik(t) * DR_ik(t) --> numerator
@@ -232,20 +240,37 @@ double SemiNode::semiIT(int thisId, int nodeId) {
   double recAndDirectTrusts = 0;
   double sumOfRecTrusts = 0;
   for (int recId : recommenderIds) {
-    // bildigim butun konvansiyonlara muhalif kod yazma speedrun'i
     double DT_kj = semiDT(recId, nodeId);
     double recTrust_ik = recommendationTrust(thisId, recId, nodeId);
     recAndDirectTrusts += DT_kj * recTrust_ik;
     sumOfRecTrusts += recTrust_ik;
   }
   if (recAndDirectTrusts == 0 || sumOfRecTrusts == 0) {
-    // defualt deger yok.......
+    // WARN: MAKALEDE DEFAULT VAR MI, YOKSA BUNU BI DUSUNUN.
+    //  defualt deger yok.......
     return 0.5;
   }
   // vallahi boyle yaziyor makalede...
   return recAndDirectTrusts / sumOfRecTrusts;
 }
-
+double calcBeta(double a, double b) { return b / (a + b); }
+double calcAlpha(double a, double b) { return a / (a + b); }
+// log(m+1)_(1+min(NS_ji,m))
+double SemiNode::aWeight(int reqId, int provId) {
+  double NS_ji = positiveResponseToIfromJ(reqId, provId);
+  double logarithmand = 1 + std::min(NS_ji, m);
+  double base = m + 1;
+  return std::log(logarithmand) /
+         std::log(base); // I don't think there is a func in the library to take
+                         // the logartithm with a certain base.
+}
+// log(l+1)_(1+min(N_phi,l))
+double SemiNode::bWeight(int provId) {
+  double N_phi = numberOfRecommendors(provId);
+  double logarithmand = 1 + std::min(N_phi, l);
+  double base = l + 1;
+  return std::log(logarithmand) / std::log(base);
+}
 // a*DT $ b*IT
 double SemiNode::totalTrust(int thisId, int nodeId) {
   double DT_ij = semiDT(thisId, nodeId);
@@ -253,10 +278,10 @@ double SemiNode::totalTrust(int thisId, int nodeId) {
 
   EV << "DT of " << thisId << " to " << nodeId << " is " << DT_ij << endl;
   EV << "IT of " << thisId << " to " << nodeId << " is " << IT_ij << endl;
-  double alpha = 0.5;
-  double beta = 0.5;
-  // WARN: bunlarin tatbikine aklim ermiyor su an...
-  // ama toplamlari 1 olmali :p
+  double a = aWeight(thisId, nodeId);
+  double b = bWeight(nodeId);
+  double alpha = calcAlpha(a, b);
+  double beta = calcBeta(a, b);
 
   return alpha * DT_ij + beta * IT_ij;
 }
@@ -1063,6 +1088,7 @@ void SemiNode::finish() {
     recordScalar("FinalBadServicesReceived", badServicesReceived);
   }
 
+  recordScalar("benevolentNodeNumber", totalBenevolentNodes);
   if (totalBenevolentNodes > 0) {
     recordScalar("FinalAverageBadServices",
                  (double)totalBadServicesReceived / totalBenevolentNodes);
