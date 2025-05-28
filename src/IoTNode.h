@@ -140,7 +140,7 @@ protected:
   /* change this rate depending on how much camouflage you want the nodes to
    * perform 1 means it never acts malicously and 0 is always malicious
    */
-  double camouflageRate = 0.0;
+  double camouflageRate = 0.5;
   // -- deciding on the rating of a service --
   double calculateRating(double quality, double timeliness, double rarity);
 
