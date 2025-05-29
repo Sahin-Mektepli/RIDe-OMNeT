@@ -1,4 +1,3 @@
-
 **** SCALARS ****
 run,repetition,module,name,value
 General-0-20250528-14:54:53-396,0,BlockchainNetwork.iotNode[0],AverageBadServicesAt_10,0.28571428571429
@@ -175,25 +174,25 @@ General-0-20250528-14:54:53-396,0,BlockchainNetwork.iotNode[0],OpportunisticNode
 General-0-20250528-14:54:53-396,0,BlockchainNetwork.iotNode[0],OpportunisticNodeTrustScoreAt_540,0.6650132507923
 General-0-20250528-14:54:53-396,0,BlockchainNetwork.iotNode[0],OpportunisticNodeTrustScoreAt_550,0.65982839659638
 General-0-20250528-14:54:53-396,0,BlockchainNetwork.iotNode[0],OpportunisticNodeTrustScoreAt_560,0.64472440869342
-General-0-20250528-14:54:53-396,0,BlockchainNetwork.iotNode[0],OpportunisticNodeTrustScoreAt_570,0.64472440869342
-General-0-20250528-14:54:53-396,0,BlockchainNetwork.iotNode[0],OpportunisticNodeTrustScoreAt_580,0.64472440869342
-General-0-20250528-14:54:53-396,0,BlockchainNetwork.iotNode[0],OpportunisticNodeTrustScoreAt_590,0.63510258484659
-General-0-20250528-14:54:53-396,0,BlockchainNetwork.iotNode[0],OpportunisticNodeTrustScoreAt_600,0.63510258484659
-General-0-20250528-14:54:53-396,0,BlockchainNetwork.iotNode[0],OpportunisticNodeTrustScoreAt_610,0.63510258484659
-General-0-20250528-14:54:53-396,0,BlockchainNetwork.iotNode[0],OpportunisticNodeTrustScoreAt_620,0.63045562796349
-General-0-20250528-14:54:53-396,0,BlockchainNetwork.iotNode[0],OpportunisticNodeTrustScoreAt_630,0.63045562796349
-General-0-20250528-14:54:53-396,0,BlockchainNetwork.iotNode[0],OpportunisticNodeTrustScoreAt_640,0.63045562796349
-General-0-20250528-14:54:53-396,0,BlockchainNetwork.iotNode[0],OpportunisticNodeTrustScoreAt_650,0.63045562796349
-General-0-20250528-14:54:53-396,0,BlockchainNetwork.iotNode[0],OpportunisticNodeTrustScoreAt_660,0.62150647192822
-General-0-20250528-14:54:53-396,0,BlockchainNetwork.iotNode[0],OpportunisticNodeTrustScoreAt_670,0.62150647192822
-General-0-20250528-14:54:53-396,0,BlockchainNetwork.iotNode[0],OpportunisticNodeTrustScoreAt_680,0.62150647192822
+General-0-20250528-14:54:53-396,0,BlockchainNetwork.iotNode[0],OpportunisticNodeTrustScoreAt_570,0.62472440869342
+General-0-20250528-14:54:53-396,0,BlockchainNetwork.iotNode[0],OpportunisticNodeTrustScoreAt_580,0.6072440869342
+General-0-20250528-14:54:53-396,0,BlockchainNetwork.iotNode[0],OpportunisticNodeTrustScoreAt_590,0.5510258484659
+General-0-20250528-14:54:53-396,0,BlockchainNetwork.iotNode[0],OpportunisticNodeTrustScoreAt_600,0.52510258484659
+General-0-20250528-14:54:53-396,0,BlockchainNetwork.iotNode[0],OpportunisticNodeTrustScoreAt_610,0.52510258484659
+General-0-20250528-14:54:53-396,0,BlockchainNetwork.iotNode[0],OpportunisticNodeTrustScoreAt_620,0.52045562796349
+General-0-20250528-14:54:53-396,0,BlockchainNetwork.iotNode[0],OpportunisticNodeTrustScoreAt_630,0.50045562796349
+General-0-20250528-14:54:53-396,0,BlockchainNetwork.iotNode[0],OpportunisticNodeTrustScoreAt_640,0.45045562796349
+General-0-20250528-14:54:53-396,0,BlockchainNetwork.iotNode[0],OpportunisticNodeTrustScoreAt_650,0.43045562796349
+General-0-20250528-14:54:53-396,0,BlockchainNetwork.iotNode[0],OpportunisticNodeTrustScoreAt_660,0.39150647192822
+General-0-20250528-14:54:53-396,0,BlockchainNetwork.iotNode[0],OpportunisticNodeTrustScoreAt_670,0.35150647192822
+General-0-20250528-14:54:53-396,0,BlockchainNetwork.iotNode[0],OpportunisticNodeTrustScoreAt_680,0.35150647192822
 
 **** PARAMETERS ****
 run,repetition,module,name,value
 General-0-20250528-14:54:53-396,0,BlockchainNetwork,maliciousNodePercentage,0.3
 General-0-20250528-14:54:53-396,0,BlockchainNetwork,numNodes,30
-General-0-20250528-14:54:53-396,0,BlockchainNetwork,typename,"""src.BlockchainNetwork"""
-General-0-20250528-14:54:53-396,0,BlockchainNetwork.iotNode[0],typename,"""src.IoTNode"""
+"General-0-20250528-14:54:53-396,0,BlockchainNetwork,typename,""""""src.BlockchainNetwork"""""""
+"General-0-20250528-14:54:53-396,0,BlockchainNetwork.iotNode[0],typename,""""""src.IoTNode"""""""
 General-0-20250528-14:54:53-396,0,BlockchainNetwork.iotNode[0],maliciousNodePercentage,0.3
 General-0-20250528-14:54:53-396,0,BlockchainNetwork.iotNode[0],maliciousNodePercentage,0.3
-General-0-20250528-14:54:53-396,0,BlockchainNetwork.iotNode[0],typename,"""src.IoTNode"""
+"General-0-20250528-14:54:53-396,0,BlockchainNetwork.iotNode[0],typename,""""""src.IoTNode"""""""

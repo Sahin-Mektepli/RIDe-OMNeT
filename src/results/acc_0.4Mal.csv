@@ -1,0 +1,34 @@
+
+**** SCALARS ****
+run,repetition,module,name,value
+General-0-20250529-15:10:37-6688,0,BlockchainNetwork.iotNode[0],AverageBadServicesAt_10,0.44444444444444
+General-0-20250529-15:10:37-6688,0,BlockchainNetwork.iotNode[0],AverageBadServicesAt_20,0.55555555555556
+General-0-20250529-15:10:37-6688,0,BlockchainNetwork.iotNode[0],AverageBadServicesAt_30,0.55555555555556
+General-0-20250529-15:10:37-6688,0,BlockchainNetwork.iotNode[0],AverageBadServicesAt_40,0.55555555555556
+General-0-20250529-15:10:37-6688,0,BlockchainNetwork.iotNode[0],AverageBadServicesAt_50,0.55555555555556
+General-0-20250529-15:10:37-6688,0,BlockchainNetwork.iotNode[0],AverageBadServicesAt_60,0.55555555555556
+General-0-20250529-15:10:37-6688,0,BlockchainNetwork.iotNode[0],AverageBadServicesAt_70,0.55555555555556
+General-0-20250529-15:10:37-6688,0,BlockchainNetwork.iotNode[0],AverageBadServicesAt_80,0.55555555555556
+General-0-20250529-15:10:37-6688,0,BlockchainNetwork.iotNode[0],AverageBadServicesAt_90,0.55555555555556
+General-0-20250529-15:10:37-6688,0,BlockchainNetwork.iotNode[0],AverageBadServicesAt_100,0.55555555555556
+General-0-20250529-15:10:37-6688,0,BlockchainNetwork.iotNode[0],AverageBadServicesAt_110,0.55555555555556
+General-0-20250529-15:10:37-6688,0,BlockchainNetwork.iotNode[0],AverageBadServicesAt_120,0.55555555555556
+General-0-20250529-15:10:37-6688,0,BlockchainNetwork.iotNode[0],AverageBadServicesAt_130,0.55555555555556
+General-0-20250529-15:10:37-6688,0,BlockchainNetwork.iotNode[0],AverageBadServicesAt_140,0.55555555555556
+General-0-20250529-15:10:37-6688,0,BlockchainNetwork.iotNode[0],AverageBadServicesAt_150,0.55555555555556
+General-0-20250529-15:10:37-6688,0,BlockchainNetwork.iotNode[0],AverageBadServicesAt_160,0.55555555555556
+General-0-20250529-15:10:37-6688,0,BlockchainNetwork.iotNode[0],AverageBadServicesAt_170,0.55555555555556
+General-0-20250529-15:10:37-6688,0,BlockchainNetwork.iotNode[0],AverageBadServicesAt_180,0.55555555555556
+General-0-20250529-15:10:37-6688,0,BlockchainNetwork.iotNode[0],AverageBadServicesAt_190,0.55555555555556
+General-0-20250529-15:10:37-6688,0,BlockchainNetwork.iotNode[0],AverageBadServicesAt_200,0.55555555555556
+General-0-20250529-15:10:37-6688,0,BlockchainNetwork.iotNode[0],BestAccuracy,0.86666663777778
+General-0-20250529-15:10:37-6688,0,BlockchainNetwork.iotNode[0],BestF1Score,0.84615328402397
+General-0-20250529-15:10:37-6688,0,BlockchainNetwork.iotNode[0],BestPrecision,0.78571422959184
+General-0-20250529-15:10:37-6688,0,BlockchainNetwork.iotNode[0],BestRecall,0.91666659027778
+General-0-20250529-15:10:37-6688,0,BlockchainNetwork.iotNode[0],BestThreshold,0.35
+General-0-20250529-15:10:37-6688,0,BlockchainNetwork.iotNode[0],FinalAverageBadServices,0.55555555555556
+
+**** PARAMETERS ****
+run,repetition,module,name,value
+General-0-20250529-15:10:37-6688,0,BlockchainNetwork.iotNode[0],maliciousNodePercentage,0.4
+General-0-20250529-15:10:37-6688,0,BlockchainNetwork.iotNode[0],typename,"""src.IoTNode"""

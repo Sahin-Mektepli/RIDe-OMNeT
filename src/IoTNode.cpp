@@ -885,8 +885,9 @@ void IoTNode::finish() {
         double bestF1 = 0.0;
         double bestThreshold = 0.5;  // default threshold
         double bestPrecision = 0.0, bestRecall = 0.0, bestAccuracy = 0.0;
+        double threshold = 0.5;//!!
 
-        for (double threshold = 0.0; threshold <= 1.0; threshold += 0.01) {
+       // for (double threshold = 0.0; threshold <= 1.0; threshold += 0.01) {
             int TP = 0, TN = 0, FP = 0, FN = 0;
 
             for (const auto& [score, isBenevolent] : trustAndLabel) {
@@ -911,7 +912,7 @@ void IoTNode::finish() {
                 bestRecall = recall;
                 bestAccuracy = accuracy;
             }
-        }
+        //}
 
         // Record best metrics
         recordScalar("BestThreshold", bestThreshold);
