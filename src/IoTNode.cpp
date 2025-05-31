@@ -48,7 +48,7 @@ void IoTNode::initialize() {
   serviceRequestEvent =
       new cMessage("serviceRequestTimer"); // Give a distinct name
   scheduleAt(simTime() + uniform(1, 5), serviceRequestEvent);
-  trustScore = uniform(0.5, 1.0); // start with moderate to high trust between 0.5 to 1.0
+  trustScore = 0.5; // start with moderate to high trust between 0.5 to 1.0 !!burayı değiştirdim
  // Initial random trust score
             // this can stay like this for the time being but
             // TODO: in the real sim, this should be decided by a "higher level"
@@ -109,7 +109,7 @@ void IoTNode::initialize() {
 
   if (maliciousNodeIds.count(getId()) > 0) {
     benevolent = false;
-    attackerType = CAMOUFLAGE; // saldırının adı değişecek
+    attackerType = COLLABORATIVE; // saldırının adı değişecek
     potency = -10; // bunlar kaç olmalı bilmiyorum burada chatgpt'nin yazdığını
                    // bıraktım buraya bakalım
     consistency = 1000;
@@ -318,6 +318,8 @@ void IoTNode::handleFinalServiceResponseMsg(cMessage *msg) {
   }
   double rarity = calculateRarity(serviceType);
   double timeliness = 10; // TODO: bunu bilmiyom henuz...
+  lastProviderId = providerId;  // New global member needed
+
   double rating =
       calculateRating(quality, timeliness, rarity); // handles attacks too
 
@@ -582,6 +584,11 @@ double IoTNode::calculateRating(double quality, double timeliness,
     return calculateRatingBenevolent(quality, timeliness, rarity);
   case CAMOUFLAGE:
     return calculateRatingCamouflage(quality, timeliness, rarity);
+  case COLLABORATIVE: {
+       IoTNode* provider = getNodeById(lastProviderId);
+       if (!provider) return 0;
+       return provider->benevolent ?calculateRatingBenevolent(-10, timeliness, rarity) :calculateRatingBenevolent(8, timeliness, rarity); // punish honest, reward malicious
+     }
   default:
     EV << "SOMETHING WENT WRONG WITH calculateRating!!\n";
     return 0; // should not defualt to here!

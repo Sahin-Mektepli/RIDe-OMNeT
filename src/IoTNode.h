@@ -30,6 +30,7 @@ private:
   static std::set<int> maliciousNodeIds;
 
 
+  int lastProviderId = -1;//collaborative attack için
 
   int badServicesReceived = 0;
   cMessage *badServiceLogger = nullptr;
@@ -63,7 +64,9 @@ private:
     BENEVOLENT, // bunu eklemek sacma olabilir ama bulunsun
     CAMOUFLAGE,
     BAD_MOUTHING,
-    MALICIOUS_100
+    MALICIOUS_100,
+    COLLABORATIVE
+
   }; // use this and switch statements to control
   enum AttackerType attackerType = BENEVOLENT; // default
   double calculateMalRating(enum AttackerType);
@@ -157,7 +160,7 @@ protected:
   cMessage *serviceRequestEvent; // Add this line
 
   //oppurtunistic attack: trust skoru en yüksek olan iyi node belirli bir zamanadan(opportunisticAttackTime) sonra kötü dvaranmaya başlarsa ne olur onu test ediyoruz
-    double opportunisticAttackTime = 500;
+    double opportunisticAttackTime = 600;
     bool opportunisticAttackTriggered = false;
     IoTNode* opportunisticNode = nullptr;
 
