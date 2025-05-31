@@ -13,7 +13,7 @@
 #include <string>
 #include <vector>
 
-std::default_random_engine gen; // WARN: bunu buraya koyabilir miyim??
+std::default_random_engine gen;
 std::uniform_real_distribution<double> uniform_real_dist{
     0, 1}; // bu da burda dursun madem
 // Some notes:
@@ -48,25 +48,34 @@ void IoTNode::initialize() {
   serviceRequestEvent =
       new cMessage("serviceRequestTimer"); // Give a distinct name
   scheduleAt(simTime() + uniform(1, 5), serviceRequestEvent);
-  trustScore = uniform(0.5, 1.0); // start with moderate to high trust between 0.5 to 1.0
- // Initial random trust score
-            // this can stay like this for the time being but
-            // TODO: in the real sim, this should be decided by a "higher level"
+  trustScore =
+      uniform(0.5, 1.0); // start with moderate to high trust between 0.5 to 1.0
+                         // Initial random trust score
+                         // this can stay like this for the time being but
   isClusterHead = false;
   allNodes.push_back(this);
 
   // Define possible service types
-  std::vector<std::string> serviceTypes = {"A", "B","C","D","E"};//bunu azalttım şimdilik!!! initiateServiceRequest'e bak orada da servis tipleri var
+  std::vector<std::string> serviceTypes = {"A", "B"};
+  // nadir hizmet ve digeri
 
-  // Her node'a rastgele bir servis tanımlıyoruz şu anda bunu belki daha farklı
-  // da yapabiliriz servis tipi içinde başka şeyler de barındıran bir obje
-  // olabilir ama gerek var mı emin değilim
-  std::string assignedService = serviceTypes[intuniform(
-      0,
-      serviceTypes.size() - 1)]; // her çalıştırışımızda farklı servis verecek
-                                 // ama bu kötü bir şey olmayabilir de
+  // assigned service kismini nadirlik testi icin elle yapmak istiyorum
+  // std::string assignedService =
+  //     serviceTypes[intuniform(0, serviceTypes.size() - 1)];
+  std::string assignedService{};
+  // ilk 3 dugum nadir servis A
+  if (this->getId() <= 4) {
+    assignedService = "A";
+    this->attackerType = MALFUNCTION;
+  } else { // diger dugumler de B
+    assignedService = "B";
+  }
+  if (this->getId() == 2) {
+    this->attackerType = BENEVOLENT;
+  }
+
   EV << "Node " << getId() << " provides service: " << assignedService << endl;
-  providedService = assignedService; // do we need this assignment?
+  providedService = assignedService;
 
   // Populate Routing Table
   for (int i = 0; i < gateSize("inoutGate"); i++) {
@@ -84,16 +93,12 @@ void IoTNode::initialize() {
   //  printRoutingTable(routingTable);
   // Schedule service table update after all nodes are initialized
   scheduleAt(simTime() + 0.1, new cMessage("populateServiceTable"));
-  // bunun dokumantasyonuna bakarken cancleEvent() komutunu ogrendim ki gayet
-  // onemli olabilir: scheduleAt'in hazirladigi mesajin belli bir zamanad
-  // iptalini sagliyor. "gec kalan servis"lerin tespitinde kullanilabilir!! if
-  // (time > requesTime + tolerance) {cancleEvent()...} syntax'i tam anlamadim o
-  // yuzden dokumantasyona yeniden bakmak gerekecek
+
   // malicious olanları belirlemek için başka bir yol bulamadım
   int totalNodes = getParentModule()->par("numNodes");
   int numMalicious =
       int(par("maliciousNodePercentage").doubleValue() * totalNodes);
-  EV << "******************************"<<numMalicious;
+  EV << "******************************" << numMalicious;
   if (getId() == 2) { // first node to initialize (OMNeT IDs  start at 2)bunu
                       // kontrol ettim gerçekten 2'den başlıyor
     std::vector<int> allIds;
@@ -110,10 +115,10 @@ void IoTNode::initialize() {
                    // bıraktım buraya bakalım
     consistency = 1000;
   } else {
-      benevolent = true;
-         totalBenevolentNodes++;
-         potency = 9;        // quality 8-9 arası olacak diye düşündüm
-         consistency = 2.0;
+    benevolent = true;
+    totalBenevolentNodes++;
+    potency = 9; // quality 8-9 arası olacak diye düşündüm
+    consistency = 2.0;
   }
   if (!benevolent) {
     getDisplayString().setTagArg("i", 1, "red"); // highlight malicious nodes
@@ -225,7 +230,8 @@ void IoTNode::handleServiceResponseMsg(cMessage *msg) {
     EV << "I am about to calculate the DT of" << requestorId << " to "
        << responderId << "here is the entire BC";
     printBlockChain(blockchain);
-    double dt = calculateDirectTrust(requestorId, responderId, simTime().dbl(),0);
+    double dt =
+        calculateDirectTrust(requestorId, responderId, simTime().dbl(), 0);
     // WARN: 'bu' dugumun 'responder'a DT'ini hesaplar.
     // General Trust
     double gt = getNodeById(responderId)->trustScore;
@@ -319,7 +325,8 @@ void IoTNode::handleFinalServiceResponseMsg(cMessage *msg) {
 
   sendRating(providerId, rating);
   IoTNode *provider = getNodeById(providerId);
-  updateProviderGeneralTrust(provider, trustScore, rating);//şimdilik this kısmını sildim
+  updateProviderGeneralTrust(provider, trustScore,
+                             rating); // şimdilik this kısmını sildim
   // WARN: bu metod normalde pointer degil, objenin kendisni aliyordu
   // cok dusuk de olsa duzgun yazmamis olma ihtimalim var
   // hata olursa buraya bakin
@@ -372,6 +379,16 @@ void IoTNode::handleNetworkMessage(cMessage *msg) {
 }
 
 void IoTNode::handleSelfMessage(cMessage *msg) {
+  // bisey deniyorum WARN
+  if (this->providedService == "A") {
+    if (this->trustScore < 0.3) {
+      EV << "NADIR DUGUMLERDEN BIRI SISTEMDEN "
+            "ATILDI!!!!!\n\n\n\n\n\n\n\n\n\n\n\n\n";
+      // finish(); // bu yemedi ya... nadir bir dugum atilinca sistem otomatik
+      //  kapansin istiyordum :/
+    }
+  }
+
   const char *msgName = msg->getName();
 
   if (strcmp(msg->getName(), "badServiceLogger") == 0) {
@@ -416,20 +433,25 @@ void IoTNode::updateProviderGeneralTrust(IoTNode *provider,
     provider->sumOfPositveRatings += weightedRating;
     provider->sumOfAllRatings += weightedRating;
   } else {
-    provider->sumOfAllRatings += std::abs(weightedRating) * rancorCoef;//mutlak değere çevirdim önceki ile aynı şeyi yapıyor aslında değiştirmesem de olabilirdi
+    provider->sumOfAllRatings +=
+        std::abs(weightedRating) *
+        rancorCoef; // mutlak değere çevirdim önceki ile aynı şeyi yapıyor
+                    // aslında değiştirmesem de olabilirdi
   }
 
   provider->trustScore = std::clamp(
-      provider->sumOfPositveRatings / (provider->sumOfAllRatings + 1e-6),//NaN olmasın diye ekledim 1e-6'yı
-      0.1, 1.0 //böyle yazınca trust skor 0.1'den küçük gelirse 0.1'e eşitleniyor, 1'den büyük olursa da 1'e (aslında bu mümkün değil ama ne olur ne olmaz ekledim)
+      provider->sumOfPositveRatings /
+          (provider->sumOfAllRatings +
+           1e-6), // NaN olmasın diye ekledim 1e-6'yı
+      0.1, 1.0    // böyle yazınca trust skor 0.1'den küçük gelirse 0.1'e
+                  // eşitleniyor, 1'den büyük olursa da 1'e (aslında bu mümkün
+                  // değil ama ne olur ne olmaz ekledim)
   );
 
   EV << "ProviderTS " << oldTS << " got a rating " << rating
-     << " from a node with TS " << requestorTrust
-     << " and was updated to " << provider->trustScore << "\n";
+     << " from a node with TS " << requestorTrust << " and was updated to "
+     << provider->trustScore << "\n";
 }
-
-
 
 void IoTNode::electClusterHeads() {
   // sorts the allNodes array according to the nodes' trustScores
@@ -455,7 +477,13 @@ int findRoute(int requesterId, int providerId) {
 }
 void IoTNode::initiateServiceRequest() {
   // Step 1: Choose a random service type
-  std::vector<std::string> serviceTypes = {"A", "B","C","D","E"};//şimdilik böyle yukarıda da var bundan nodeları oluştururken yazmışım teke düşürsek daha kolay olabilir
+
+  // nadirlik testinde tek bir hizmetin onemi var.
+  std::vector<std::string> serviceTypes = {"A"};
+
+  // std::vector<std::string> serviceTypes = {"A", "B","C","D","E"};//şimdilik
+  // böyle yukarıda da var bundan nodeları oluştururken yazmışım teke düşürsek
+  // daha kolay olabilir
   std::string chosenService =
       serviceTypes[intuniform(0, serviceTypes.size() - 1)];
   EV << "IoT Node " << getId()
@@ -539,10 +567,9 @@ double IoTNode::calculateRatingCamouflage(double quality, double timeliness,
 
 //"normal" quality if camouflage, -10 else
 double IoTNode::calcQualityCamouflage(double potency, double consistency) {
-  if (performsCamouflage(this->camouflageRate)) { // normal service
-    //return calcQualityBenevolent(potency, consistency);//burada hata var bence çünkü kötü node'un potency'si farklı
-    return calcQualityBenevolent(9, 2.0); //bu değer değişebilir
-  } else { // giving bad service
+  if (performsCamouflage(this->camouflageRate)) {       // normal service
+    return calcQualityBenevolent(potency, consistency); // bu değer değişebilir
+  } else {                                              // giving bad service
     return -10;
   }
 }
@@ -557,6 +584,9 @@ double IoTNode::calculateRating(double quality, double timeliness,
     return calculateRatingBenevolent(quality, timeliness, rarity);
   case CAMOUFLAGE:
     return calculateRatingCamouflage(quality, timeliness, rarity);
+  case MALFUNCTION:
+    // Malfunciton does not affect the ratings it gives
+    return calculateRatingBenevolent(quality, timeliness, rarity);
   default:
     EV << "SOMETHING WENT WRONG WITH calculateRating!!\n";
     return 0; // should not defualt to here!
@@ -568,6 +598,9 @@ double IoTNode::calcQuality(const double potency, const double consistency) {
   case BENEVOLENT:
     return calcQualityBenevolent(potency, consistency);
   case CAMOUFLAGE:
+    return calcQualityCamouflage(potency, consistency);
+  case MALFUNCTION:
+    // with a certain prob, give bad service == camouflage!
     return calcQualityCamouflage(potency, consistency);
   default:
     EV << "SOMETHING WENT WRONG WITH calcQuality!!\n";
@@ -582,9 +615,6 @@ double IoTNode::calcQuality(const double potency, const double consistency) {
 double IoTNode::calcQualityBenevolent(const double potency,
                                       const double consistency) {
   double quality;
- /* if(consistency==1000){
-       EV << "*****************************************************************************" ;
-  }*/
 
   double stddev = 1.0 / consistency;
   std::normal_distribution<double> dist{potency, stddev};
@@ -698,39 +728,40 @@ void IoTNode::sendTransactionToClusterHead(ServiceRating *transaction) {
   send(transaction, "inoutGate$o", gateIndex);
 }
 
-double IoTNode::calculateIndirectTrust(int reqId, int provId, double time, int depth) {
-    const int MAX_TRUST_RECURSION_DEPTH = 7;
+double IoTNode::calculateIndirectTrust(int reqId, int provId, double time,
+                                       int depth) {
+  const int MAX_TRUST_RECURSION_DEPTH = 7;
 
-    if (depth > MAX_TRUST_RECURSION_DEPTH) {
-        EV << "[IT] Max recursion depth reached from " << reqId << " to " << provId << "\n";
-        return 0.1; // Fallback trust
+  if (depth > MAX_TRUST_RECURSION_DEPTH) {
+    EV << "[IT] Max recursion depth reached from " << reqId << " to " << provId
+       << "\n";
+    return 0.1; // Fallback trust
+  }
+
+  EV << "[IT] Indirect trust from " << reqId << " to " << provId
+     << " | depth = " << depth << "\n";
+
+  std::vector<IoTNode *> nodesKnownByRequestor;
+  for (IoTNode *node : allNodes) {
+    int nodeId = node->getId();
+    if (nodeId == provId || nodeId == reqId)
+      continue;
+    if (enoughInteractions(reqId, nodeId)) {
+      nodesKnownByRequestor.push_back(node);
     }
+  }
 
-    EV << "[IT] Indirect trust from " << reqId << " to " << provId
-       << " | depth = " << depth << "\n";
-
-    std::vector<IoTNode *> nodesKnownByRequestor;
-    for (IoTNode *node : allNodes) {
-        int nodeId = node->getId();
-        if (nodeId == provId || nodeId == reqId) continue;
-        if (enoughInteractions(reqId, nodeId)) {
-            nodesKnownByRequestor.push_back(node);
-        }
+  for (IoTNode *node : nodesKnownByRequestor) {
+    int nodeId = node->getId();
+    if (enoughInteractions(nodeId, provId)) {
+      EV << "Node " << reqId << " knows " << nodeId << ", who knows " << provId
+         << "\n";
+      return std::min(calculateDirectTrust(provId, nodeId, time, depth + 1),
+                      calculateDirectTrust(nodeId, provId, time, depth + 1));
     }
+  }
 
-    for (IoTNode *node : nodesKnownByRequestor) {
-        int nodeId = node->getId();
-        if (enoughInteractions(nodeId, provId)) {
-            EV << "Node " << reqId << " knows " << nodeId
-               << ", who knows " << provId << "\n";
-            return std::min(
-                calculateDirectTrust(provId, nodeId, time, depth + 1),
-                calculateDirectTrust(nodeId, provId, time, depth + 1)
-            );
-        }
-    }
-
-    return 0.1;
+  return 0.1;
 }
 
 bool IoTNode::enoughInteractions(int requestorId, int providerId) {
@@ -740,15 +771,18 @@ bool IoTNode::enoughInteractions(int requestorId, int providerId) {
   }
   std::vector<Block> blocksInWindow(blockchain.end() - windowSize,
                                     blockchain.end());*/
-    //bu kısımı değiştirdim eski halinde ile window size dolmamışsa eskiden hesaplama yapılmıyordu
-    //ama o zamana kadar eklenmiş blokları kullanabiliriz bence çünkü window size çok büyük de olabilir diğer makalelerde 1000 yapmışlar
-    std::vector<Block> blocksInWindow;
-      if (blockchain.size() < windowSize) {
-        EV << "Blockchain not full — using available " << blockchain.size() << " blocks.\n";
-        blocksInWindow.assign(blockchain.begin(), blockchain.end());
-      } else {
-        blocksInWindow.assign(blockchain.end() - windowSize, blockchain.end());
-      }
+  // bu kısımı değiştirdim eski halinde ile window size dolmamışsa eskiden
+  // hesaplama yapılmıyordu ama o zamana kadar eklenmiş blokları kullanabiliriz
+  // bence çünkü window size çok büyük de olabilir diğer makalelerde 1000
+  // yapmışlar
+  std::vector<Block> blocksInWindow;
+  if (blockchain.size() < windowSize) {
+    // EV << "Blockchain not full — using available " << blockchain.size()
+    //    << " blocks.\n";
+    blocksInWindow.assign(blockchain.begin(), blockchain.end());
+  } else {
+    blocksInWindow.assign(blockchain.end() - windowSize, blockchain.end());
+  }
 
   int encounterCounter = 0; // I like naming stuff :p
   for (Block block : blocksInWindow) {
@@ -761,7 +795,8 @@ bool IoTNode::enoughInteractions(int requestorId, int providerId) {
       ++encounterCounter;
     }
   }
-  if (encounterCounter > enoughEncounterLimit) {// bu kısıma bağlı aslında DT mi yoksa IT mi çalışacağı
+  if (encounterCounter > enoughEncounterLimit) { // bu kısıma bağlı aslında DT
+                                                 // mi yoksa IT mi çalışacağı
     EV << "Enough interactions between " << requestorId << " and " << providerId
        << "\n";
     return true;
@@ -784,37 +819,40 @@ double IoTNode::calculateDecay(double currentTime, double blockTime) {
  * if 'enoughInteractions' which I will implement
  * else, resorts to indirectTrust
  */
-double IoTNode::calculateDirectTrust(int requestorId, int providerId, double time, int depth) {
-    EV << "[DT] Direct trust from " << requestorId << " to " << providerId
-       << " | depth = " << depth << "\n";
+double IoTNode::calculateDirectTrust(int requestorId, int providerId,
+                                     double time, int depth) {
+  EV << "[DT] Direct trust from " << requestorId << " to " << providerId
+     << " | depth = " << depth << "\n";
 
-    if (!enoughInteractions(requestorId, providerId))
-        return calculateIndirectTrust(requestorId, providerId, time, depth + 1);
+  if (!enoughInteractions(requestorId, providerId))
+    return calculateIndirectTrust(requestorId, providerId, time, depth + 1);
 
-    double positiveRatings = 0.0;
-    double all_ratings = 0.0;
+  double positiveRatings = 0.0;
+  double all_ratings = 0.0;
 
-    for (auto &block : blockchain) {
-        int tmpProvider, tmpRequestor;
-        double rating;
-        if (!extract(block.transactionData, rating, tmpRequestor, tmpProvider)) continue;
-        if ((tmpProvider != providerId) || (tmpRequestor != requestorId)) continue;
+  for (auto &block : blockchain) {
+    int tmpProvider, tmpRequestor;
+    double rating;
+    if (!extract(block.transactionData, rating, tmpRequestor, tmpProvider))
+      continue;
+    if ((tmpProvider != providerId) || (tmpRequestor != requestorId))
+      continue;
 
-        double addendum = rating * decayFactor;
-        if (rating >= 0) {
-            positiveRatings += addendum;
-        } else {
-            addendum *= (-1) * rancorCoef;
-        }
-        all_ratings += addendum;
+    double addendum = rating * decayFactor;
+    if (rating >= 0) {
+      positiveRatings += addendum;
+    } else {
+      addendum *= (-1) * rancorCoef;
     }
+    all_ratings += addendum;
+  }
 
-    /*if (std::abs(all_ratings) < 1e-6) {
-        return 0.5;
-    }*/
+  /*if (std::abs(all_ratings) < 1e-6) {
+      return 0.5;
+  }*/
 
-    double dt = positiveRatings / all_ratings;
-    return std::clamp(dt, 0.0, 1.0);
+  double dt = positiveRatings / all_ratings;
+  return std::clamp(dt, 0.0, 1.0);
 }
 
 /*this is to extract rating and id values from a transaction message in a
@@ -851,8 +889,6 @@ void IoTNode::finish() {
     recordScalar("FinalAverageBadServices",
                  (double)totalBadServicesReceived / totalBenevolentNodes);
   }
-
-
 }
 // bunu kullanmıyorum şu anda
 int IoTNode::selectPoTValidator() {
