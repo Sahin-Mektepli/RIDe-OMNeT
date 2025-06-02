@@ -6,13 +6,17 @@
  */
 #include "IoTNode.h"
 #include "BlockchainMessage_m.h"
+#include "omnetpp/csimulation.h"
 #include <algorithm>
 #include <cmath>
+#include <fstream>
 #include <map>
+#include <ostream>
 #include <random>
 #include <string>
 #include <vector>
 
+double expellLimit = 0.4;
 std::default_random_engine gen;
 std::uniform_real_distribution<double> uniform_real_dist{
     0, 1}; // bu da burda dursun madem
@@ -64,15 +68,16 @@ void IoTNode::initialize() {
   //     serviceTypes[intuniform(0, serviceTypes.size() - 1)];
   std::string assignedService{};
   // ilk 3 dugum nadir servis A
-  if (this->getId() <= 4) {
+  if (this->getId() <= 6) {
     assignedService = "A";
     this->attackerType = MALFUNCTION;
-  } else { // diger dugumler de B
+    this->camouflageRate = 0.7; // 30% malfunction
+  } else {                      // diger dugumler de B
     assignedService = "B";
   }
-  if (this->getId() == 2) {
-    this->attackerType = BENEVOLENT;
-  }
+  // if (this->getId() == 2) {
+  //   this->attackerType = BENEVOLENT;
+  // }
 
   EV << "Node " << getId() << " provides service: " << assignedService << endl;
   providedService = assignedService;
@@ -117,8 +122,8 @@ void IoTNode::initialize() {
   } else {
     benevolent = true;
     totalBenevolentNodes++;
-    potency = 9; // quality 8-9 arası olacak diye düşündüm
-    consistency = 2.0;
+    potency = 7; // quality 8-9 arası olacak diye düşündüm
+    consistency = .5;
   }
   if (!benevolent) {
     getDisplayString().setTagArg("i", 1, "red"); // highlight malicious nodes
@@ -381,13 +386,16 @@ void IoTNode::handleNetworkMessage(cMessage *msg) {
 void IoTNode::handleSelfMessage(cMessage *msg) {
   // bisey deniyorum WARN
   if (this->providedService == "A") {
-    if (this->trustScore < 0.3) {
-      EV << "NADIR DUGUMLERDEN BIRI SISTEMDEN "
-            "ATILDI!!!!!\n\n\n\n\n\n\n\n\n\n\n\n\n";
-      // finish(); // bu yemedi ya... nadir bir dugum atilinca sistem otomatik
-      //  kapansin istiyordum :/
+    if (this->trustScore < expellLimit) {
+      getDisplayString().setTagArg("i", 1, "red"); // highlight malicious nodes
     }
   }
+
+  //     // finish(); // bu yemedi ya... nadir bir dugum atilinca sistem
+  //     otomatik
+  //     //  kapansin istiyordum :/
+  //   }
+  // }
 
   const char *msgName = msg->getName();
 
@@ -424,11 +432,23 @@ void IoTNode::handleMessage(cMessage *msg) {
   }
 }
 
+void writeToFile(const std::string &filename, const std::string &content) {
+  std::ofstream outfile;
+  outfile.open(filename, std::ios::app);
+  if (!outfile.is_open()) {
+    return;
+  }
+  outfile << content << std::endl;
+  outfile.close();
+}
+
 void IoTNode::updateProviderGeneralTrust(IoTNode *provider,
                                          double requestorTrust, double rating) {
   double oldTS = provider->trustScore;
   double weightedRating = rating * requestorTrust;
 
+  provider->sumOfPositveRatings *= decayFactor;
+  provider->sumOfAllRatings *= decayFactor;
   if (rating >= 0) {
     provider->sumOfPositveRatings += weightedRating;
     provider->sumOfAllRatings += weightedRating;
@@ -451,6 +471,21 @@ void IoTNode::updateProviderGeneralTrust(IoTNode *provider,
   EV << "ProviderTS " << oldTS << " got a rating " << rating
      << " from a node with TS " << requestorTrust << " and was updated to "
      << provider->trustScore << "\n";
+
+  if (provider->providedService == "A") { // hizmet nadirse
+    if (provider->trustScore < expellLimit) {
+      provider->banished = true;
+      std::string expTime = std::to_string(simTime().dbl());
+      writeToFile("result.txt", expTime);
+      provider->trustScore = 0;
+      EV << "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nNADIR "
+            "DUGUMLERDEN BIRI SISTEMDEN "
+            "ATILDI!!!!!"
+         << simTime().dbl()
+         << "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n"
+            "\n\n\n\n\n";
+    }
+  }
 }
 
 void IoTNode::electClusterHeads() {
@@ -640,6 +675,9 @@ double IoTNode::calculateRarity(std::string serviceType) {
   int howManyNodes = 0;
   for (const auto node : allNodes) {
     if (node->givesService(serviceType)) {
+      if (node->banished) {
+        continue;
+      }
       ++howManyNodes;
     }
   }
@@ -730,16 +768,6 @@ void IoTNode::sendTransactionToClusterHead(ServiceRating *transaction) {
 
 double IoTNode::calculateIndirectTrust(int reqId, int provId, double time,
                                        int depth) {
-  const int MAX_TRUST_RECURSION_DEPTH = 7;
-
-  if (depth > MAX_TRUST_RECURSION_DEPTH) {
-    EV << "[IT] Max recursion depth reached from " << reqId << " to " << provId
-       << "\n";
-    return 0.1; // Fallback trust
-  }
-
-  EV << "[IT] Indirect trust from " << reqId << " to " << provId
-     << " | depth = " << depth << "\n";
 
   std::vector<IoTNode *> nodesKnownByRequestor;
   for (IoTNode *node : allNodes) {
@@ -821,8 +849,6 @@ double IoTNode::calculateDecay(double currentTime, double blockTime) {
  */
 double IoTNode::calculateDirectTrust(int requestorId, int providerId,
                                      double time, int depth) {
-  EV << "[DT] Direct trust from " << requestorId << " to " << providerId
-     << " | depth = " << depth << "\n";
 
   if (!enoughInteractions(requestorId, providerId))
     return calculateIndirectTrust(requestorId, providerId, time, depth + 1);
@@ -850,8 +876,11 @@ double IoTNode::calculateDirectTrust(int requestorId, int providerId,
   /*if (std::abs(all_ratings) < 1e-6) {
       return 0.5;
   }*/
-
-  double dt = positiveRatings / all_ratings;
+  double dt;
+  if (all_ratings == 0) {
+    dt = 0;
+  }
+  dt = positiveRatings / all_ratings;
   return std::clamp(dt, 0.0, 1.0);
 }
 
@@ -876,6 +905,9 @@ bool IoTNode::extract(const std::string &input, double &rating,
   }
 }
 void IoTNode::finish() {
+  std::string ts = std::to_string(this->getId()) + " " +
+                   std::to_string(this->trustScore) + '\n';
+  writeToFile("finalTSs.txt", ts);
   if (badServiceLogger != nullptr) {
     cancelAndDelete(badServiceLogger);
     badServiceLogger = nullptr;

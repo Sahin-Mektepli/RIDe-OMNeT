@@ -25,6 +25,7 @@ struct Block {
 
 class IoTNode : public omnetpp::cSimpleModule {
 private:
+  bool banished = false;
   static int totalBadServicesReceived;
   static int totalBenevolentNodes;
   static std::set<int> maliciousNodeIds;
@@ -32,11 +33,11 @@ private:
   int badServicesReceived = 0;
   cMessage *badServiceLogger = nullptr;
   //--parameters--
-  int windowSize = 100;         // just for testing purposes90 idi bu
+  int windowSize = 30;          // just for testing purposes90 idi bu
   int enoughEncounterLimit = 1; // TODO: these two parameters are just examples
   double genTrustCoef = 0.01;
-  double rancorCoef = 3.0;         // defined to be higher than 1
-  double decayFactor = 1;          // WARN: bunu 1'de unutmak, decay yok demek!
+  double rancorCoef = 2.0;         // defined to be higher than 1
+  double decayFactor = 0.9;        // WARN: bunu 1'de unutmak, decay yok demek!
   std::map<int, int> routingTable; // Maps Node ID → Gate Index
   //  std::map<int, std::string> serviceTable; // private olmalı gibi geldi
   //  TODO: bu eski hali sil
@@ -49,13 +50,13 @@ private:
                                                    // can provide that service
   double calculateRatingBenevolent(double quality, double timeliness,
                                    double rarity);
-  double wQ = 10; // weight of quality
-  double wR = 10; // weight of rarity
-  double wT = 0;  // weight of timeliness
+  double wQ = 1;   // weight of quality
+  double wR = 0.3; // weight of rarity
+  double wT = 0;   // weight of timeliness
 
   // -- TS coefficients -- (provider secerken kullanilan TS=a*dt + b*gt)
-  double a = 1;
-  double b = 1;
+  double a = 0.2;
+  double b = 0.8;
   //-- attackers --
   enum AttackerType {
     BENEVOLENT, // bunu eklemek sacma olabilir ama bulunsun
