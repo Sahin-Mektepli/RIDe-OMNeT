@@ -1,12 +1,9 @@
-/.project
-/.oppbuildspec
 /.oppfeaturestate
 /.nedexclusions
 /.nedfolders
 *.exe
 /.settings/
 /Makefile
-/.cproject
 /.clangd
 /RIDe
 src/resuls/
