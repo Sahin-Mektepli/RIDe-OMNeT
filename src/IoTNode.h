@@ -2,7 +2,7 @@
  * IoTNode.h
  *
  *  Created on: 4 Oca 2025
- *      Author: ipekm
+ *      Author: ipekm,sahinm
  */
 
 #ifndef __IOTNODE_H_
@@ -13,7 +13,6 @@
 #include <omnetpp.h>
 #include <set>
 #include <vector>
-// Add this at the top of IoTNode.h
 using namespace omnetpp;
 
 struct Block {
@@ -33,26 +32,25 @@ private:
   int badServicesReceived = 0;
   cMessage *badServiceLogger = nullptr;
   //--parameters--
-  int windowSize = 50;          // just for testing purposes90 idi bu
+  int windowSize = 50;
   int enoughEncounterLimit = 1; // TODO: these two parameters are just examples
   double genTrustCoef = 0.01;
-  double rancorCoef = 2.0;         // defined to be higher than 1
-  double decayFactor = 0.9;        // WARN: bunu 1'de unutmak, decay yok demek!
+  double rancorCoef = 2.0; // defined to be higher than 1
+  double decayFactor = 0.9;
   std::map<int, int> routingTable; // Maps Node ID → Gate Index
-  //  std::map<int, std::string> serviceTable; // private olmalı gibi geldi
-  //  TODO: bu eski hali sil
   std::map<std::string, std::vector<int>> serviceTable;
   std::set<int> pendingResponses;
   std::map<int, double> respondedProviders;
   std::string requestedServiceType;
   //--rating calculation--
-  double calculateRarity(std::string serviceType); // about how many nodes
-                                                   // can provide that service
+
+  // about how many nodes can provide that service
+  double calculateRarity(std::string serviceType);
   double calculateRatingBenevolent(double quality, double timeliness,
                                    double rarity);
   double wQ = 1;   // weight of quality
   double wR = 0.3; // weight of rarity
-  double wT = 0;   // weight of timeliness
+  double wT = 0;   // weight of timeliness FIXME this should be non-zero
 
   // -- TS coefficients -- (provider secerken kullanilan TS=a*dt + b*gt)
   double a = 0.2;
@@ -65,7 +63,7 @@ private:
     MALICIOUS_100,
     MALFUNCTION
   }; // use this and switch statements to control
-  enum AttackerType attackerType = BENEVOLENT; // default
+  enum AttackerType attackerType = BENEVOLENT; // default value is BENEVOLENT
   double calculateMalRating(enum AttackerType);
   double calculateRatingCamouflage(double quality, double timeliness,
                                    double rarity);
@@ -96,9 +94,7 @@ protected:
   void populateServiceTable();
   void electClusterHeads();
   void processClusterHeadDuties();
-  void sendTransactionToClusterHead(
-      ServiceRating *transaction); // Fix this declaration
-  // WARN: what is the problem to be fixed here?
+  void sendTransactionToClusterHead(ServiceRating *transaction);
   int selectPoTValidator();
   void initiateServiceRequest();
   void handleServiceRequest(int requesterId);
@@ -107,20 +103,22 @@ protected:
 
   bool extract(const std::string &input, double &rating, int &requesterId,
                int &providerId);
+  // DT between a single i,j pair at time t
   double calculateDirectTrust(int requestorId, int providerId, double time,
-                              int depth); // between a single i,j pair at time t
+                              int depth);
+
+  // if DT cannot be calculated
   double calculateIndirectTrust(int requestor, int provider, double time,
-                                int depth); // if DT cannot be
-                                            // calculated
-  bool enoughInteractions(int requestorId, int provider);
+                                int depth);
   // can I calculate DT for i and j? (this = i)
-  double
-  calculateDecay(double currentTime,
-                 double blockTime); // this can be changed for many reasons!
+  bool enoughInteractions(int requestorId, int provider);
+  // this can be changed for many reasons!
+  double calculateDecay(double currentTime, double blockTime);
   void updateProviderGeneralTrust(IoTNode *provider, double requestorTrust,
                                   double rating);
-  double getTrust(int nodeId); // returns the general trust of a node given its
-                               // id, may be unnecessary
+// returns the general trust of a node given its id, may be unnecessary
+  double getTrust(int nodeId);
+
 
   IoTNode *getNodeById(int nodeId);
   // Node'a mahsus attribute'ler
@@ -130,9 +128,8 @@ protected:
   bool isClusterHead;
   double potency = 0;
   double consistency = 4;      // draws a 'meaningfull' default curve
-  bool benevolent = true;      // WARN: perhaps this is not ideal...
-  std::string providedService; // Node'un verdiği servis türü
-  // WARN: bu vector'e falan cevirilebilir!
+  bool benevolent = true;      // XXX perhaps this is not ideal...
+  std::string providedService; // DEPRECATED Node'un verdiği servis türü
 
   // -- attack parameters --
 
