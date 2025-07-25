@@ -33,7 +33,7 @@ private:
   int badServicesReceived = 0;
   cMessage *badServiceLogger = nullptr;
   //--parameters--
-  int windowSize = 30;          // just for testing purposes90 idi bu
+  int windowSize = 50;          // just for testing purposes90 idi bu
   int enoughEncounterLimit = 1; // TODO: these two parameters are just examples
   double genTrustCoef = 0.01;
   double rancorCoef = 2.0;         // defined to be higher than 1

@@ -53,31 +53,19 @@ void IoTNode::initialize() {
       new cMessage("serviceRequestTimer"); // Give a distinct name
   scheduleAt(simTime() + uniform(1, 5), serviceRequestEvent);
   trustScore =
-      uniform(0.5, 1.0); // start with moderate to high trust between 0.5 to 1.0
+      uniform(0.1, 0.5); // start with moderate to high trust between 0.5 to 1.0
                          // Initial random trust score
                          // this can stay like this for the time being but
   isClusterHead = false;
   allNodes.push_back(this);
 
   // Define possible service types
+  // std::vector<std::string> serviceTypes = {"A", "B"};
   std::vector<std::string> serviceTypes = {"A", "B"};
   // nadir hizmet ve digeri
 
-  // assigned service kismini nadirlik testi icin elle yapmak istiyorum
-  // std::string assignedService =
-  //     serviceTypes[intuniform(0, serviceTypes.size() - 1)];
-  std::string assignedService{};
-  // ilk 3 dugum nadir servis A
-  if (this->getId() <= 6) {
-    assignedService = "A";
-    this->attackerType = MALFUNCTION;
-    this->camouflageRate = 0.7; // 30% malfunction
-  } else {                      // diger dugumler de B
-    assignedService = "B";
-  }
-  // if (this->getId() == 2) {
-  //   this->attackerType = BENEVOLENT;
-  // }
+  std::string assignedService =
+      serviceTypes[intuniform(0, serviceTypes.size() - 1)];
 
   EV << "Node " << getId() << " provides service: " << assignedService << endl;
   providedService = assignedService;
@@ -122,8 +110,19 @@ void IoTNode::initialize() {
   } else {
     benevolent = true;
     totalBenevolentNodes++;
-    potency = 7; // quality 8-9 arası olacak diye düşündüm
-    consistency = .5;
+
+    std::uniform_real_distribution<double> potency_dist(-10.0, 10.0);
+    std::uniform_real_distribution<double> cons_dist(1, 2.0);
+
+    potency = potency_dist(gen);
+    consistency = cons_dist(gen);
+
+    // double randForPotency = uniform_real_dist(gen) * 5.0 + 5;
+    // potency = randForPotency;
+    // double randForCons = uniform_real_dist(gen) * 1.5 + 0.5;
+    // consistency = randForCons;
+    // potency = 7; // quality 8-9 arası olacak diye düşündüm
+    // consistency = .5;
   }
   if (!benevolent) {
     getDisplayString().setTagArg("i", 1, "red"); // highlight malicious nodes
@@ -384,18 +383,6 @@ void IoTNode::handleNetworkMessage(cMessage *msg) {
 }
 
 void IoTNode::handleSelfMessage(cMessage *msg) {
-  // bisey deniyorum WARN
-  if (this->providedService == "A") {
-    if (this->trustScore < expellLimit) {
-      getDisplayString().setTagArg("i", 1, "red"); // highlight malicious nodes
-    }
-  }
-
-  //     // finish(); // bu yemedi ya... nadir bir dugum atilinca sistem
-  //     otomatik
-  //     //  kapansin istiyordum :/
-  //   }
-  // }
 
   const char *msgName = msg->getName();
 
@@ -471,21 +458,6 @@ void IoTNode::updateProviderGeneralTrust(IoTNode *provider,
   EV << "ProviderTS " << oldTS << " got a rating " << rating
      << " from a node with TS " << requestorTrust << " and was updated to "
      << provider->trustScore << "\n";
-
-  if (provider->providedService == "A") { // hizmet nadirse
-    if (provider->trustScore < expellLimit) {
-      provider->banished = true;
-      std::string expTime = std::to_string(simTime().dbl());
-      writeToFile("result.txt", expTime);
-      provider->trustScore = 0;
-      EV << "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nNADIR "
-            "DUGUMLERDEN BIRI SISTEMDEN "
-            "ATILDI!!!!!"
-         << simTime().dbl()
-         << "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n"
-            "\n\n\n\n\n";
-    }
-  }
 }
 
 void IoTNode::electClusterHeads() {
@@ -514,9 +486,8 @@ void IoTNode::initiateServiceRequest() {
   // Step 1: Choose a random service type
 
   // nadirlik testinde tek bir hizmetin onemi var.
-  std::vector<std::string> serviceTypes = {"A"};
 
-  // std::vector<std::string> serviceTypes = {"A", "B","C","D","E"};//şimdilik
+  std::vector<std::string> serviceTypes = {"A", "B"};
   // böyle yukarıda da var bundan nodeları oluştururken yazmışım teke düşürsek
   // daha kolay olabilir
   std::string chosenService =
@@ -789,7 +760,7 @@ double IoTNode::calculateIndirectTrust(int reqId, int provId, double time,
     }
   }
 
-  return 0.1;
+  return 0.5;
 }
 
 bool IoTNode::enoughInteractions(int requestorId, int providerId) {
@@ -878,7 +849,7 @@ double IoTNode::calculateDirectTrust(int requestorId, int providerId,
   }*/
   double dt;
   if (all_ratings == 0) {
-    dt = 0;
+    dt = 0.5;
   }
   dt = positiveRatings / all_ratings;
   return std::clamp(dt, 0.0, 1.0);
@@ -905,8 +876,9 @@ bool IoTNode::extract(const std::string &input, double &rating,
   }
 }
 void IoTNode::finish() {
-  std::string ts = std::to_string(this->getId()) + " " +
-                   std::to_string(this->trustScore) + '\n';
+  double potencyXconsistency = this->potency * this->consistency;
+  std::string ts = std::to_string(potencyXconsistency) + " " +
+                   std::to_string(this->trustScore);
   writeToFile("finalTSs.txt", ts);
   if (badServiceLogger != nullptr) {
     cancelAndDelete(badServiceLogger);
