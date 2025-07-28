@@ -12,7 +12,7 @@
 #include <random>
 #include <string>
 #include <vector>
-
+//!
 std::default_random_engine gen; // WARN: bunu buraya koyabilir miyim??
 std::uniform_real_distribution<double> uniform_real_dist{
     0, 1}; // bu da burda dursun madem
