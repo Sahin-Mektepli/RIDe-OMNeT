@@ -1,8 +1,8 @@
 version 3
-run General-0-20250728-15:44:49-8492
+run General-0-20250728-17:07:55-17684
 attr configname General
-attr datetime 20250728-15:44:49
-attr datetimef 20250728-154449
+attr datetime 20250728-17:07:55
+attr datetimef 20250728-170755
 attr experiment General
 attr inifile omnetpp.ini
 attr iterationvars ""
@@ -10,7 +10,7 @@ attr iterationvarsd ""
 attr iterationvarsf ""
 attr measurement ""
 attr network BlockchainNetwork
-attr processid 8492
+attr processid 17684
 attr repetition 0
 attr replication #0
 attr resultdir results
@@ -24,46 +24,201 @@ config *.numNodes 10
 config **.maliciousNodePercentage 0
 config seed-set 42
 
+scalar BlockchainNetwork.iotNode[0] AverageBadServicesAt_10 0
+scalar BlockchainNetwork.iotNode[1] AverageBadServicesAt_10 0
+scalar BlockchainNetwork.iotNode[2] AverageBadServicesAt_10 0
+scalar BlockchainNetwork.iotNode[3] AverageBadServicesAt_10 0
+scalar BlockchainNetwork.iotNode[4] AverageBadServicesAt_10 0
+scalar BlockchainNetwork.iotNode[5] AverageBadServicesAt_10 0
+scalar BlockchainNetwork.iotNode[6] AverageBadServicesAt_10 0
+scalar BlockchainNetwork.iotNode[7] AverageBadServicesAt_10 0
+scalar BlockchainNetwork.iotNode[8] AverageBadServicesAt_10 0
+scalar BlockchainNetwork.iotNode[9] AverageBadServicesAt_10 0
+scalar BlockchainNetwork.iotNode[0] AverageBadServicesAt_20 0
+scalar BlockchainNetwork.iotNode[1] AverageBadServicesAt_20 0
+scalar BlockchainNetwork.iotNode[2] AverageBadServicesAt_20 0
+scalar BlockchainNetwork.iotNode[3] AverageBadServicesAt_20 0
+scalar BlockchainNetwork.iotNode[4] AverageBadServicesAt_20 0
+scalar BlockchainNetwork.iotNode[5] AverageBadServicesAt_20 0
+scalar BlockchainNetwork.iotNode[6] AverageBadServicesAt_20 0
+scalar BlockchainNetwork.iotNode[7] AverageBadServicesAt_20 0
+scalar BlockchainNetwork.iotNode[8] AverageBadServicesAt_20 0
+scalar BlockchainNetwork.iotNode[9] AverageBadServicesAt_20 0
+scalar BlockchainNetwork.iotNode[0] AverageBadServicesAt_30 0
+scalar BlockchainNetwork.iotNode[1] AverageBadServicesAt_30 0
+scalar BlockchainNetwork.iotNode[2] AverageBadServicesAt_30 0
+scalar BlockchainNetwork.iotNode[3] AverageBadServicesAt_30 0
+scalar BlockchainNetwork.iotNode[4] AverageBadServicesAt_30 0
+scalar BlockchainNetwork.iotNode[5] AverageBadServicesAt_30 0
+scalar BlockchainNetwork.iotNode[6] AverageBadServicesAt_30 0
+scalar BlockchainNetwork.iotNode[7] AverageBadServicesAt_30 0
+scalar BlockchainNetwork.iotNode[8] AverageBadServicesAt_30 0
+scalar BlockchainNetwork.iotNode[9] AverageBadServicesAt_30 0
+scalar BlockchainNetwork.iotNode[0] AverageBadServicesAt_40 0
+scalar BlockchainNetwork.iotNode[1] AverageBadServicesAt_40 0
+scalar BlockchainNetwork.iotNode[2] AverageBadServicesAt_40 0
+scalar BlockchainNetwork.iotNode[3] AverageBadServicesAt_40 0
+scalar BlockchainNetwork.iotNode[4] AverageBadServicesAt_40 0
+scalar BlockchainNetwork.iotNode[5] AverageBadServicesAt_40 0
+scalar BlockchainNetwork.iotNode[6] AverageBadServicesAt_40 0
+scalar BlockchainNetwork.iotNode[7] AverageBadServicesAt_40 0
+scalar BlockchainNetwork.iotNode[8] AverageBadServicesAt_40 0
+scalar BlockchainNetwork.iotNode[9] AverageBadServicesAt_40 0
+scalar BlockchainNetwork.iotNode[0] AverageBadServicesAt_50 0
+scalar BlockchainNetwork.iotNode[1] AverageBadServicesAt_50 0
+scalar BlockchainNetwork.iotNode[2] AverageBadServicesAt_50 0
+scalar BlockchainNetwork.iotNode[3] AverageBadServicesAt_50 0
+scalar BlockchainNetwork.iotNode[4] AverageBadServicesAt_50 0
+scalar BlockchainNetwork.iotNode[5] AverageBadServicesAt_50 0
+scalar BlockchainNetwork.iotNode[6] AverageBadServicesAt_50 0
+scalar BlockchainNetwork.iotNode[7] AverageBadServicesAt_50 0
+scalar BlockchainNetwork.iotNode[8] AverageBadServicesAt_50 0
+scalar BlockchainNetwork.iotNode[9] AverageBadServicesAt_50 0
+scalar BlockchainNetwork.iotNode[0] AverageBadServicesAt_60 0
+scalar BlockchainNetwork.iotNode[1] AverageBadServicesAt_60 0
+scalar BlockchainNetwork.iotNode[2] AverageBadServicesAt_60 0
+scalar BlockchainNetwork.iotNode[3] AverageBadServicesAt_60 0
+scalar BlockchainNetwork.iotNode[4] AverageBadServicesAt_60 0
+scalar BlockchainNetwork.iotNode[5] AverageBadServicesAt_60 0
+scalar BlockchainNetwork.iotNode[6] AverageBadServicesAt_60 0
+scalar BlockchainNetwork.iotNode[7] AverageBadServicesAt_60 0
+scalar BlockchainNetwork.iotNode[8] AverageBadServicesAt_60 0
+scalar BlockchainNetwork.iotNode[9] AverageBadServicesAt_60 0
+scalar BlockchainNetwork.iotNode[0] AverageBadServicesAt_70 0
+scalar BlockchainNetwork.iotNode[1] AverageBadServicesAt_70 0
+scalar BlockchainNetwork.iotNode[2] AverageBadServicesAt_70 0
+scalar BlockchainNetwork.iotNode[3] AverageBadServicesAt_70 0
+scalar BlockchainNetwork.iotNode[4] AverageBadServicesAt_70 0
+scalar BlockchainNetwork.iotNode[5] AverageBadServicesAt_70 0
+scalar BlockchainNetwork.iotNode[6] AverageBadServicesAt_70 0
+scalar BlockchainNetwork.iotNode[7] AverageBadServicesAt_70 0
+scalar BlockchainNetwork.iotNode[8] AverageBadServicesAt_70 0
+scalar BlockchainNetwork.iotNode[9] AverageBadServicesAt_70 0
+scalar BlockchainNetwork.iotNode[0] AverageBadServicesAt_80 0
+scalar BlockchainNetwork.iotNode[1] AverageBadServicesAt_80 0
+scalar BlockchainNetwork.iotNode[2] AverageBadServicesAt_80 0
+scalar BlockchainNetwork.iotNode[3] AverageBadServicesAt_80 0
+scalar BlockchainNetwork.iotNode[4] AverageBadServicesAt_80 0
+scalar BlockchainNetwork.iotNode[5] AverageBadServicesAt_80 0
+scalar BlockchainNetwork.iotNode[6] AverageBadServicesAt_80 0
+scalar BlockchainNetwork.iotNode[7] AverageBadServicesAt_80 0
+scalar BlockchainNetwork.iotNode[8] AverageBadServicesAt_80 0
+scalar BlockchainNetwork.iotNode[9] AverageBadServicesAt_80 0
+scalar BlockchainNetwork.iotNode[0] AverageBadServicesAt_90 0
+scalar BlockchainNetwork.iotNode[1] AverageBadServicesAt_90 0
+scalar BlockchainNetwork.iotNode[2] AverageBadServicesAt_90 0
+scalar BlockchainNetwork.iotNode[3] AverageBadServicesAt_90 0
+scalar BlockchainNetwork.iotNode[4] AverageBadServicesAt_90 0
+scalar BlockchainNetwork.iotNode[5] AverageBadServicesAt_90 0
+scalar BlockchainNetwork.iotNode[6] AverageBadServicesAt_90 0
+scalar BlockchainNetwork.iotNode[7] AverageBadServicesAt_90 0
+scalar BlockchainNetwork.iotNode[8] AverageBadServicesAt_90 0
+scalar BlockchainNetwork.iotNode[9] AverageBadServicesAt_90 0
+scalar BlockchainNetwork.iotNode[0] AverageBadServicesAt_100 0
+scalar BlockchainNetwork.iotNode[1] AverageBadServicesAt_100 0
+scalar BlockchainNetwork.iotNode[2] AverageBadServicesAt_100 0
+scalar BlockchainNetwork.iotNode[3] AverageBadServicesAt_100 0
+scalar BlockchainNetwork.iotNode[4] AverageBadServicesAt_100 0
+scalar BlockchainNetwork.iotNode[5] AverageBadServicesAt_100 0
+scalar BlockchainNetwork.iotNode[6] AverageBadServicesAt_100 0
+scalar BlockchainNetwork.iotNode[7] AverageBadServicesAt_100 0
+scalar BlockchainNetwork.iotNode[8] AverageBadServicesAt_100 0
+scalar BlockchainNetwork.iotNode[9] AverageBadServicesAt_100 0
+scalar BlockchainNetwork.iotNode[0] AverageBadServicesAt_110 0
+scalar BlockchainNetwork.iotNode[1] AverageBadServicesAt_110 0
+scalar BlockchainNetwork.iotNode[2] AverageBadServicesAt_110 0
+scalar BlockchainNetwork.iotNode[3] AverageBadServicesAt_110 0
+scalar BlockchainNetwork.iotNode[4] AverageBadServicesAt_110 0
+scalar BlockchainNetwork.iotNode[5] AverageBadServicesAt_110 0
+scalar BlockchainNetwork.iotNode[6] AverageBadServicesAt_110 0
+scalar BlockchainNetwork.iotNode[7] AverageBadServicesAt_110 0
+scalar BlockchainNetwork.iotNode[8] AverageBadServicesAt_110 0
+scalar BlockchainNetwork.iotNode[9] AverageBadServicesAt_110 0
+scalar BlockchainNetwork.iotNode[0] AverageBadServicesAt_120 0
+scalar BlockchainNetwork.iotNode[1] AverageBadServicesAt_120 0
+scalar BlockchainNetwork.iotNode[2] AverageBadServicesAt_120 0
+scalar BlockchainNetwork.iotNode[3] AverageBadServicesAt_120 0
+scalar BlockchainNetwork.iotNode[4] AverageBadServicesAt_120 0
+scalar BlockchainNetwork.iotNode[5] AverageBadServicesAt_120 0
+scalar BlockchainNetwork.iotNode[6] AverageBadServicesAt_120 0
+scalar BlockchainNetwork.iotNode[7] AverageBadServicesAt_120 0
+scalar BlockchainNetwork.iotNode[8] AverageBadServicesAt_120 0
+scalar BlockchainNetwork.iotNode[9] AverageBadServicesAt_120 0
+scalar BlockchainNetwork.iotNode[0] AverageBadServicesAt_130 0
+scalar BlockchainNetwork.iotNode[1] AverageBadServicesAt_130 0
+scalar BlockchainNetwork.iotNode[2] AverageBadServicesAt_130 0
+scalar BlockchainNetwork.iotNode[3] AverageBadServicesAt_130 0
+scalar BlockchainNetwork.iotNode[4] AverageBadServicesAt_130 0
+scalar BlockchainNetwork.iotNode[5] AverageBadServicesAt_130 0
+scalar BlockchainNetwork.iotNode[6] AverageBadServicesAt_130 0
+scalar BlockchainNetwork.iotNode[7] AverageBadServicesAt_130 0
+scalar BlockchainNetwork.iotNode[8] AverageBadServicesAt_130 0
+scalar BlockchainNetwork.iotNode[9] AverageBadServicesAt_130 0
+scalar BlockchainNetwork.iotNode[0] AverageBadServicesAt_140 0
+scalar BlockchainNetwork.iotNode[1] AverageBadServicesAt_140 0
+scalar BlockchainNetwork.iotNode[2] AverageBadServicesAt_140 0
+scalar BlockchainNetwork.iotNode[3] AverageBadServicesAt_140 0
+scalar BlockchainNetwork.iotNode[4] AverageBadServicesAt_140 0
+scalar BlockchainNetwork.iotNode[5] AverageBadServicesAt_140 0
+scalar BlockchainNetwork.iotNode[6] AverageBadServicesAt_140 0
+scalar BlockchainNetwork.iotNode[7] AverageBadServicesAt_140 0
+scalar BlockchainNetwork.iotNode[8] AverageBadServicesAt_140 0
+scalar BlockchainNetwork.iotNode[9] AverageBadServicesAt_140 0
+scalar BlockchainNetwork.iotNode[0] AverageBadServicesAt_150 0
+scalar BlockchainNetwork.iotNode[1] AverageBadServicesAt_150 0
+scalar BlockchainNetwork.iotNode[2] AverageBadServicesAt_150 0
+scalar BlockchainNetwork.iotNode[3] AverageBadServicesAt_150 0
+scalar BlockchainNetwork.iotNode[4] AverageBadServicesAt_150 0
+scalar BlockchainNetwork.iotNode[5] AverageBadServicesAt_150 0
+scalar BlockchainNetwork.iotNode[6] AverageBadServicesAt_150 0
+scalar BlockchainNetwork.iotNode[7] AverageBadServicesAt_150 0
+scalar BlockchainNetwork.iotNode[8] AverageBadServicesAt_150 0
+scalar BlockchainNetwork.iotNode[9] AverageBadServicesAt_150 0
 par BlockchainNetwork.iotNode[0] typename "\"src.IoTNode\""
 par BlockchainNetwork.iotNode[0] maliciousNodePercentage 0
+scalar BlockchainNetwork.iotNode[0] BestThreshold 0.5
+scalar BlockchainNetwork.iotNode[0] BestF1Score 0
+scalar BlockchainNetwork.iotNode[0] BestPrecision 0
+scalar BlockchainNetwork.iotNode[0] BestRecall 0
+scalar BlockchainNetwork.iotNode[0] BestAccuracy 0
 scalar BlockchainNetwork.iotNode[0] FinalBadServicesReceived 0
-scalar BlockchainNetwork.iotNode[0] FinalAverageBadServices 0.1
+scalar BlockchainNetwork.iotNode[0] FinalAverageBadServices 0
 par BlockchainNetwork.iotNode[1] typename "\"src.IoTNode\""
 par BlockchainNetwork.iotNode[1] maliciousNodePercentage 0
 scalar BlockchainNetwork.iotNode[1] FinalBadServicesReceived 0
-scalar BlockchainNetwork.iotNode[1] FinalAverageBadServices 0.1
+scalar BlockchainNetwork.iotNode[1] FinalAverageBadServices 0
 par BlockchainNetwork.iotNode[2] typename "\"src.IoTNode\""
 par BlockchainNetwork.iotNode[2] maliciousNodePercentage 0
 scalar BlockchainNetwork.iotNode[2] FinalBadServicesReceived 0
-scalar BlockchainNetwork.iotNode[2] FinalAverageBadServices 0.1
+scalar BlockchainNetwork.iotNode[2] FinalAverageBadServices 0
 par BlockchainNetwork.iotNode[3] typename "\"src.IoTNode\""
 par BlockchainNetwork.iotNode[3] maliciousNodePercentage 0
 scalar BlockchainNetwork.iotNode[3] FinalBadServicesReceived 0
-scalar BlockchainNetwork.iotNode[3] FinalAverageBadServices 0.1
+scalar BlockchainNetwork.iotNode[3] FinalAverageBadServices 0
 par BlockchainNetwork.iotNode[4] typename "\"src.IoTNode\""
 par BlockchainNetwork.iotNode[4] maliciousNodePercentage 0
 scalar BlockchainNetwork.iotNode[4] FinalBadServicesReceived 0
-scalar BlockchainNetwork.iotNode[4] FinalAverageBadServices 0.1
+scalar BlockchainNetwork.iotNode[4] FinalAverageBadServices 0
 par BlockchainNetwork.iotNode[5] typename "\"src.IoTNode\""
 par BlockchainNetwork.iotNode[5] maliciousNodePercentage 0
 scalar BlockchainNetwork.iotNode[5] FinalBadServicesReceived 0
-scalar BlockchainNetwork.iotNode[5] FinalAverageBadServices 0.1
+scalar BlockchainNetwork.iotNode[5] FinalAverageBadServices 0
 par BlockchainNetwork.iotNode[6] typename "\"src.IoTNode\""
 par BlockchainNetwork.iotNode[6] maliciousNodePercentage 0
 scalar BlockchainNetwork.iotNode[6] FinalBadServicesReceived 0
-scalar BlockchainNetwork.iotNode[6] FinalAverageBadServices 0.1
+scalar BlockchainNetwork.iotNode[6] FinalAverageBadServices 0
 par BlockchainNetwork.iotNode[7] typename "\"src.IoTNode\""
 par BlockchainNetwork.iotNode[7] maliciousNodePercentage 0
 scalar BlockchainNetwork.iotNode[7] FinalBadServicesReceived 0
-scalar BlockchainNetwork.iotNode[7] FinalAverageBadServices 0.1
+scalar BlockchainNetwork.iotNode[7] FinalAverageBadServices 0
 par BlockchainNetwork.iotNode[8] typename "\"src.IoTNode\""
 par BlockchainNetwork.iotNode[8] maliciousNodePercentage 0
 scalar BlockchainNetwork.iotNode[8] FinalBadServicesReceived 0
-scalar BlockchainNetwork.iotNode[8] FinalAverageBadServices 0.1
+scalar BlockchainNetwork.iotNode[8] FinalAverageBadServices 0
 par BlockchainNetwork.iotNode[9] typename "\"src.IoTNode\""
 par BlockchainNetwork.iotNode[9] maliciousNodePercentage 0
-scalar BlockchainNetwork.iotNode[9] FinalBadServicesReceived 1
-scalar BlockchainNetwork.iotNode[9] FinalAverageBadServices 0.1
+scalar BlockchainNetwork.iotNode[9] FinalBadServicesReceived 0
+scalar BlockchainNetwork.iotNode[9] FinalAverageBadServices 0
 par BlockchainNetwork typename "\"src.BlockchainNetwork\""
 par BlockchainNetwork numNodes 10
 par BlockchainNetwork maliciousNodePercentage 0
