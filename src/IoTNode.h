@@ -2,7 +2,7 @@
  * IoTNode.h
  *
  *  Created on: 4 Oca 2025
- *      Author: ipekm
+ *      Author: ipekm, sahinm
  */
 
 #ifndef __IOTNODE_H_
@@ -102,6 +102,10 @@ protected:
   void handleFinalServiceResponseMsg(cMessage *msg);
 
   void handleServiceRatingMsg(cMessage *msg);
+
+
+  //  helper function to have the handlers modular
+   void propagateRatingReplica(ServiceRating *transaction);
 
   // Setup
   void populateServiceTable();

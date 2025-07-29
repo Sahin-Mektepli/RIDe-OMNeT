@@ -165,7 +165,7 @@ double IoTNode::calculateRatingSimilarityCoefficient(int providerId, double newR
     /*
      * umarım formülü yanlış hatırlamıyorumdur
      * bu fonksiyon yeni verilen rating bu node'un daha önce verdiklerine ne kadar yakın diye bakıp 0-1 arasında bir sayı döndürecek.
-     * Bu sayıyı hesaplamalarda kaatsayı olarak kullanacağız.
+     * Bu sayıyı hesaplamalarda katsayı olarak kullanacağız.
      * 1'e yakınsa node'un kendi verdiği ratinglere yakın yani lokal trust skorunu daha çok etkileyecek demek
      */
     return 0.5; // default
@@ -358,6 +358,36 @@ void IoTNode::handleFinalServiceResponseMsg(cMessage *msg) {
   delete response;
 }
 
+/**
+ * Call for Cluster Heads only.
+ * creates a replica of the provided transaction
+ * and propagates it to the connected nodes,
+ * so that they update their TS's accordingly.
+ * NOTE could also be named "broadcast..."
+ */
+void IoTNode::propagateRatingReplica(ServiceRating *transaction){
+    int providerId = transaction->getProviderId();
+    int requesterId = transaction->getRequesterId();
+    double rating = transaction->getRating();
+  for(IoTNode *node: allNodes){
+    if(node != this){
+      ServiceRating *replica = new ServiceRating("serviceRating");
+      replica->setRequesterId(requesterId);
+      replica->setProviderId(providerId);
+      replica->setRating(rating);
+      replica->setIsPropagated(true);
+      int destId = node->getId();
+      if(routingTable.find(destId) != routingTable.end()){
+        int gateIndex = routingTable[destId];
+        send(replica,  "inoutGate$o", gateIndex);
+      }else{
+        delete replica;
+      }
+    }
+  }
+
+
+}
 void IoTNode::handleServiceRatingMsg(cMessage *msg) {
     ServiceRating *transaction = check_and_cast<ServiceRating *>(msg);
     int providerId = transaction->getProviderId();
@@ -377,6 +407,14 @@ void IoTNode::handleServiceRatingMsg(cMessage *msg) {
         double& ts = localTrustScores[providerId];
         ts = (1 - alpha) * ts + alpha * rating;//TODO: bu kısmı değiştirebiliriz eski formülümüzü kullanabiliriz
         //alpha ne kadar büyükse yeni rating trust skoru o kadar etkiliyor
+        // -- Emin'in yorumu baş--
+        //FIXME yok, benim aklımdaki bu değildi:
+        //orijinal formül şu şekildeydi:
+        //TS = sum Pozitif oylar / sum Bütün oyların mutlak değeri
+        //İmdi, doğrudan bu hesaba dahil olarak diğer düğümlerin oyları.
+        //Yani ki TS'yi veren bu kesrin pay ve paydasına etkide bulunacaklar.
+        //Alpha 0.5 ise düğümün kendi vereceği bir oyun yarısı kadar tesir edecekler.
+        // -- Emin'in yorumu son--
         ts = std::clamp(ts, 0.0, 1.0);
 
         localRatingHistory[providerId].push_back(rating);
@@ -385,7 +423,8 @@ void IoTNode::handleServiceRatingMsg(cMessage *msg) {
                       "_InNode_" + std::to_string(getId())).c_str(), ts);
     }
 
-    // cluster head is rating'i blockchain'e ekleyip diğer nodelara bildiriyor cluster'daki
+    // cluster head rating'i blockchain'e ekleyip diğer nodelara bildiriyor cluster'daki
+    //TODO Emin bu variable'i hic anlamadi...
     if (!isPropagated) {//infinite loop olmasın diye
     if (isClusterHead) {
         EV << "Cluster Head Node " << getId() << " adding rating to blockchain." << endl;
@@ -402,25 +441,12 @@ void IoTNode::handleServiceRatingMsg(cMessage *msg) {
         EV << "Block " << blockId << " added to blockchain." << endl;
 
         // Broadcast to all other nodes
-        for (IoTNode* node : allNodes) {
-            if (node != this) {
-                ServiceRating* replica = new ServiceRating("serviceRating");
-                replica->setRequesterId(requesterId);
-                replica->setProviderId(providerId);
-                replica->setRating(rating);
-                replica->setIsPropagated(true); // Mark it as forwarded
-                int destId = node->getId();
-                if (routingTable.find(destId) != routingTable.end()) {
-                    int gateIndex = routingTable[destId];
-                    send(replica, "inoutGate$o", gateIndex);
-                } else {
-                    delete replica;
-                }
-            }
-        }
+        propagateRatingReplica(transaction);
     } else {
 
         sendTransactionToClusterHead(transaction);
+        //TODO you forget to delete the transaction with this return no?
+        //esm is not sure
         return;
     }}
 
