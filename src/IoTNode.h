@@ -25,6 +25,14 @@ struct Block {
 
 class IoTNode : public omnetpp::cSimpleModule {
 private:
+    //*******Yeni model için eklediklerim*****************
+    std::map<int, double> localTrustScores;                //Node ID → Trust Score (diğer nodeların trust skorları)
+    std::map<int, std::vector<double>> localRatingHistory; // Node ID → Ratings given by this node !! vector içinde tutmak yerine ortalamsı tutulabilir, ya da hepsini tutmak yerine window olabilir, decay de eklenebilir o yüzdeb şimdilik böyle
+
+    double calculateRatingSimilarityCoefficient(int providerId, double newRating);
+    //******************************************************
+
+
   static int totalBadServicesReceived;
   static int totalBenevolentNodes;
   static std::set<int> maliciousNodeIds;

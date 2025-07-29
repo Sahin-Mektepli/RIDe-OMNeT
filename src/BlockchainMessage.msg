@@ -42,6 +42,8 @@ message FinalServiceResponse {
     double serviceQuality;
 }
 message ServiceRating {
+    bool isPropagated=false;
+    
     int requesterId;
     int providerId;
     double rating;

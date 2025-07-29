@@ -276,6 +276,8 @@ inline void doParsimUnpacking(omnetpp::cCommBuffer *b, FinalServiceResponse& obj
  * <pre>
  * message ServiceRating
  * {
+ *     bool isPropagated = false;
+ * 
  *     int requesterId;
  *     int providerId;
  *     double rating;
@@ -285,6 +287,7 @@ inline void doParsimUnpacking(omnetpp::cCommBuffer *b, FinalServiceResponse& obj
 class ServiceRating : public ::omnetpp::cMessage
 {
   protected:
+    bool isPropagated_ = false;
     int requesterId = 0;
     int providerId = 0;
     double rating = 0;
@@ -303,6 +306,9 @@ class ServiceRating : public ::omnetpp::cMessage
     virtual ServiceRating *dup() const override {return new ServiceRating(*this);}
     virtual void parsimPack(omnetpp::cCommBuffer *b) const override;
     virtual void parsimUnpack(omnetpp::cCommBuffer *b) override;
+
+    virtual bool isPropagated() const;
+    virtual void setIsPropagated(bool isPropagated);
 
     virtual int getRequesterId() const;
     virtual void setRequesterId(int requesterId);

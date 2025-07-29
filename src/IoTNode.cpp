@@ -158,6 +158,23 @@ void IoTNode::populateServiceTable() {
   printServiceTable();
 }
 
+
+
+double IoTNode::calculateRatingSimilarityCoefficient(int providerId, double newRating) {
+    // TODO: burada Emin'in yazdığı formül kullanılacak
+    /*
+     * umarım formülü yanlış hatırlamıyorumdur
+     * bu fonksiyon yeni verilen rating bu node'un daha önce verdiklerine ne kadar yakın diye bakıp 0-1 arasında bir sayı döndürecek.
+     * Bu sayıyı hesaplamalarda kaatsayı olarak kullanacağız.
+     * 1'e yakınsa node'un kendi verdiği ratinglere yakın yani lokal trust skorunu daha çok etkileyecek demek
+     */
+    return 0.5; // default
+}
+
+
+
+
+
 void IoTNode::printServiceTable() {
   EV << "Service Table for Node " << getId() << ":\n";
 
@@ -334,29 +351,74 @@ void IoTNode::handleFinalServiceResponseMsg(cMessage *msg) {
 }
 
 void IoTNode::handleServiceRatingMsg(cMessage *msg) {
-  ServiceRating *transaction = check_and_cast<ServiceRating *>(msg);
+    ServiceRating *transaction = check_and_cast<ServiceRating *>(msg);
+    int providerId = transaction->getProviderId();
+    int requesterId = transaction->getRequesterId();
+    double rating = transaction->getRating();
+    bool isPropagated =transaction->isPropagated();
 
-  if (isClusterHead) {
-    EV << "Cluster Head Node " << getId() << " adding rating to blockchain."
-       << endl;
-    int blockId = ++globalBlockId;
-    Block newBlock = {
-        .blockId = blockId,
-        .validatorId = getId(),
-        .transactionData =
-            "Rating: " + std::to_string(transaction->getRating()) + " from " +
-            std::to_string(transaction->getRequesterId()) + " to " +
-            std::to_string(transaction->getProviderId()),
-        .timestamp = simTime().dbl()};
 
-    blockchain.push_back(newBlock);
-    EV << "Block " << blockId << " added to blockchain." << endl;
-  } else {
-    EV << "Forwarding rating to a Cluster Head" << endl;
-    sendTransactionToClusterHead(transaction);
-  }
-  delete transaction;
+    // All nodes (including CH) process this rating to update local trust
+    if (providerId != getId()) { // kendi içinde kendi trust'ını hesaplamasına gerek yok
+        if (localTrustScores.find(providerId) == localTrustScores.end()) {
+            localTrustScores[providerId] = 0.5; // default trust
+            //TODO : şimdilik daha önce trust hesaplamadıysa 0.5 veriyor ama bunu çok güvendiği nodeların verdiği skorların ortalaması olarak değiştirebiliriz. (en son böyle konuşmuştuk sanki)
+        }
+
+        double alpha = calculateRatingSimilarityCoefficient(providerId, rating);
+        double& ts = localTrustScores[providerId];
+        ts = (1 - alpha) * ts + alpha * rating;//TODO: bu kısmı değiştirebiliriz eski formülümüzü kullanabiliriz
+        //alpha ne kadar büyükse yeni rating trust skoru o kadar etkiliyor
+        ts = std::clamp(ts, 0.0, 1.0);
+
+        localRatingHistory[providerId].push_back(rating);
+
+        recordScalar(("TrustOf_" + std::to_string(providerId) +
+                      "_InNode_" + std::to_string(getId())).c_str(), ts);
+    }
+
+    // cluster head is rating'i blockchain'e ekleyip diğer nodelara bildiriyor cluster'daki
+    if (!isPropagated) {//infinite loop olmasın diye
+    if (isClusterHead) {
+        EV << "Cluster Head Node " << getId() << " adding rating to blockchain." << endl;
+        int blockId = ++globalBlockId;
+        Block newBlock = {
+            .blockId = blockId,
+            .validatorId = getId(),
+            .transactionData = "Rating: " + std::to_string(rating) +
+                               " from " + std::to_string(requesterId) +
+                               " to " + std::to_string(providerId),
+            .timestamp = simTime().dbl()
+        };
+        blockchain.push_back(newBlock);
+        EV << "Block " << blockId << " added to blockchain." << endl;
+
+        // Broadcast to all other nodes
+        for (IoTNode* node : allNodes) {
+            if (node != this) {
+                ServiceRating* replica = new ServiceRating("serviceRating");
+                replica->setRequesterId(requesterId);
+                replica->setProviderId(providerId);
+                replica->setRating(rating);
+                replica->setIsPropagated(true); // Mark it as forwarded
+                int destId = node->getId();
+                if (routingTable.find(destId) != routingTable.end()) {
+                    int gateIndex = routingTable[destId];
+                    send(replica, "inoutGate$o", gateIndex);
+                } else {
+                    delete replica;
+                }
+            }
+        }
+    } else {
+
+        sendTransactionToClusterHead(transaction);
+        return;
+    }}
+
+    delete transaction;
 }
+
 
 void IoTNode::handleNetworkMessage(cMessage *msg) {
   const char *msgName = msg->getName();
