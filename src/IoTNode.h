@@ -147,9 +147,11 @@ protected:
   bool isClusterHead;
   double potency = 0;
   double consistency = 4;      // draws a 'meaningfull' default curve
-  bool benevolent = true;      // WARN: perhaps this is not ideal...
+  bool benevolent = true;
   std::string providedService; // Node'un verdiği servis türü
-  // WARN: bu vector'e falan cevirilebilir!
+
+  std::string assignService();
+  void populateRoutingTable();
 
   // -- attack parameters --
 
