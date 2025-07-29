@@ -105,7 +105,8 @@ protected:
 
 
   //  helper function to have the handlers modular
-   void propagateRatingReplica(ServiceRating *transaction);
+  void propagateRatingReplica(ServiceRating *transaction);
+  int addBlockToBC(double rating, int requesterId, int providerId);
 
   // Setup
   void populateServiceTable();

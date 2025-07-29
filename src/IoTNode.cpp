@@ -385,59 +385,69 @@ void IoTNode::propagateRatingReplica(ServiceRating *transaction){
       }
     }
   }
-
-
+}
+/**
+ * Helper function to create and add a block to the blockchain
+ * return id of the added block for debugging */
+int IoTNode::addBlockToBC(double rating, int requesterId,
+                                   int providerId) {
+  int blockId = ++globalBlockId;
+  Block newBlock = {.blockId = blockId,
+                    .validatorId = getId(),
+                    .transactionData = "Rating: " + std::to_string(rating) +
+                                       " from " + std::to_string(requesterId) +
+                                       " to " + std::to_string(providerId),
+                    .timestamp = simTime().dbl()};
+  blockchain.push_back(newBlock);
+  return blockId;
 }
 void IoTNode::handleServiceRatingMsg(cMessage *msg) {
-    ServiceRating *transaction = check_and_cast<ServiceRating *>(msg);
-    int providerId = transaction->getProviderId();
-    int requesterId = transaction->getRequesterId();
-    double rating = transaction->getRating();
-    bool isPropagated =transaction->isPropagated();
+  ServiceRating *transaction = check_and_cast<ServiceRating *>(msg);
+  int providerId = transaction->getProviderId();
+  int requesterId = transaction->getRequesterId();
+  double rating = transaction->getRating();
+  bool isPropagated = transaction->isPropagated();
 
-
-    // All nodes (including CH) process this rating to update local trust
-    if (providerId != getId()) { // kendi içinde kendi trust'ını hesaplamasına gerek yok
-        if (localTrustScores.find(providerId) == localTrustScores.end()) {
-            localTrustScores[providerId] = 0.5; // default trust
-            //TODO : şimdilik daha önce trust hesaplamadıysa 0.5 veriyor ama bunu çok güvendiği nodeların verdiği skorların ortalaması olarak değiştirebiliriz. (en son böyle konuşmuştuk sanki)
-        }
-
-        double alpha = calculateRatingSimilarityCoefficient(providerId, rating);
-        double& ts = localTrustScores[providerId];
-        ts = (1 - alpha) * ts + alpha * rating;//TODO: bu kısmı değiştirebiliriz eski formülümüzü kullanabiliriz
-        //alpha ne kadar büyükse yeni rating trust skoru o kadar etkiliyor
-        // -- Emin'in yorumu baş--
-        //FIXME yok, benim aklımdaki bu değildi:
-        //orijinal formül şu şekildeydi:
-        //TS = sum Pozitif oylar / sum Bütün oyların mutlak değeri
-        //İmdi, doğrudan bu hesaba dahil olarak diğer düğümlerin oyları.
-        //Yani ki TS'yi veren bu kesrin pay ve paydasına etkide bulunacaklar.
-        //Alpha 0.5 ise düğümün kendi vereceği bir oyun yarısı kadar tesir edecekler.
-        // -- Emin'in yorumu son--
-        ts = std::clamp(ts, 0.0, 1.0);
-
-        localRatingHistory[providerId].push_back(rating);
-
-        recordScalar(("TrustOf_" + std::to_string(providerId) +
-                      "_InNode_" + std::to_string(getId())).c_str(), ts);
+  // All nodes (including CH) process this rating to update local trust
+  if (providerId !=
+      getId()) { // kendi içinde kendi trust'ını hesaplamasına gerek yok
+    if (localTrustScores.find(providerId) == localTrustScores.end()) {
+      localTrustScores[providerId] = 0.5; // default trust
+      // TODO : şimdilik daha önce trust hesaplamadıysa 0.5 veriyor ama bunu çok
+      // güvendiği nodeların verdiği skorların ortalaması olarak
+      // değiştirebiliriz. (en son böyle konuşmuştuk sanki)
     }
 
-    // cluster head rating'i blockchain'e ekleyip diğer nodelara bildiriyor cluster'daki
-    //TODO Emin bu variable'i hic anlamadi...
-    if (!isPropagated) {//infinite loop olmasın diye
+    double alpha = calculateRatingSimilarityCoefficient(providerId, rating);
+    double &ts = localTrustScores[providerId];
+    ts = (1 - alpha) * ts + alpha * rating; // TODO: bu kısmı değiştirebiliriz
+                                            // eski formülümüzü kullanabiliriz
+    // alpha ne kadar büyükse yeni rating trust skoru o kadar etkiliyor
+    //  -- Emin'in yorumu baş--
+    // FIXME yok, benim aklımdaki bu değildi:
+    // orijinal formül şu şekildeydi:
+    // TS = sum Pozitif oylar / sum Bütün oyların mutlak değeri
+    // İmdi, doğrudan bu hesaba dahil olarak diğer düğümlerin oyları.
+    // Yani ki TS'yi veren bu kesrin pay ve paydasına etkide bulunacaklar.
+    // Alpha 0.5 ise düğümün kendi vereceği bir oyun yarısı kadar tesir
+    // edecekler.
+    //  -- Emin'in yorumu son--
+    ts = std::clamp(ts, 0.0, 1.0);
+
+    localRatingHistory[providerId].push_back(rating);
+
+    recordScalar(("TrustOf_" + std::to_string(providerId) + "_InNode_" +
+                  std::to_string(getId()))
+                     .c_str(),
+                 ts);
+  }
+
+  // cluster head rating'i blockchain'e ekleyip diğer nodelara bildiriyor
+  // cluster'daki
+  if (!isPropagated) { // infinite loop olmasın diye
     if (isClusterHead) {
         EV << "Cluster Head Node " << getId() << " adding rating to blockchain." << endl;
-        int blockId = ++globalBlockId;
-        Block newBlock = {
-            .blockId = blockId,
-            .validatorId = getId(),
-            .transactionData = "Rating: " + std::to_string(rating) +
-                               " from " + std::to_string(requesterId) +
-                               " to " + std::to_string(providerId),
-            .timestamp = simTime().dbl()
-        };
-        blockchain.push_back(newBlock);
+        int blockId = addBlockToBC(rating, requesterId, providerId);
         EV << "Block " << blockId << " added to blockchain." << endl;
 
         // Broadcast to all other nodes
@@ -445,14 +455,11 @@ void IoTNode::handleServiceRatingMsg(cMessage *msg) {
     } else {
 
         sendTransactionToClusterHead(transaction);
-        //TODO you forget to delete the transaction with this return no?
-        //esm is not sure
         return;
     }}
 
     delete transaction;
 }
-
 
 void IoTNode::handleNetworkMessage(cMessage *msg) {
   const char *msgName = msg->getName();
