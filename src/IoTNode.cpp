@@ -246,15 +246,23 @@ void IoTNode::handleServiceResponseMsg(cMessage *msg) {
     EV << "I am about to calculate the DT of" << requestorId << " to "
        << responderId << "here is the entire BC";
     printBlockChain(blockchain);
-    double dt = calculateDirectTrust(requestorId, responderId, simTime().dbl());
+   /* double dt = calculateDirectTrust(requestorId, responderId, simTime().dbl());
     // WARN: 'bu' dugumun 'responder'a DT'ini hesaplar.
     // General Trust
     double gt = getNodeById(responderId)->trustScore;
 
-    respondedProviders[responderId] = (a * dt + b * gt);
+    respondedProviders[responderId] = (a * dt + b * gt);*/
+
+    // NEW: Use only local trust scores
+    double localTrust = localTrustScores.count(responderId) > 0
+                          ? localTrustScores[responderId]
+                          : 0.5; // TODO: 0.5 olarak kalmayabilir burası diğer güvenilir nodeların verdiği ratinglerin ortalaması alınabilir
+
+    respondedProviders[responderId] = localTrust;
+
     pendingResponses.erase(responderId);
     EV << "Received service response from Node " << responderId
-       << " with DT = " << dt << " and GT " << gt << endl;
+       << " with Local Trust = " << localTrust << endl;
 
     if (pendingResponses.empty()) {
       int bestProviderId = -1;
