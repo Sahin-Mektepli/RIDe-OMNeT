@@ -12,6 +12,8 @@
 #include <map>
 #include <omnetpp.h>
 #include <set>
+#include <unordered_map>
+#include <utility>
 #include <vector>
 // Add this at the top of IoTNode.h
 using namespace omnetpp;
@@ -25,32 +27,73 @@ struct Block {
 
 class IoTNode : public omnetpp::cSimpleModule {
 private:
-    //*******Yeni model için eklediklerim*****************
-    std::map<int, double> localTrustScores;                //Node ID → Trust Score (diğer nodeların trust skorları)
-    std::map<int, std::vector<double>> localRatingHistory; // Node ID → Ratings given by this node !! vector içinde tutmak yerine ortalamsı tutulabilir, ya da hepsini tutmak yerine window olabilir, decay de eklenebilir o yüzdeb şimdilik böyle
+  //*******Yeni model için eklediklerim*****************
+  std::map<int, double> localTrustScores; // Node ID → Trust Score (diğer
+                                          // nodeların trust skorları)
+  std::map<int, std::vector<double>>
+      localRatingHistory; // Node ID → Ratings given by this node !! vector
+                          // içinde tutmak yerine ortalamsı tutulabilir, ya da
+                          // hepsini tutmak yerine window olabilir, decay de
+                          // eklenebilir o yüzdeb şimdilik böyle
 
-    double calculateRatingSimilarityCoefficient(int providerId, double newRating);
-    //******************************************************
+  // A helper struct to store positive and all ratings of this node to some
+  // other node; This is used to calculate the similarity of a rating to us.
+  struct myRatings {
+    double posRatings, allRatings = 0;
+    double value() {
+      if(posRatings > allRatings)
+        return NAN;
+      else if (allRatings != 0)
+        return posRatings / allRatings;
+      else
+        return 0.5; // TODO ARBITRARY VALUE
+    }
+  };
+  // A helper structure to store the TS to a node.
+  // This is the trust TO some node of THIS node
+  struct trustScore {
+    double sumOfPositiveRatings, sumOfAllRatings = 0;
+    double value() {
+      if (sumOfPositiveRatings > sumOfAllRatings)
+        return NAN; // SHOULD NOT BE SET TO 1 AND BE HANDLED!
+      else if (sumOfAllRatings != 0)
+        return sumOfPositiveRatings / sumOfAllRatings;
+      else
+        return 0.5;
+      // TODO THIS IS AN ARBITRARY DEFAULT TRUST VALUE
+      // CALL ANOTHER FUNCTION TO CALCULATE WITH NEIGHBOURS
+    }
+  };
 
+  // FIXME terrible name;
+  // NodeID --> Trust Score struct
+  // real trust score to the nodes of THIS node
+  std::unordered_map<int, trustScore> trustMap;
+  // NodeID --> Trust Score struct
+  // Used to calculate similarity of a rating
+  std::unordered_map<int, myRatings> myRatingMap;
 
-  static int totalBadServicesReceived;
-  static int totalBenevolentNodes;
+  // Update trustScore to a node with the given rating and its effect coef
+  void updateTrustScore(int providerId, double rating, double alpha);
+
+  double calculateRatingSimilarityCoefficient(int providerId, double newRating);
+  //******************************************************
+
+  static int totalBadServicesReceived; // for logging
+  static int totalBenevolentNodes;     // for logging
   static std::set<int> maliciousNodeIds;
 
+  int lastProviderId = -1; // collaborative attack için
 
-  int lastProviderId = -1;//collaborative attack için
-
-  int badServicesReceived = 0;
+  int badServicesReceived = 0; // for logging
   cMessage *badServiceLogger = nullptr;
   //--parameters--
-  int windowSize = 100;          // just for testing purposes90 idi bu
+  int windowSize = 100;         // just for testing purposes90 idi bu
   int enoughEncounterLimit = 1; // TODO: these two parameters are just examples
   double genTrustCoef = 0.01;
-  double rancorCoef = 2.0;           // defined to be higher than 1
-  double decayFactor = 0.5;          // WARN: bunu 1'de unutmak, decay yok demek!
+  double rancorCoef = 2.0;         // defined to be higher than 1
+  double decayFactor = 0.5;        // WARN: bunu 1'de unutmak, decay yok demek!
   std::map<int, int> routingTable; // Maps Node ID → Gate Index
-  //  std::map<int, std::string> serviceTable; // private olmalı gibi geldi
-  //  TODO: bu eski hali sil
   std::map<std::string, std::vector<int>> serviceTable;
   std::set<int> pendingResponses;
   std::map<int, double> respondedProviders;
@@ -103,7 +146,6 @@ protected:
 
   void handleServiceRatingMsg(cMessage *msg);
 
-
   //  helper function to have the handlers modular
   void propagateRatingReplica(ServiceRating *transaction);
   int addBlockToBC(double rating, int requesterId, int providerId);
@@ -125,7 +167,7 @@ protected:
                int &providerId);
   double
   calculateDirectTrust(int requestorId, int providerId,
-                       double time ); // between a single i,j pair at time t
+                       double time); // between a single i,j pair at time t
   double calculateIndirectTrust(int requestor, int provider,
                                 double time); // if DT cannot be
                                               // calculated
@@ -141,12 +183,15 @@ protected:
 
   IoTNode *getNodeById(int nodeId);
   // Node'a mahsus attribute'ler
+  [[deprecated("NO GENERAL TRUST SCORES!!")]]
   double trustScore;
+  [[deprecated("use map sumOfPositiveRatings!!")]]
   double sumOfPositveRatings = 5;
+  [[deprecated("use map sumOfAllRatings!!")]]
   double sumOfAllRatings = 10; // this takes abs of negative ratings.
   bool isClusterHead;
   double potency = 0;
-  double consistency = 4;      // draws a 'meaningfull' default curve
+  double consistency = 4; // draws a 'meaningfull' default curve
   bool benevolent = true;
   std::string providedService; // Node'un verdiği servis türü
 
@@ -174,11 +219,12 @@ protected:
 
   cMessage *serviceRequestEvent; // Add this line
 
-  //oppurtunistic attack: trust skoru en yüksek olan iyi node belirli bir zamanadan(opportunisticAttackTime) sonra kötü dvaranmaya başlarsa ne olur onu test ediyoruz
-    double opportunisticAttackTime = 600;
-    bool opportunisticAttackTriggered = false;
-    IoTNode* opportunisticNode = nullptr;
-
+  // oppurtunistic attack: trust skoru en yüksek olan iyi node belirli bir
+  // zamanadan(opportunisticAttackTime) sonra kötü dvaranmaya başlarsa ne olur
+  // onu test ediyoruz
+  double opportunisticAttackTime = 600;
+  bool opportunisticAttackTriggered = false;
+  IoTNode *opportunisticNode = nullptr;
 };
 
 #endif
