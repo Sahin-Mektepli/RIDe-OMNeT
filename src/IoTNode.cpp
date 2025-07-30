@@ -151,17 +151,21 @@ void IoTNode::populateServiceTable() {
   printServiceTable();
 }
 
+/**
+ * Calculate how "similar" the newRating given by some other node
+ * to the provider is from our current past experiences
+ * The result is the alpha coef we use, and must be in (0,1) */
+
 double IoTNode::calculateRatingSimilarityCoefficient(int providerId,
                                                      double newRating) {
-  // TODO: burada Emin'in yazdığı formül kullanılacak
-  /*
-   * umarım formülü yanlış hatırlamıyorumdur
-   * bu fonksiyon yeni verilen rating bu node'un daha önce verdiklerine ne kadar
-   * yakın diye bakıp 0-1 arasında bir sayı döndürecek. Bu sayıyı hesaplamalarda
-   * katsayı olarak kullanacağız. 1'e yakınsa node'un kendi verdiği ratinglere
-   * yakın yani lokal trust skorunu daha çok etkileyecek demek
-   */
-  return 0.5; // default
+  double currentRating = myRatingMap[providerId].value();
+  if (currentRating == NAN) {
+    EV_WARN << "Could not calculate alpha, current rating is not a number";
+    return NAN;
+  }
+  double exponent = 6 * newRating - 3;
+  double denom = 1 + exp(exponent); // cannot possibly be 0 or negative
+  return 1 / denom; //certainly in (0,1)
 }
 
 void IoTNode::printServiceTable() {
