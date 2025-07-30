@@ -317,6 +317,19 @@ void IoTNode::handleFinalServiceRequestMsg(cMessage *msg) {
 
   delete request;
 }
+/*
+** Update the sum of positive and all ratings to the provider node.
+** Rating is in [-10,10]. This update is for similarity calc.
+*/
+double IoTNode::updateMyRating(int providerId, double rating) {
+  myRatings &alterandum = myRatingMap[providerId];
+  if (rating > 0)
+    alterandum.posRatings += rating;
+  else
+    alterandum.allRatings += (-rating);
+  return alterandum.value();
+}
+
 void IoTNode::handleFinalServiceResponseMsg(cMessage *msg) {
   FinalServiceResponse *response = check_and_cast<FinalServiceResponse *>(msg);
   int providerId = response->getProviderId();
@@ -337,11 +350,10 @@ void IoTNode::handleFinalServiceResponseMsg(cMessage *msg) {
 
   sendRating(providerId, rating);
   IoTNode *provider = getNodeById(providerId);
-  updateProviderGeneralTrust(provider, trustScore,
-                             rating); // şimdilik this kısmını sildim
-  // WARN: bu metod normalde pointer degil, objenin kendisni aliyordu
-  // cok dusuk de olsa duzgun yazmamis olma ihtimalim var
-  // hata olursa buraya bakin
+  // TODO delete updatePRoviderGeneralTrust stuff since that is replaced
+  updateProviderGeneralTrust(provider, trustScore, rating);
+  // replacement
+  updateMyRating(providerId, rating);
 
   delete response;
 }
@@ -392,7 +404,7 @@ int IoTNode::addBlockToBC(double rating, int requesterId, int providerId) {
 /**
  * Update the trustScore to the node providerId with given rating, which is in
  * [-10,10] and similarity coefficient alpha, which is strictly in (0,1) */
-void IoTNode::updateTrustScore(int providerId, double rating, double alpha) {
+double IoTNode::updateTrustScore(int providerId, double rating, double alpha) {
   if (alpha < 0 || alpha > 1) {
     EV_WARN << "Could not update trust of " << getId() << " to " << providerId
             << ".\nSomehow alpha was not in [0,1]!" << std::endl;
@@ -405,6 +417,7 @@ void IoTNode::updateTrustScore(int providerId, double rating, double alpha) {
     alterandum.sumOfPositiveRatings += rating;
   else
     alterandum.sumOfAllRatings += (-rating);
+  return alterandum.value();
 }
 
 void IoTNode::handleServiceRatingMsg(cMessage *msg) {
@@ -417,30 +430,13 @@ void IoTNode::handleServiceRatingMsg(cMessage *msg) {
   // All nodes (including CH) process this rating to update local trust
   if (providerId != getId()) {
     // kendi içinde kendi trust'ını hesaplamasına gerek yok
-    //
     double alpha = calculateRatingSimilarityCoefficient(providerId, rating);
-    // updateTrustScore(providerId, rating, alpha);
-    //
-    //
-    if (localTrustScores.find(providerId) == localTrustScores.end()) {
-      localTrustScores[providerId] = 0.5; // default trust
-      // TODO : şimdilik daha önce trust hesaplamadıysa 0.5 veriyor ama bunu çok
-      // güvendiği nodeların verdiği skorların ortalaması olarak
-      // değiştirebiliriz. (en son böyle konuşmuştuk sanki)
-    }
-
-    double &ts = localTrustScores[providerId];
-    ts = (1 - alpha) * ts + alpha * rating; // TODO: bu kısmı değiştirebiliriz
-                                            // eski formülümüzü kullanabiliriz
-    // alpha ne kadar büyükse yeni rating trust skoru o kadar etkiliyor
-    ts = std::clamp(ts, 0.0, 1.0);
-
-    localRatingHistory[providerId].push_back(rating);
-
+    double updatedTrust = updateTrustScore(providerId, rating, alpha);
+    // TODO E- I may have broken this...
     recordScalar(("TrustOf_" + std::to_string(providerId) + "_InNode_" +
                   std::to_string(getId()))
                      .c_str(),
-                 ts);
+                 updatedTrust);
   }
   // cluster head rating'i blockchain'e ekleyip diğer nodelara bildiriyor
   // cluster'daki

@@ -41,7 +41,7 @@ private:
   struct myRatings {
     double posRatings, allRatings = 0;
     double value() {
-      if(posRatings > allRatings)
+      if (posRatings > allRatings)
         return NAN;
       else if (allRatings != 0)
         return posRatings / allRatings;
@@ -74,7 +74,8 @@ private:
   std::unordered_map<int, myRatings> myRatingMap;
 
   // Update trustScore to a node with the given rating and its effect coef
-  void updateTrustScore(int providerId, double rating, double alpha);
+  double updateTrustScore(int providerId, double rating, double alpha);
+  double updateMyRating(int providerId, double rating);
 
   double calculateRatingSimilarityCoefficient(int providerId, double newRating);
   //******************************************************
