@@ -128,6 +128,8 @@ private:
 protected:
   virtual void finish() override;
   virtual void initialize() override;
+    // helper for initalize
+    void setMalicious();
   virtual void handleMessage(omnetpp::cMessage *msg) override;
   // --- Message Handling ---
 
@@ -185,7 +187,7 @@ protected:
   IoTNode *getNodeById(int nodeId);
   // Node'a mahsus attribute'ler
   [[deprecated("NO GENERAL TRUST SCORES!!")]]
-  double trustScore;
+  double trustScore = 0.5;
   [[deprecated("use map sumOfPositiveRatings!!")]]
   double sumOfPositveRatings = 5;
   [[deprecated("use map sumOfAllRatings!!")]]

@@ -18,13 +18,16 @@
 ** -----KRITIK BAZI NOTLAR------
 ** - Kalite hesabı nasıl olacak, artık nadirlik falan yok!
 ** - Çizgenin yapısı aslında değişmeli, ama bu ertelenebilir
+** TODO Decay should be implemented, probably in updateTrustScore
+** TODO Update TS only if you are connected to the provider node
+** TODO Our graph is currently a fully connected one...
 */
 
-std::default_random_engine gen; // WARN: bunu buraya koyabilir miyim??
+std::default_random_engine gen;
 std::uniform_real_distribution<double> uniform_real_dist{
     0, 1}; // bu da burda dursun madem
 [[deprecated("There is only a single service!!!!")]]
-std::vector<std::string> serviceTypes = {"A", "B", "C", "D", "E"};
+std::vector<std::string> serviceTypes = {"A"}; // should be deleted all together
 using namespace omnetpp;
 
 Define_Module(IoTNode);
@@ -70,21 +73,10 @@ void IoTNode::populateRoutingTable() {
     }
   }
 }
-void IoTNode::initialize() {
-  serviceRequestEvent = new cMessage("serviceRequestTimer");
-  scheduleAt(simTime() + uniform(1, 5), serviceRequestEvent);
-  trustScore = 0.5;
-  isClusterHead = false;
-  allNodes.push_back(this);
-
-  std::string assignedService = assignService();
-  EV << "Node " << getId() << " provides service: " << assignedService << endl;
-
-  populateRoutingTable();
-
-  // Schedule service table update after all nodes are initialized
-  scheduleAt(simTime() + 0.1, new cMessage("populateServiceTable"));
-
+/**
+ * Extracted from initialize method
+ * Attacker type part should be refactored too. */
+void IoTNode::setMalicious() {
   int totalNodes = getParentModule()->par("numNodes");
   int numMalicious =
       int(par("maliciousNodePercentage").doubleValue() * totalNodes);
@@ -111,7 +103,20 @@ void IoTNode::initialize() {
   if (!benevolent) {
     getDisplayString().setTagArg("i", 1, "red"); // highlight malicious nodes
   }
+}
+void IoTNode::initialize() {
+  serviceRequestEvent = new cMessage("serviceRequestTimer");
+  scheduleAt(simTime() + uniform(1, 5), serviceRequestEvent);
+  isClusterHead = false;
+  allNodes.push_back(this);
 
+  std::string assignedService = assignService();
+  populateRoutingTable();
+
+  // Schedule service table update after all nodes are initialized
+  scheduleAt(simTime() + 0.1, new cMessage("populateServiceTable"));
+
+  setMalicious();
   // Start periodic logger(belirli aralıklarla kötü servis sayısını kaydetmek
   // için)
   badServiceLogger = new cMessage("badServiceLogger");
@@ -431,6 +436,7 @@ void IoTNode::handleServiceRatingMsg(cMessage *msg) {
   if (providerId != getId()) {
     // kendi içinde kendi trust'ını hesaplamasına gerek yok
     double alpha = calculateRatingSimilarityCoefficient(providerId, rating);
+    // TODO This updates TS for EVERY node, not just if connected!!
     double updatedTrust = updateTrustScore(providerId, rating, alpha);
     // TODO E- I may have broken this...
     recordScalar(("TrustOf_" + std::to_string(providerId) + "_InNode_" +
