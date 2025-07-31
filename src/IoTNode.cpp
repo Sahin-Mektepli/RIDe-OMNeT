@@ -233,27 +233,18 @@ void IoTNode::handleServiceResponseMsg(cMessage *msg) {
   std::string serviceType = response->getServiceType();
 
   if (requestedServiceType == serviceType) {
-    // double dt = calculateDirectTrust(*allNodes[responderId],
-    // simTime().dbl());
     int requestorId = this->getId();
-    EV << "I am about to calculate the DT of" << requestorId << " to "
-       << responderId << "here is the entire BC";
-    printBlockChain(blockchain);
-    /* double dt = calculateDirectTrust(requestorId, responderId,
-     simTime().dbl());
-     // WARN: 'bu' dugumun 'responder'a DT'ini hesaplar.
-     // General Trust
-     double gt = getNodeById(responderId)->trustScore;
-
-     respondedProviders[responderId] = (a * dt + b * gt);*/
 
     // NEW: Use only local trust scores
-    double localTrust =
-        localTrustScores.count(responderId) > 0
-            ? localTrustScores[responderId]
-            : 0.5; // TODO: 0.5 olarak kalmayabilir burası diğer güvenilir
-                   // nodeların verdiği ratinglerin ortalaması alınabilir
+    // double localTrust =
+    //     localTrustScores.count(responderId) > 0
+    //         ? localTrustScores[responderId]
+    //         : 0.5; // TODO: 0.5 olarak kalmayabilir burası diğer güvenilir
+    //                // nodeların verdiği ratinglerin ortalaması alınabilir
 
+    // TODO DOES THIS FIX THE TS CALCULATION??
+    // if so we can remove localTrust variables in general
+    double localTrust = trustMap[responderId].value();
     respondedProviders[responderId] = localTrust;
 
     pendingResponses.erase(responderId);
@@ -336,7 +327,7 @@ double IoTNode::updateMyRating(int providerId, double rating) {
     alterandum.posRatings += rating;
   else
     rating = (-rating);
-  alterandum.allRatings +=rating;
+  alterandum.allRatings += rating;
   return alterandum.value();
 }
 
