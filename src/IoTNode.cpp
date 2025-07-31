@@ -165,7 +165,7 @@ double IoTNode::calculateRatingSimilarityCoefficient(int providerId,
   }
   double exponent = 6 * newRating - 3;
   double denom = 1 + exp(exponent); // cannot possibly be 0 or negative
-  return 1 / denom; //certainly in (0,1)
+  return 1 / denom;                 // certainly in (0,1)
 }
 
 void IoTNode::printServiceTable() {
@@ -335,7 +335,8 @@ double IoTNode::updateMyRating(int providerId, double rating) {
   if (rating > 0)
     alterandum.posRatings += rating;
   else
-    alterandum.allRatings += (-rating);
+    rating = (-rating);
+  alterandum.allRatings +=rating;
   return alterandum.value();
 }
 
@@ -422,10 +423,11 @@ double IoTNode::updateTrustScore(int providerId, double rating, double alpha) {
   // The following adds to the map if providerId does not already exist
   // We ought to add it anyways...
   struct trustScore &alterandum = trustMap[providerId];
-  if (rating > 0)
-    alterandum.sumOfPositiveRatings += rating;
-  else
-    alterandum.sumOfAllRatings += (-rating);
+  if (rating >= 0)
+    alterandum.sumOfPositiveRatings += ratingEffect;
+  else // rating is negative, make it positive
+    ratingEffect = (-ratingEffect);
+  alterandum.sumOfAllRatings += ratingEffect;
   return alterandum.value();
 }
 
