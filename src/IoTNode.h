@@ -2,7 +2,7 @@
  * IoTNode.h
  *
  *  Created on: 4 Oca 2025
- *      Author: ipekm,sahinm
+ *      Author: ipekm, sahinm
  */
 
 #ifndef __IOTNODE_H_
@@ -12,7 +12,10 @@
 #include <map>
 #include <omnetpp.h>
 #include <set>
+#include <unordered_map>
+#include <utility>
 #include <vector>
+// Add this at the top of IoTNode.h
 using namespace omnetpp;
 
 struct Block {
@@ -24,46 +27,100 @@ struct Block {
 
 class IoTNode : public omnetpp::cSimpleModule {
 private:
-  bool banished = false;
-  static int totalBadServicesReceived;
-  static int totalBenevolentNodes;
+  //*******Yeni model için eklediklerim*****************
+  std::map<int, double> localTrustScores; // Node ID → Trust Score (diğer
+                                          // nodeların trust skorları)
+  std::map<int, std::vector<double>>
+      localRatingHistory; // Node ID → Ratings given by this node !! vector
+                          // içinde tutmak yerine ortalamsı tutulabilir, ya da
+                          // hepsini tutmak yerine window olabilir, decay de
+                          // eklenebilir o yüzdeb şimdilik böyle
+
+  // A helper struct to store positive and all ratings of this node to some
+  // other node; This is used to calculate the similarity of a rating to us.
+  struct myRatings {
+    double posRatings, allRatings = 0;
+    double value() {
+      if (posRatings > allRatings)
+        return NAN;
+      else if (allRatings != 0)
+        return posRatings / allRatings;
+      else
+        return 0.5; // TODO ARBITRARY VALUE
+    }
+  };
+  // A helper structure to store the TS to a node.
+  // This is the trust TO some node of THIS node
+  struct trustScore {
+    double sumOfPositiveRatings, sumOfAllRatings = 0;
+    double value() {
+      if (sumOfPositiveRatings > sumOfAllRatings)
+        return NAN; // SHOULD NOT BE SET TO 1 AND BE HANDLED!
+      else if (sumOfAllRatings != 0)
+        return sumOfPositiveRatings / sumOfAllRatings;
+      else
+        return 0.5;
+      // TODO THIS IS AN ARBITRARY DEFAULT TRUST VALUE
+      // CALL ANOTHER FUNCTION TO CALCULATE WITH NEIGHBOURS
+    }
+  };
+
+  // FIXME terrible name;
+  // NodeID --> Trust Score struct
+  // real trust score to the nodes of THIS node
+  std::unordered_map<int, trustScore> trustMap;
+  // NodeID --> Trust Score struct
+  // Used to calculate similarity of a rating
+  std::unordered_map<int, myRatings> myRatingMap;
+
+  // Update trustScore to a node with the given rating and its effect coef
+  double updateTrustScore(int providerId, double rating, double alpha);
+  double updateMyRating(int providerId, double rating);
+
+  double calculateRatingSimilarityCoefficient(int providerId, double newRating);
+  //******************************************************
+
+  static int totalBadServicesReceived; // for logging
+  static int totalBenevolentNodes;     // for logging
   static std::set<int> maliciousNodeIds;
 
-  int badServicesReceived = 0;
+  int lastProviderId = -1; // collaborative attack için
+
+  int badServicesReceived = 0; // for logging
   cMessage *badServiceLogger = nullptr;
   //--parameters--
-  int windowSize = 50;
+  int windowSize = 100;         // just for testing purposes90 idi bu
   int enoughEncounterLimit = 1; // TODO: these two parameters are just examples
   double genTrustCoef = 0.01;
-  double rancorCoef = 2.0; // defined to be higher than 1
-  double decayFactor = 0.9;
+  double rancorCoef = 2.0;         // defined to be higher than 1
+  double decayFactor = 0.5;        // WARN: bunu 1'de unutmak, decay yok demek!
   std::map<int, int> routingTable; // Maps Node ID → Gate Index
   std::map<std::string, std::vector<int>> serviceTable;
   std::set<int> pendingResponses;
   std::map<int, double> respondedProviders;
   std::string requestedServiceType;
   //--rating calculation--
-
-  // about how many nodes can provide that service
-  double calculateRarity(std::string serviceType);
+  double calculateRarity(std::string serviceType); // about how many nodes
+                                                   // can provide that service
   double calculateRatingBenevolent(double quality, double timeliness,
                                    double rarity);
-  double wQ = 1;   // weight of quality
-  double wR = 0.3; // weight of rarity
-  double wT = 0;   // weight of timeliness FIXME this should be non-zero
+  double wQ = 10; // weight of quality
+  double wR = 1;  // weight of rarity
+  double wT = 0;  // weight of timeliness
 
   // -- TS coefficients -- (provider secerken kullanilan TS=a*dt + b*gt)
-  double a = 0.2;
-  double b = 0.8;
+  double a = 1;
+  double b = 1;
   //-- attackers --
   enum AttackerType {
     BENEVOLENT, // bunu eklemek sacma olabilir ama bulunsun
     CAMOUFLAGE,
     BAD_MOUTHING,
     MALICIOUS_100,
-    MALFUNCTION
+    COLLABORATIVE
+
   }; // use this and switch statements to control
-  enum AttackerType attackerType = BENEVOLENT; // default value is BENEVOLENT
+  enum AttackerType attackerType = BENEVOLENT; // default
   double calculateMalRating(enum AttackerType);
   double calculateRatingCamouflage(double quality, double timeliness,
                                    double rarity);
@@ -71,6 +128,8 @@ private:
 protected:
   virtual void finish() override;
   virtual void initialize() override;
+    // helper for initalize
+    void setMalicious();
   virtual void handleMessage(omnetpp::cMessage *msg) override;
   // --- Message Handling ---
 
@@ -90,11 +149,17 @@ protected:
 
   void handleServiceRatingMsg(cMessage *msg);
 
+  //  helper function to have the handlers modular
+  void propagateRatingReplica(ServiceRating *transaction);
+  int addBlockToBC(double rating, int requesterId, int providerId);
+
   // Setup
   void populateServiceTable();
   void electClusterHeads();
   void processClusterHeadDuties();
-  void sendTransactionToClusterHead(ServiceRating *transaction);
+  void sendTransactionToClusterHead(
+      ServiceRating *transaction); // Fix this declaration
+  // WARN: what is the problem to be fixed here?
   int selectPoTValidator();
   void initiateServiceRequest();
   void handleServiceRequest(int requesterId);
@@ -103,40 +168,45 @@ protected:
 
   bool extract(const std::string &input, double &rating, int &requesterId,
                int &providerId);
-  // DT between a single i,j pair at time t
-  double calculateDirectTrust(int requestorId, int providerId, double time,
-                              int depth);
-
-  // if DT cannot be calculated
-  double calculateIndirectTrust(int requestor, int provider, double time,
-                                int depth);
-  // can I calculate DT for i and j? (this = i)
+  double
+  calculateDirectTrust(int requestorId, int providerId,
+                       double time); // between a single i,j pair at time t
+  double calculateIndirectTrust(int requestor, int provider,
+                                double time); // if DT cannot be
+                                              // calculated
   bool enoughInteractions(int requestorId, int provider);
-  // this can be changed for many reasons!
-  double calculateDecay(double currentTime, double blockTime);
+  // can I calculate DT for i and j? (this = i)
+  double
+  calculateDecay(double currentTime,
+                 double blockTime); // this can be changed for many reasons!
   void updateProviderGeneralTrust(IoTNode *provider, double requestorTrust,
                                   double rating);
-// returns the general trust of a node given its id, may be unnecessary
-  double getTrust(int nodeId);
-
+  double getTrust(int nodeId); // returns the general trust of a node given its
+                               // id, may be unnecessary
 
   IoTNode *getNodeById(int nodeId);
   // Node'a mahsus attribute'ler
-  double trustScore;
+  [[deprecated("NO GENERAL TRUST SCORES!!")]]
+  double trustScore = 0.5;
+  [[deprecated("use map sumOfPositiveRatings!!")]]
   double sumOfPositveRatings = 5;
+  [[deprecated("use map sumOfAllRatings!!")]]
   double sumOfAllRatings = 10; // this takes abs of negative ratings.
   bool isClusterHead;
   double potency = 0;
-  double consistency = 4;      // draws a 'meaningfull' default curve
-  bool benevolent = true;      // XXX perhaps this is not ideal...
-  std::string providedService; // DEPRECATED Node'un verdiği servis türü
+  double consistency = 4; // draws a 'meaningfull' default curve
+  bool benevolent = true;
+  std::string providedService; // Node'un verdiği servis türü
+
+  std::string assignService();
+  void populateRoutingTable();
 
   // -- attack parameters --
 
   /* change this rate depending on how much camouflage you want the nodes to
    * perform 1 means it never acts malicously and 0 is always malicious
    */
-  double camouflageRate = 0.3;
+  double camouflageRate = 0.0;
   // -- deciding on the rating of a service --
   double calculateRating(double quality, double timeliness, double rarity);
 
@@ -151,6 +221,13 @@ protected:
   static std::vector<Block> blockchain;
 
   cMessage *serviceRequestEvent; // Add this line
+
+  // oppurtunistic attack: trust skoru en yüksek olan iyi node belirli bir
+  // zamanadan(opportunisticAttackTime) sonra kötü dvaranmaya başlarsa ne olur
+  // onu test ediyoruz
+  double opportunisticAttackTime = 600;
+  bool opportunisticAttackTriggered = false;
+  IoTNode *opportunisticNode = nullptr;
 };
 
 #endif

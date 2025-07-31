@@ -2177,6 +2177,7 @@ ServiceRating& ServiceRating::operator=(const ServiceRating& other)
 
 void ServiceRating::copy(const ServiceRating& other)
 {
+    this->isPropagated_ = other.isPropagated_;
     this->requesterId = other.requesterId;
     this->providerId = other.providerId;
     this->rating = other.rating;
@@ -2185,6 +2186,7 @@ void ServiceRating::copy(const ServiceRating& other)
 void ServiceRating::parsimPack(omnetpp::cCommBuffer *b) const
 {
     ::omnetpp::cMessage::parsimPack(b);
+    doParsimPacking(b,this->isPropagated_);
     doParsimPacking(b,this->requesterId);
     doParsimPacking(b,this->providerId);
     doParsimPacking(b,this->rating);
@@ -2193,9 +2195,20 @@ void ServiceRating::parsimPack(omnetpp::cCommBuffer *b) const
 void ServiceRating::parsimUnpack(omnetpp::cCommBuffer *b)
 {
     ::omnetpp::cMessage::parsimUnpack(b);
+    doParsimUnpacking(b,this->isPropagated_);
     doParsimUnpacking(b,this->requesterId);
     doParsimUnpacking(b,this->providerId);
     doParsimUnpacking(b,this->rating);
+}
+
+bool ServiceRating::isPropagated() const
+{
+    return this->isPropagated_;
+}
+
+void ServiceRating::setIsPropagated(bool isPropagated)
+{
+    this->isPropagated_ = isPropagated;
 }
 
 int ServiceRating::getRequesterId() const
@@ -2233,6 +2246,7 @@ class ServiceRatingDescriptor : public omnetpp::cClassDescriptor
   private:
     mutable const char **propertyNames;
     enum FieldConstants {
+        FIELD_isPropagated,
         FIELD_requesterId,
         FIELD_providerId,
         FIELD_rating,
@@ -2302,7 +2316,7 @@ const char *ServiceRatingDescriptor::getProperty(const char *propertyName) const
 int ServiceRatingDescriptor::getFieldCount() const
 {
     omnetpp::cClassDescriptor *base = getBaseClassDescriptor();
-    return base ? 3+base->getFieldCount() : 3;
+    return base ? 4+base->getFieldCount() : 4;
 }
 
 unsigned int ServiceRatingDescriptor::getFieldTypeFlags(int field) const
@@ -2314,11 +2328,12 @@ unsigned int ServiceRatingDescriptor::getFieldTypeFlags(int field) const
         field -= base->getFieldCount();
     }
     static unsigned int fieldTypeFlags[] = {
+        FD_ISEDITABLE,    // FIELD_isPropagated
         FD_ISEDITABLE,    // FIELD_requesterId
         FD_ISEDITABLE,    // FIELD_providerId
         FD_ISEDITABLE,    // FIELD_rating
     };
-    return (field >= 0 && field < 3) ? fieldTypeFlags[field] : 0;
+    return (field >= 0 && field < 4) ? fieldTypeFlags[field] : 0;
 }
 
 const char *ServiceRatingDescriptor::getFieldName(int field) const
@@ -2330,20 +2345,22 @@ const char *ServiceRatingDescriptor::getFieldName(int field) const
         field -= base->getFieldCount();
     }
     static const char *fieldNames[] = {
+        "isPropagated",
         "requesterId",
         "providerId",
         "rating",
     };
-    return (field >= 0 && field < 3) ? fieldNames[field] : nullptr;
+    return (field >= 0 && field < 4) ? fieldNames[field] : nullptr;
 }
 
 int ServiceRatingDescriptor::findField(const char *fieldName) const
 {
     omnetpp::cClassDescriptor *base = getBaseClassDescriptor();
     int baseIndex = base ? base->getFieldCount() : 0;
-    if (strcmp(fieldName, "requesterId") == 0) return baseIndex + 0;
-    if (strcmp(fieldName, "providerId") == 0) return baseIndex + 1;
-    if (strcmp(fieldName, "rating") == 0) return baseIndex + 2;
+    if (strcmp(fieldName, "isPropagated") == 0) return baseIndex + 0;
+    if (strcmp(fieldName, "requesterId") == 0) return baseIndex + 1;
+    if (strcmp(fieldName, "providerId") == 0) return baseIndex + 2;
+    if (strcmp(fieldName, "rating") == 0) return baseIndex + 3;
     return base ? base->findField(fieldName) : -1;
 }
 
@@ -2356,11 +2373,12 @@ const char *ServiceRatingDescriptor::getFieldTypeString(int field) const
         field -= base->getFieldCount();
     }
     static const char *fieldTypeStrings[] = {
+        "bool",    // FIELD_isPropagated
         "int",    // FIELD_requesterId
         "int",    // FIELD_providerId
         "double",    // FIELD_rating
     };
-    return (field >= 0 && field < 3) ? fieldTypeStrings[field] : nullptr;
+    return (field >= 0 && field < 4) ? fieldTypeStrings[field] : nullptr;
 }
 
 const char **ServiceRatingDescriptor::getFieldPropertyNames(int field) const
@@ -2443,6 +2461,7 @@ std::string ServiceRatingDescriptor::getFieldValueAsString(omnetpp::any_ptr obje
     }
     ServiceRating *pp = omnetpp::fromAnyPtr<ServiceRating>(object); (void)pp;
     switch (field) {
+        case FIELD_isPropagated: return bool2string(pp->isPropagated());
         case FIELD_requesterId: return long2string(pp->getRequesterId());
         case FIELD_providerId: return long2string(pp->getProviderId());
         case FIELD_rating: return double2string(pp->getRating());
@@ -2462,6 +2481,7 @@ void ServiceRatingDescriptor::setFieldValueAsString(omnetpp::any_ptr object, int
     }
     ServiceRating *pp = omnetpp::fromAnyPtr<ServiceRating>(object); (void)pp;
     switch (field) {
+        case FIELD_isPropagated: pp->setIsPropagated(string2bool(value)); break;
         case FIELD_requesterId: pp->setRequesterId(string2long(value)); break;
         case FIELD_providerId: pp->setProviderId(string2long(value)); break;
         case FIELD_rating: pp->setRating(string2double(value)); break;
@@ -2479,6 +2499,7 @@ omnetpp::cValue ServiceRatingDescriptor::getFieldValue(omnetpp::any_ptr object, 
     }
     ServiceRating *pp = omnetpp::fromAnyPtr<ServiceRating>(object); (void)pp;
     switch (field) {
+        case FIELD_isPropagated: return pp->isPropagated();
         case FIELD_requesterId: return pp->getRequesterId();
         case FIELD_providerId: return pp->getProviderId();
         case FIELD_rating: return pp->getRating();
@@ -2498,6 +2519,7 @@ void ServiceRatingDescriptor::setFieldValue(omnetpp::any_ptr object, int field, 
     }
     ServiceRating *pp = omnetpp::fromAnyPtr<ServiceRating>(object); (void)pp;
     switch (field) {
+        case FIELD_isPropagated: pp->setIsPropagated(value.boolValue()); break;
         case FIELD_requesterId: pp->setRequesterId(omnetpp::checked_int_cast<int>(value.intValue())); break;
         case FIELD_providerId: pp->setProviderId(omnetpp::checked_int_cast<int>(value.intValue())); break;
         case FIELD_rating: pp->setRating(value.doubleValue()); break;

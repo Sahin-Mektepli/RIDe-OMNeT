@@ -6,5 +6,8 @@
 /Makefile
 /.clangd
 /RIDe
-src/resuls/
+src/results/
+src/BlockchainMessage_m.h
 /out/
+/RIDe-OMNeT
+/RIDe-OMNeT_dbg
