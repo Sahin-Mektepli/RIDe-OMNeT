@@ -38,6 +38,8 @@ int IoTNode::globalBlockId = 0;
 std::set<int> IoTNode::maliciousNodeIds;
 int IoTNode::totalBadServicesReceived = 0;
 int IoTNode::totalBenevolentNodes = 0;
+int IoTNode::opportunisticNodeId = -1;
+
 
 void printRoutingTable(const std::map<int, int> &routingTable) {
   EV << "Routing Table:\n";
@@ -76,34 +78,72 @@ void IoTNode::populateRoutingTable() {
 /**
  * Extracted from initialize method
  * Attacker type part should be refactored too. */
-void IoTNode::setMalicious() {
-  int totalNodes = getParentModule()->par("numNodes");
-  int numMalicious =
-      int(par("maliciousNodePercentage").doubleValue() * totalNodes);
-  if (getId() == 2) { // first node to initialize (OMNeT IDs  start at 2)
-    std::vector<int> allIds;
-    for (int i = 2; i < 2 + totalNodes; ++i)
-      allIds.push_back(i);
-    std::shuffle(allIds.begin(), allIds.end(), gen);
-    maliciousNodeIds.insert(allIds.begin(), allIds.begin() + numMalicious);
-  }
+void IoTNode::setMalicious(AttackerType type) {
+    int totalNodes = getParentModule()->par("numNodes");
+    int numMalicious = int(par("maliciousNodePercentage").doubleValue() * totalNodes);
 
-  if (maliciousNodeIds.count(getId()) > 0) {
-    benevolent = false;
-    attackerType = COLLABORATIVE; // saldırının adı değişecek
-    potency = -10; // bunlar kaç olmalı bilmiyorum burada chatgpt'nin yazdığını
-                   // bıraktım buraya bakalım
-    consistency = 1000;
-  } else {
-    benevolent = true;
-    totalBenevolentNodes++;
-    potency = 9; // quality 8-9 arası olacak diye düşündüm
-    consistency = 2.0;
-  }
-  if (!benevolent) {
-    getDisplayString().setTagArg("i", 1, "red"); // highlight malicious nodes
-  }
+    // Sadece ilk node random seçim yapar
+    if (getId() == 2) {
+        std::vector<int> allIds;
+        for (int i = 2; i < 2 + totalNodes; ++i)
+            allIds.push_back(i);
+        std::shuffle(allIds.begin(), allIds.end(), gen);
+
+        if (type == OPPORTUNISTIC) {
+            opportunisticNodeId = allIds.front();
+            for (int i = 0; i < numMalicious; ++i) {
+                if (allIds[i] != opportunisticNodeId)
+                    maliciousNodeIds.insert(allIds[i]); // Diğerleri malicious
+            }
+        } else {
+            // OPPORTUNISTIC değilse, seçilen sayıda saldırgan belirle
+            maliciousNodeIds.insert(allIds.begin(), allIds.begin() + numMalicious);
+        }
+    }
+
+
+    if (type == OPPORTUNISTIC && getId() == opportunisticNodeId) {
+        attackerType = OPPORTUNISTIC;
+        isOpportunisticNode = true;
+        benevolent = true; // Başta iyi
+        potency = 9;
+        consistency = 2.0;
+    }
+    else if (maliciousNodeIds.count(getId()) > 0) {
+        //!!opportunistic saldırıda iyi davranan bir node belirli bir süre sonra kötü davranmaya başlıyor ama onun dışında da kötü nodelar olabilir onların türünü kamuflaj yaptım kamuflajı 0 yaparsak yüzde yüz kötücül de olabilir
+        attackerType = (type == OPPORTUNISTIC) ? CAMOUFLAGE : type;//opportunistic attack dışınadkiler direkt kendi türüne eşitleniyor saldırımız opportunistic ise seçilmiş node dışındakiler kamuflaj saldırısı yapıyor
+        benevolent = false;
+        //TODO :eğer kötülerin potency ve consistency değerleri saldırıya göre değişmeyecekse aşağıdaki satırları silebiliriz. Sadece potency = -10; consistency = 1000; kalmalı
+        if (attackerType == CAMOUFLAGE) {
+           // camouflageRate = 0.8;
+            potency = -10;
+            consistency = 1000;
+        } else if (attackerType == MALICIOUS_100) {
+            potency = -10;
+            consistency = 1000;
+        } else if (attackerType == BAD_MOUTHING) {
+            // iyi servis kötü yorum ise
+            potency = 9;
+            consistency = 2.0;
+        } else {
+            potency = -10;
+            consistency = 1000;
+        }
+    }
+    else {
+        attackerType = BENEVOLENT;
+        benevolent = true;
+        totalBenevolentNodes++;
+        potency = 9;
+        consistency = 2.0;
+    }
+
+
+    if (!benevolent) {
+        getDisplayString().setTagArg("i", 1, "red");
+    }
 }
+
 void IoTNode::initialize() {
   serviceRequestEvent = new cMessage("serviceRequestTimer");
   scheduleAt(simTime() + uniform(1, 5), serviceRequestEvent);
@@ -116,11 +156,19 @@ void IoTNode::initialize() {
   // Schedule service table update after all nodes are initialized
   scheduleAt(simTime() + 0.1, new cMessage("populateServiceTable"));
 
-  setMalicious();
+  setMalicious(OPPORTUNISTIC);// BENEVOLENT, CAMOUFLAGE,BAD_MOUTHING,MALICIOUS_100, COLLABORATIVE, OPPORTUNISTIC
+
   // Start periodic logger(belirli aralıklarla kötü servis sayısını kaydetmek
   // için)
   badServiceLogger = new cMessage("badServiceLogger");
   scheduleAt(simTime() + 10.0, badServiceLogger); // 10 saniyede bir şu anda
+
+  if (attackerType == OPPORTUNISTIC && isOpportunisticNode) {
+      opportunisticTriggerMsg = new cMessage("triggerOpportunistic");
+      scheduleAt(opportunisticAttackTime, opportunisticTriggerMsg);
+      EV << "Node " << getId() << " is opportunistic and will switch at time " << opportunisticAttackTime << "\n";
+  }
+
 }
 
 void printBlockChain(std::vector<Block> blockchain) {
@@ -342,7 +390,7 @@ void IoTNode::handleFinalServiceResponseMsg(cMessage *msg) {
     badServicesReceived++;
     totalBadServicesReceived++;
   }
-  double rarity = calculateRarity(serviceType);
+  double rarity = calculateRarity(serviceType);//TODO: bunu kaldırmamız gerekmiyor mu?
   double timeliness = 10;      // TODO: bunu bilmiyom henuz...
   lastProviderId = providerId; // New global member needed
 
@@ -435,11 +483,11 @@ void IoTNode::handleServiceRatingMsg(cMessage *msg) {
     double alpha = calculateRatingSimilarityCoefficient(providerId, rating);
     // TODO This updates TS for EVERY node, not just if connected!!
     double updatedTrust = updateTrustScore(providerId, rating, alpha);
-    // TODO E- I may have broken this...
-    recordScalar(("TrustOf_" + std::to_string(providerId) + "_InNode_" +
+    // TODO E- I may have broken this...!!buraya bak
+    /*recordScalar(("TrustOf_" + std::to_string(providerId) + "_InNode_" +
                   std::to_string(getId()))
                      .c_str(),
-                 updatedTrust);
+                 updatedTrust);*/
   }
   // cluster head rating'i blockchain'e ekleyip diğer nodelara bildiriyor
   // cluster'daki
@@ -482,8 +530,20 @@ void IoTNode::handleNetworkMessage(cMessage *msg) {
 
 void IoTNode::handleSelfMessage(cMessage *msg) {
   const char *msgName = msg->getName();
+  if (strcmp(msg->getName(), "triggerOpportunistic") == 0) {
+      EV << "Node " << getId() << " is now switching from opportunistic to malicious.\n";
 
-  if (strcmp(msg->getName(), "badServiceLogger") == 0) {
+      attackerType = CAMOUFLAGE;          // davranışı değiştirdik
+      camouflageRate = 0.0;               // artık hep kötü
+      benevolent = false;
+      getDisplayString().setTagArg("i", 1, "orange");
+
+      delete msg;
+      opportunisticTriggerMsg = nullptr;
+      return;
+  }
+
+  else if (strcmp(msg->getName(), "badServiceLogger") == 0) {
     if (totalBenevolentNodes > 0) {
       recordScalar(
           ("AverageBadServicesAt_" + std::to_string((int)simTime().dbl()))
@@ -493,7 +553,7 @@ void IoTNode::handleSelfMessage(cMessage *msg) {
     // belirli sürede bir(şu anda 10 saniye) tekrar ettiği için
     // badServiceLogger'ın içine yazdım bu opportunistic saldırıyı başlatan
     // kısmı
-    if (!opportunisticAttackTriggered &&
+    /*if (!opportunisticAttackTriggered &&
         simTime().dbl() >= opportunisticAttackTime) {
       opportunisticAttackTriggered = true;
       IoTNode *mostTrusted = *std::max_element(
@@ -518,12 +578,22 @@ void IoTNode::handleSelfMessage(cMessage *msg) {
                     std::to_string((int)simTime().dbl()))
                        .c_str(),
                    opportunisticNode->trustScore);
+    }*/
+    auto it = trustMap.find(opportunisticNodeId);
+    if (it != trustMap.end()) {
+
+        recordScalar(("OpportunisticNodeTrustScoreAt_" +
+                       std::to_string((int)simTime().dbl()))
+                          .c_str(),
+                          it->second.value());//her 10 saniyede bir opportunistic node'un trustını yazdıracak bütün nodelar
+
     }
+
 
     scheduleAt(simTime() + 10.0, msg); // repeat every 10s
     return;
   }
-  if (strcmp(msgName, "populateServiceTable") == 0) {
+  else if (strcmp(msgName, "populateServiceTable") == 0) {
     populateServiceTable();
     delete msg;
   } else if (strcmp(msgName, "serviceRequestTimer") == 0) {
@@ -690,6 +760,8 @@ double IoTNode::calculateRating(double quality, double timeliness,
     return calculateRatingBenevolent(quality, timeliness, rarity);
   case CAMOUFLAGE:
     return calculateRatingCamouflage(quality, timeliness, rarity);
+  case OPPORTUNISTIC:
+      return calculateRatingBenevolent(quality, timeliness, rarity);
   case COLLABORATIVE: {
     IoTNode *provider = getNodeById(lastProviderId);
     if (!provider)
@@ -711,6 +783,8 @@ double IoTNode::calcQuality(const double potency, const double consistency) {
     return calcQualityBenevolent(potency, consistency);
   case CAMOUFLAGE:
     return calcQualityCamouflage(potency, consistency);
+  case OPPORTUNISTIC:
+     return calcQualityBenevolent(potency, consistency);
   default:
     EV << "SOMETHING WENT WRONG WITH calcQuality!!\n";
     return -10; // should not defualt to here!
@@ -972,7 +1046,7 @@ bool IoTNode::extract(const std::string &input, double &rating,
 
 void IoTNode::finish() {
   // Accuracy için
-  if (getId() == 2) { // tek bir node içinde hesplamak için yazdım bu kısmı node
+  /*if (getId() == 2) { // tek bir node içinde hesplamak için yazdım bu kısmı node
                       // id'leri 2'den başlıyor omnet'te
     std::vector<std::pair<double, bool>> trustAndLabel;
 
@@ -1022,11 +1096,16 @@ void IoTNode::finish() {
     recordScalar("BestPrecision", bestPrecision);
     recordScalar("BestRecall", bestRecall);
     recordScalar("BestAccuracy", bestAccuracy);
-  }
+  }*/
   if (badServiceLogger != nullptr) {
     cancelAndDelete(badServiceLogger);
     badServiceLogger = nullptr;
   }
+  if (opportunisticTriggerMsg != nullptr) {
+      cancelAndDelete(opportunisticTriggerMsg);
+      opportunisticTriggerMsg = nullptr;
+  }
+
 
   if (benevolent) {
     recordScalar("FinalBadServicesReceived", badServicesReceived);

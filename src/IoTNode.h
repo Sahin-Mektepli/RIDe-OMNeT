@@ -117,7 +117,8 @@ private:
     CAMOUFLAGE,
     BAD_MOUTHING,
     MALICIOUS_100,
-    COLLABORATIVE
+    COLLABORATIVE,
+    OPPORTUNISTIC
 
   }; // use this and switch statements to control
   enum AttackerType attackerType = BENEVOLENT; // default
@@ -129,7 +130,7 @@ protected:
   virtual void finish() override;
   virtual void initialize() override;
     // helper for initalize
-    void setMalicious();
+    void setMalicious(AttackerType type);
   virtual void handleMessage(omnetpp::cMessage *msg) override;
   // --- Message Handling ---
 
@@ -225,9 +226,12 @@ protected:
   // oppurtunistic attack: trust skoru en yüksek olan iyi node belirli bir
   // zamanadan(opportunisticAttackTime) sonra kötü dvaranmaya başlarsa ne olur
   // onu test ediyoruz
-  double opportunisticAttackTime = 600;
+  double opportunisticAttackTime = 50;
   bool opportunisticAttackTriggered = false;
   IoTNode *opportunisticNode = nullptr;
+  bool isOpportunisticNode = false;
+  static int opportunisticNodeId;
+  cMessage *opportunisticTriggerMsg = nullptr;
 };
 
 #endif
