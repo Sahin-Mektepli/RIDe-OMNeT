@@ -213,7 +213,8 @@ double IoTNode::calculateRatingSimilarityCoefficient(int providerId,
     EV_WARN << "Could not calculate alpha, current rating is not a number";
     return NAN;
   }
-  double exponent = 6 * newRating - 3;
+  double diff=abs(newRating-currentRating);
+  double exponent = 6 * diff - 3;
   double denom = 1 + exp(exponent); // cannot possibly be 0 or negative
   return 1 / denom;                 // certainly in (0,1)
 }
