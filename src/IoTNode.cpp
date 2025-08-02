@@ -206,7 +206,9 @@ void IoTNode::populateServiceTable() {
 
 double IoTNode::calculateRatingSimilarityCoefficient(int providerId,
                                                      double newRating) {
+
   double currentRating = myRatingMap[providerId].value();
+      EV<<"Current Rating:"<<currentRating<<"\n";
   if (currentRating == NAN) {
     EV_WARN << "Could not calculate alpha, current rating is not a number";
     return NAN;
@@ -369,7 +371,7 @@ void IoTNode::handleFinalServiceRequestMsg(cMessage *msg) {
 ** Update the sum of positive and all ratings to the provider node.
 ** Rating is in [-10,10]. This update is for similarity calc.
 */
-double IoTNode::updateMyRating(int providerId, double rating) {
+/*double IoTNode::updateMyRating(int providerId, double rating) {
   myRatings &alterandum = myRatingMap[providerId];
   if (rating > 0)
     alterandum.posRatings += rating;
@@ -377,7 +379,14 @@ double IoTNode::updateMyRating(int providerId, double rating) {
     rating = (-rating);
   alterandum.allRatings += rating;
   return alterandum.value();
+}*/
+double IoTNode::updateMyRating(int providerId, double rating) {
+    myRatings& alterandum = myRatingMap[providerId];
+    alterandum.sumRatings += rating;
+    alterandum.count += 1;
+    return alterandum.value();
 }
+
 
 void IoTNode::handleFinalServiceResponseMsg(cMessage *msg) {
   FinalServiceResponse *response = check_and_cast<FinalServiceResponse *>(msg);
@@ -467,6 +476,14 @@ double IoTNode::updateTrustScore(int providerId, double rating, double alpha) {
   else // rating is negative, make it positive
     ratingEffect = (-ratingEffect);
   alterandum.sumOfAllRatings += ratingEffect;
+  //test için
+  EV << "updateTrustScore for " << providerId
+     << ": rating=" << rating
+     << ", alpha=" << alpha
+     << ", effect=" << ratingEffect
+     << ", sumOfPositiveRatings=" << alterandum.sumOfPositiveRatings
+     << ", sumOfAllRatings=" << alterandum.sumOfAllRatings << "\n";
+
   return alterandum.value();
 }
 
@@ -1045,6 +1062,14 @@ bool IoTNode::extract(const std::string &input, double &rating,
 }
 
 void IoTNode::finish() {
+    //her node'un kendi tuttuğu trustları yazdırmak için
+    for (auto& entry : trustMap) {
+        int targetId = entry.first;
+        double trustValue = entry.second.value();
+        // Örneğin: TrustOf_5_in_3
+        std::string scalarName = "TrustOf_" + std::to_string(targetId) + "_in_" + std::to_string(getId());
+        recordScalar(scalarName.c_str(), trustValue);
+    }
   // Accuracy için
   /*if (getId() == 2) { // tek bir node içinde hesplamak için yazdım bu kısmı node
                       // id'leri 2'den başlıyor omnet'te

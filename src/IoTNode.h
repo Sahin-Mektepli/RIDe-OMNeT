@@ -39,16 +39,17 @@ private:
   // A helper struct to store positive and all ratings of this node to some
   // other node; This is used to calculate the similarity of a rating to us.
   struct myRatings {
-    double posRatings, allRatings = 0;
-    double value() {
-      if (posRatings > allRatings)
-        return NAN;
-      else if (allRatings != 0)
-        return posRatings / allRatings;
-      else
-        return 0.5; // TODO ARBITRARY VALUE
-    }
+      double sumRatings = 0;
+      int count = 0;
+
+      double value() {
+          if (count > 0)
+              return sumRatings / count;
+          else
+              return 0.0; //
+      }
   };
+
   // A helper structure to store the TS to a node.
   // This is the trust TO some node of THIS node
   struct trustScore {
