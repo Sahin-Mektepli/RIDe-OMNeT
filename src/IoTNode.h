@@ -36,18 +36,20 @@ private:
                           // hepsini tutmak yerine window olabilir, decay de
                           // eklenebilir o yüzdeb şimdilik böyle
 
-  // A helper struct to store positive and all ratings of this node to some
-  // other node; This is used to calculate the similarity of a rating to us.
+  /** A helper struct to store positive and all ratings of this node to some
+   * other node; This is used to calculate the similarity of a rating to us.
+   *
+   *Average of ratings, which are in (-10,10), so its value is in that range*/
   struct myRatings {
-      double sumRatings = 0;
-      int count = 0;
+    double sumRatings = 0;
+    int count = 0;
 
-      double value() {
-          if (count > 0)
-              return sumRatings / count;
-          else
-              return 0.0; //
-      }
+    double value() {
+      if (count > 0)
+        return sumRatings / count;
+      else
+        return 0.5;
+    }
   };
 
   // A helper structure to store the TS to a node.
@@ -70,8 +72,8 @@ private:
   // NodeID --> Trust Score struct
   // real trust score to the nodes of THIS node
   std::unordered_map<int, trustScore> trustMap;
-  // NodeID --> Trust Score struct
-  // Used to calculate similarity of a rating
+  /**NodeID --> Avg of past ratings
+   * Used to calculate similarity of a rating.*/
   std::unordered_map<int, myRatings> myRatingMap;
 
   // Update trustScore to a node with the given rating and its effect coef
