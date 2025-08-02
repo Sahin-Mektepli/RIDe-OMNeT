@@ -107,8 +107,8 @@ private:
                                                    // can provide that service
   double calculateRatingBenevolent(double quality, double timeliness,
                                    double rarity);
-  double wQ = 10; // weight of quality
-  double wR = 1;  // weight of rarity
+  double wQ = 1; // weight of quality
+  double wR = 0;  // weight of rarity
   double wT = 0;  // weight of timeliness
 
   // -- TS coefficients -- (provider secerken kullanilan TS=a*dt + b*gt)
@@ -172,19 +172,11 @@ protected:
 
   bool extract(const std::string &input, double &rating, int &requesterId,
                int &providerId);
-  double
-  calculateDirectTrust(int requestorId, int providerId,
-                       double time); // between a single i,j pair at time t
-  double calculateIndirectTrust(int requestor, int provider,
-                                double time); // if DT cannot be
-                                              // calculated
   bool enoughInteractions(int requestorId, int provider);
   // can I calculate DT for i and j? (this = i)
   double
   calculateDecay(double currentTime,
                  double blockTime); // this can be changed for many reasons!
-  void updateProviderGeneralTrust(IoTNode *provider, double requestorTrust,
-                                  double rating);
   double getTrust(int nodeId); // returns the general trust of a node given its
                                // id, may be unnecessary
 
@@ -210,7 +202,7 @@ protected:
   /* change this rate depending on how much camouflage you want the nodes to
    * perform 1 means it never acts malicously and 0 is always malicious
    */
-  double camouflageRate = 0.0;
+  double camouflageRate = 0.3;
   // -- deciding on the rating of a service --
   double calculateRating(double quality, double timeliness, double rarity);
 
