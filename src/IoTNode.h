@@ -25,6 +25,8 @@ struct Block {
   double timestamp;
 };
 
+static const double epsilon = 0.2; //choose random provider with an epsilon chance
+
 class IoTNode : public omnetpp::cSimpleModule {
 private:
   //*******Yeni model için eklediklerim*****************

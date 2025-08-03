@@ -309,6 +309,51 @@ IoTNode *IoTNode::getNodeById(int targetId) {
   EV << "Warning: Node with ID " << targetId << " not found!" << endl;
   return nullptr;
 }
+
+/**
+ * Generate a random integer in [0,n) */
+int random_0_to_n(int n) {
+  std::uniform_int_distribution<int> dist{0, n - 1};
+  int rand = dist(gen);
+  return rand;
+}
+/**
+ * Returns a random pair of the given mapping.
+ *
+ * Throws an error if the mapping is empty. */
+auto randomPairOfMapping(const std::map<int, double> &mapping) {
+  if (mapping.empty())
+    throw std::invalid_argument("Map cannot be empty in function " +
+                                std::string(__FUNCTION__));
+  int number = random_0_to_n(mapping.size());
+  auto it = mapping.begin();
+  std::advance(it, number);
+  return it;
+}
+
+/**
+ * Input is a mapping from NodeId --> Local Trust
+ *
+ * Generates a random double and if it is greater than epsilon, returns the pair
+ * with the maximum Local Trust.
+ * The lambda funtion compares the pairs by their second entries, which is
+ * supposed to be the Local Trust value.
+ *
+ * Else, returns a random pair. */
+auto epsilonGreedyMaxPair(const std::map<int, double> &mapping) {
+  std::uniform_real_distribution<double> dist{0, 1};
+  double random = dist(gen);
+  if (random > epsilon) {
+    // return maximum
+    return std::max_element(
+        mapping.begin(), mapping.end(),
+        [](const auto &a, const auto &b) { return a.second < b.second; });
+  } else {
+    // return random pair
+    return randomPairOfMapping(mapping);
+  }
+}
+
 void IoTNode::handleServiceResponseMsg(cMessage *msg) {
   ServiceResponse *response = check_and_cast<ServiceResponse *>(msg);
   int responderId = response->getProviderId();
@@ -317,15 +362,6 @@ void IoTNode::handleServiceResponseMsg(cMessage *msg) {
   if (requestedServiceType == serviceType) {
     int requestorId = this->getId();
 
-    // NEW: Use only local trust scores
-    // double localTrust =
-    //     localTrustScores.count(responderId) > 0
-    //         ? localTrustScores[responderId]
-    //         : 0.5; // TODO: 0.5 olarak kalmayabilir burası diğer güvenilir
-    //                // nodeların verdiği ratinglerin ortalaması alınabilir
-
-    // TODO DOES THIS FIX THE TS CALCULATION??
-    // if so we can remove localTrust variables in general
     double localTrust = trustMap[responderId].value();
     respondedProviders[responderId] = localTrust;
 
@@ -337,12 +373,17 @@ void IoTNode::handleServiceResponseMsg(cMessage *msg) {
       int bestProviderId = -1;
       double maxTrust = -1;
 
-      for (const auto &entry : respondedProviders) {
-        if (entry.second > maxTrust) {
-          bestProviderId = entry.first;
-          maxTrust = entry.second;
-        }
+
+      if (!respondedProviders.empty()) {
+        auto chosenPair = epsilonGreedyMaxPair(respondedProviders);
+        bestProviderId = chosenPair->first;
+        maxTrust = chosenPair->second;
+      } else {
+        // I don't think this should ever happen...
+        EV << "---- NO ONE RESPONDED TO A SERVICE REQUEST ----\n";
       }
+
+      // choose a random node with an epsilon probability!
 
       if (bestProviderId != -1 &&
           routingTable.find(bestProviderId) != routingTable.end()) {
@@ -939,7 +980,6 @@ bool IoTNode::enoughInteractions(int requestorId, int providerId) {
 double IoTNode::calculateDecay(double currentTime, double blockTime) {
   return std::exp(currentTime - blockTime);
 }
-
 
 /**This is to extract rating and id values from a transaction message in a
  * block. Give the message as input and the extracted values will be written
