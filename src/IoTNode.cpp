@@ -117,7 +117,7 @@ void IoTNode::setMalicious(AttackerType type) {
   if (type == OPPORTUNISTIC && getId() == opportunisticNodeId) {
     attackerType = OPPORTUNISTIC;
     isOpportunisticNode = true;
-    benevolent = true; // Başta iyi
+    benevolent = false; // Başta iyi
     potency = 9;
     consistency = 2.0;
   } else if (maliciousNodeIds.count(getId()) > 0) {
@@ -168,6 +168,11 @@ void IoTNode::setMalicious(AttackerType type) {
 }
 
 void IoTNode::initialize() {
+
+  epsilon = 0.2;//0.2
+  minEpsilon = 0.1;//0.1
+  epsilonDecay = 0.90;
+
   serviceRequestEvent = new cMessage("serviceRequestTimer");
   scheduleAt(simTime() + uniform(1, 5), serviceRequestEvent);
   isClusterHead = false;
@@ -351,10 +356,10 @@ auto randomPairOfMapping(const std::map<int, double> &mapping) {
  * supposed to be the Local Trust value.
  *
  * Else, returns a random pair. */
-auto epsilonGreedyMaxPair(const std::map<int, double> &mapping) {
+auto IoTNode:: epsilonGreedyMaxPair(const std::map<int, double> &mapping) {
   std::uniform_real_distribution<double> dist{0, 1};
   double random = dist(gen);
-  if (random > epsilon) {
+  if (random > this->epsilon) {
     // return maximum
     return std::max_element(
         mapping.begin(), mapping.end(),
@@ -463,7 +468,7 @@ void IoTNode::handleFinalServiceResponseMsg(cMessage *msg) {
   std::string serviceType = response->getServiceType(); // lazim
   EV << "Node " << getId() << " received final service from " << providerId
      << " with quality: " << quality << endl;
-  if (benevolent && quality <= 0) {
+  if (benevolent && quality < 0) {
     badServicesReceived++;
     totalBadServicesReceived++;
   }

@@ -26,13 +26,14 @@ struct Block {
 };
 
 //static const double epsilon = 0.2; //choose random provider with an epsilon chance
-double epsilon = 0.2;//0.2
-double minEpsilon = 0.1;//0.1
-double epsilonDecay = 0.90;
+
 
 
 class IoTNode : public omnetpp::cSimpleModule {
 private:
+    double epsilon;//0.2
+      double minEpsilon;//0.1
+      double epsilonDecay;
   //*******Yeni model için eklediklerim*****************
   std::map<int, double> localTrustScores; // Node ID → Trust Score (diğer
                                           // nodeların trust skorları)
@@ -86,6 +87,7 @@ private:
   double updateTrustScore(int providerId, double rating, double alpha);
   double updateMyRating(int providerId, double rating);
 
+
   double calculateRatingSimilarityCoefficient(int providerId, double newRating);
   //******************************************************
 
@@ -137,6 +139,7 @@ private:
 
 protected:
   void updateEpsilon();
+  auto epsilonGreedyMaxPair(const std::map<int, double> &mapping);
   virtual void finish() override;
   virtual void initialize() override;
     // helper for initalize
