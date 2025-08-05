@@ -79,13 +79,12 @@ void IoTNode::populateRoutingTable() {
 }
 
 void IoTNode::updateEpsilon() {
-    epsilon = epsilon * epsilonDecay;
-       if (epsilon < minEpsilon) {
-           epsilon = 0.0;
-       }
-       EV << "Epsilon güncellendi: " << epsilon << endl;
+  epsilon = epsilon * epsilonDecay;
+  if (epsilon < minEpsilon) {
+    epsilon = 0.0;
+  }
+  EV << "Epsilon güncellendi: " << epsilon << endl;
 }
-
 
 /**
  * Extracted from initialize method
@@ -137,6 +136,11 @@ void IoTNode::setMalicious(AttackerType type) {
     // consistency = 1000; kalmalı
     if (attackerType == CAMOUFLAGE) {
       // camouflageRate = 0.8;
+      EV << "\n\n\n\n\n\nTHIS NODE WITH ID " << getId()
+         << " PERFORMS CAMOUFLAGE ATTACK!!!\n"
+         << endl;
+      getDisplayString().setTagArg(
+          "i", 1, "blue"); // TODO Let each other have differnet colours?
       potency = -10;
       consistency = 1000;
     } else if (attackerType == MALICIOUS_100) {
@@ -155,22 +159,19 @@ void IoTNode::setMalicious(AttackerType type) {
     benevolent = true;
     totalBenevolentNodes++;
     potency = 6;
-    consistency = 0.5;
+    consistency = 2.0;
   }
 
-  if (!benevolent) {
-    getDisplayString().setTagArg("i", 1, "red");
-  }
-  if (attackerType == CAMOUFLAGE)
-    getDisplayString().setTagArg(
-        "i", 1, "blue"); // TODO Let each other have differnet colours?
-  //recordScalar("Attack Type_" + attackerType);
+  // if (!benevolent) {
+  //   getDisplayString().setTagArg("i", 1, "red");
+  // }
+  // recordScalar("Attack Type_" + attackerType);
 }
 
 void IoTNode::initialize() {
 
-  epsilon = 0.2;//0.2
-  minEpsilon = 0.1;//0.1
+  epsilon = 0.2;    // 0.2
+  minEpsilon = 0.1; // 0.1
   epsilonDecay = 0.90;
 
   serviceRequestEvent = new cMessage("serviceRequestTimer");
@@ -185,8 +186,8 @@ void IoTNode::initialize() {
   scheduleAt(simTime() + 0.1, new cMessage("populateServiceTable"));
 
   setMalicious(
-          CAMOUFLAGE); // BENEVOLENT, CAMOUFLAGE,BAD_MOUTHING,MALICIOUS_100,
-                      // COLLABORATIVE, OPPORTUNISTIC
+      CAMOUFLAGE); // BENEVOLENT, CAMOUFLAGE,BAD_MOUTHING,MALICIOUS_100,
+                   // COLLABORATIVE, OPPORTUNISTIC
 
   // Start periodic logger(belirli aralıklarla kötü servis sayısını kaydetmek
   // için)
@@ -244,7 +245,6 @@ double IoTNode::calculateRatingSimilarityCoefficient(int providerId,
                                                      double newRating) {
 
   double currentRating = myRatingMap[providerId].value();
-  EV << "Current Rating:" << currentRating << "\n";
   if (currentRating == NAN) {
     EV_WARN << "Could not calculate alpha, current rating is not a number";
     return NAN;
@@ -255,10 +255,10 @@ double IoTNode::calculateRatingSimilarityCoefficient(int providerId,
   diff = diff / 20.0; // so that diff is now in (0,1)
   double exponent = 6 * diff - 3;
   double denom = 1 + exp(exponent); // cannot possibly be 0 or negative
-  EV << "my current rating is " << currentRating << "\nnewRating is "
-     << newRating << '\n';
+  EV << "my current rating to " << providerId << " is " << currentRating
+     << "\nnewRating is " << newRating << '\n';
   EV << "diff between my rating and current rating is " << diff
-     << " therefore alpha is " << 1 / denom;
+     << " therefore alpha is " << 1 / denom << '\n';
   double alpha = 1 / denom;
   if (alpha == 1) { // extra error catching
     EV << "!!!!!ALPHA IS EXACTLY 1. THIS SHOULD NOT BE!!!!!!!!!\n";
@@ -356,7 +356,7 @@ auto randomPairOfMapping(const std::map<int, double> &mapping) {
  * supposed to be the Local Trust value.
  *
  * Else, returns a random pair. */
-auto IoTNode:: epsilonGreedyMaxPair(const std::map<int, double> &mapping) {
+auto IoTNode::epsilonGreedyMaxPair(const std::map<int, double> &mapping) {
   std::uniform_real_distribution<double> dist{0, 1};
   double random = dist(gen);
   if (random > this->epsilon) {
@@ -388,7 +388,6 @@ void IoTNode::handleServiceResponseMsg(cMessage *msg) {
     if (pendingResponses.empty()) {
       int bestProviderId = -1;
       double maxTrust = -1;
-
 
       if (!respondedProviders.empty()) {
         auto chosenPair = epsilonGreedyMaxPair(respondedProviders);
@@ -481,13 +480,14 @@ void IoTNode::handleFinalServiceResponseMsg(cMessage *msg) {
 
   sendRating(providerId, rating);
   updateMyRating(providerId, rating);
-  //yanlış görmediysem kendi içinde tuttuğumuz trust skoru güncellemiyorduk daha önce
+  // yanlış görmediysem kendi içinde tuttuğumuz trust skoru güncellemiyorduk
+  // daha önce
   struct trustScore &alterandum = trustMap[providerId];
-    if (rating >= 0)
-      alterandum.sumOfPositiveRatings += rating;
-    else // rating is negative, make it positive
-      rating = (-rating);
-    alterandum.sumOfAllRatings += rating;
+  if (rating >= 0)
+    alterandum.sumOfPositiveRatings += rating;
+  else // rating is negative, make it positive
+    rating = (-rating);
+  alterandum.sumOfAllRatings += rating;
 
   delete response;
 }
@@ -553,7 +553,7 @@ double IoTNode::updateTrustScore(int providerId, double rating, double alpha) {
     ratingEffect = (-ratingEffect);
   alterandum.sumOfAllRatings += ratingEffect;
   // test için
-  EV << "updateTrustScore for " << providerId << ": rating=" << rating
+  EV << "\nupdateTrustScore for " << providerId << ": rating=" << rating
      << ", alpha=" << alpha << ", effect=" << ratingEffect
      << ", sumOfPositiveRatings=" << alterandum.sumOfPositiveRatings
      << ", sumOfAllRatings=" << alterandum.sumOfAllRatings << "\n";
@@ -636,7 +636,7 @@ void IoTNode::handleSelfMessage(cMessage *msg) {
   }
 
   else if (strcmp(msg->getName(), "badServiceLogger") == 0) {
-      updateEpsilon();
+    updateEpsilon();
     if (totalBenevolentNodes > 0) {
       recordScalar(
           ("AverageBadServicesAt_" + std::to_string((int)simTime().dbl()))

@@ -55,7 +55,7 @@ private:
       if (count > 0)
         return sumRatings / count;
       else
-        return 0.5;
+        return 0.0;
     }
   };
 
@@ -69,13 +69,12 @@ private:
       else if (sumOfAllRatings != 0)
         return sumOfPositiveRatings / sumOfAllRatings;
       else
-        return 0.5;
+        return 0.0;
       // TODO THIS IS AN ARBITRARY DEFAULT TRUST VALUE
       // CALL ANOTHER FUNCTION TO CALCULATE WITH NEIGHBOURS
     }
   };
 
-  // FIXME terrible name;
   // NodeID --> Trust Score struct
   // real trust score to the nodes of THIS node
   std::unordered_map<int, trustScore> trustMap;
