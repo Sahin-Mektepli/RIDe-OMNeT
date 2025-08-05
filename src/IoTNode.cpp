@@ -77,6 +77,16 @@ void IoTNode::populateRoutingTable() {
     }
   }
 }
+
+void IoTNode::updateEpsilon() {
+    epsilon = epsilon * epsilonDecay;
+       if (epsilon < minEpsilon) {
+           epsilon = 0.0;
+       }
+       EV << "Epsilon güncellendi: " << epsilon << endl;
+}
+
+
 /**
  * Extracted from initialize method
  * Attacker type part should be refactored too. */
@@ -154,6 +164,7 @@ void IoTNode::setMalicious(AttackerType type) {
   if (attackerType == CAMOUFLAGE)
     getDisplayString().setTagArg(
         "i", 1, "blue"); // TODO Let each other have differnet colours?
+  //recordScalar("Attack Type_" + attackerType);
 }
 
 void IoTNode::initialize() {
@@ -169,7 +180,7 @@ void IoTNode::initialize() {
   scheduleAt(simTime() + 0.1, new cMessage("populateServiceTable"));
 
   setMalicious(
-      OPPORTUNISTIC); // BENEVOLENT, CAMOUFLAGE,BAD_MOUTHING,MALICIOUS_100,
+          CAMOUFLAGE); // BENEVOLENT, CAMOUFLAGE,BAD_MOUTHING,MALICIOUS_100,
                       // COLLABORATIVE, OPPORTUNISTIC
 
   // Start periodic logger(belirli aralıklarla kötü servis sayısını kaydetmek
@@ -613,6 +624,7 @@ void IoTNode::handleSelfMessage(cMessage *msg) {
   }
 
   else if (strcmp(msg->getName(), "badServiceLogger") == 0) {
+      updateEpsilon();
     if (totalBenevolentNodes > 0) {
       recordScalar(
           ("AverageBadServicesAt_" + std::to_string((int)simTime().dbl()))

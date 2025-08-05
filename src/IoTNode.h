@@ -25,7 +25,11 @@ struct Block {
   double timestamp;
 };
 
-static const double epsilon = 0.2; //choose random provider with an epsilon chance
+//static const double epsilon = 0.2; //choose random provider with an epsilon chance
+double epsilon = 0.0;//0.2
+double minEpsilon = 0.0;//0.1
+double epsilonDecay = 0.90;
+
 
 class IoTNode : public omnetpp::cSimpleModule {
 private:
@@ -132,6 +136,7 @@ private:
                                    double rarity);
 
 protected:
+  void updateEpsilon();
   virtual void finish() override;
   virtual void initialize() override;
     // helper for initalize
@@ -204,7 +209,7 @@ protected:
   /* change this rate depending on how much camouflage you want the nodes to
    * perform 1 means it never acts malicously and 0 is always malicious
    */
-  double camouflageRate = 0.3;
+  double camouflageRate = 0.0;
   // -- deciding on the rating of a service --
   double calculateRating(double quality, double timeliness, double rarity);
 
@@ -223,7 +228,7 @@ protected:
   // oppurtunistic attack: trust skoru en yüksek olan iyi node belirli bir
   // zamanadan(opportunisticAttackTime) sonra kötü dvaranmaya başlarsa ne olur
   // onu test ediyoruz
-  double opportunisticAttackTime = 50;
+  double opportunisticAttackTime = 500;
   bool opportunisticAttackTriggered = false;
   IoTNode *opportunisticNode = nullptr;
   bool isOpportunisticNode = false;
