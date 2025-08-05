@@ -168,10 +168,11 @@ void IoTNode::setMalicious(AttackerType type) {
 }
 
 void IoTNode::initialize() {
-
-  epsilon = 0.2;//0.2
-  minEpsilon = 0.1;//0.1
-  epsilonDecay = 0.90;
+//********************************
+    //şu anda epsilon = 0 eskiden kullandığım değerleri de yanına yazdım gerekirse diye
+  epsilon = 0.0;//0.2
+  minEpsilon = 0.0;//0.1
+  epsilonDecay = 0.9;
 
   serviceRequestEvent = new cMessage("serviceRequestTimer");
   scheduleAt(simTime() + uniform(1, 5), serviceRequestEvent);
@@ -570,15 +571,22 @@ void IoTNode::handleServiceRatingMsg(cMessage *msg) {
 
   // All nodes (including CH) process this rating to update local trust
   if (providerId != getId()) {
-    // kendi içinde kendi trust'ını hesaplamasına gerek yok
-    double alpha = calculateRatingSimilarityCoefficient(providerId, rating);
-    // TODO This updates TS for EVERY node, not just if connected!!
-    double updatedTrust = updateTrustScore(providerId, rating, alpha);
-    // TODO E- I may have broken this...!!buraya bak
+      if (myRatingMap.find(providerId) != myRatingMap.end() &&
+          myRatingMap[providerId].count > 0) {
+          double alpha = calculateRatingSimilarityCoefficient(providerId, rating);
+          // TODO This updates TS for EVERY node, not just if connected!!
+          double updatedTrust = updateTrustScore(providerId, rating, alpha);
+          // optionally log trust update
+      } else {
+          EV << "Node " << getId() << " has no past experience with provider " << providerId
+             << ", skipping trust update.\n";
+      } // TODO E- I may have broken this...!!buraya bak
     /*recordScalar(("TrustOf_" + std::to_string(providerId) + "_InNode_" +
                   std::to_string(getId()))
                      .c_str(),
                  updatedTrust);*/
+
+
   }
   // cluster head rating'i blockchain'e ekleyip diğer nodelara bildiriyor
   // cluster'daki
