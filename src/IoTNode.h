@@ -26,8 +26,8 @@ struct Block {
 };
 
 //static const double epsilon = 0.2; //choose random provider with an epsilon chance
-double epsilon = 0.0;//0.2
-double minEpsilon = 0.0;//0.1
+double epsilon = 0.2;//0.2
+double minEpsilon = 0.1;//0.1
 double epsilonDecay = 0.90;
 
 

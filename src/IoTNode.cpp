@@ -476,6 +476,13 @@ void IoTNode::handleFinalServiceResponseMsg(cMessage *msg) {
 
   sendRating(providerId, rating);
   updateMyRating(providerId, rating);
+  //yanlış görmediysem kendi içinde tuttuğumuz trust skoru güncellemiyorduk daha önce
+  struct trustScore &alterandum = trustMap[providerId];
+    if (rating >= 0)
+      alterandum.sumOfPositiveRatings += rating;
+    else // rating is negative, make it positive
+      rating = (-rating);
+    alterandum.sumOfAllRatings += rating;
 
   delete response;
 }
