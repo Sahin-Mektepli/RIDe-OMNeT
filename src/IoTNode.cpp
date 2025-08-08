@@ -31,7 +31,7 @@ std::default_random_engine gen;
 std::uniform_real_distribution<double> uniform_real_dist{
     0, 1}; // bu da burda dursun madem
 [[deprecated("There is only a single service!!!!")]]
-std::vector<std::string> serviceTypes = {"A"}; // should be deleted all together
+#define SERVICE_TYPE "A" // as a substitue for depricated serviceTypes
 using namespace omnetpp;
 
 Define_Module(IoTNode);
@@ -50,14 +50,6 @@ void printRoutingTable(const std::map<int, int> &routingTable) {
   for (const auto &entry : routingTable) {
     EV << entry.first << "-->" << entry.second << "\n";
   }
-}
-/**
- *called in initialize to assign providedService of the node */
-std::string IoTNode::assignService() {
-  std::string assignedService =
-      serviceTypes[intuniform(0, serviceTypes.size() - 1)];
-  providedService = assignedService;
-  return assignedService;
 }
 /**
  * Copy of the original code that does its name
@@ -179,7 +171,7 @@ void IoTNode::initialize() {
   isClusterHead = false;
   allNodes.push_back(this);
 
-  std::string assignedService = assignService();
+  providedService = SERVICE_TYPE;
   populateRoutingTable();
 
   // Schedule service table update after all nodes are initialized
@@ -723,43 +715,33 @@ void IoTNode::electClusterHeads() {
   EV << "Updated Cluster Head selection." << endl;
 }
 void IoTNode::initiateServiceRequest() {
-  // TODO WE HAVE ONLY A SINGLE SERVICE TYPE!!!
-  std::string chosenService =
-      serviceTypes[intuniform(0, serviceTypes.size() - 1)];
-  EV << "IoT Node " << getId()
-     << " is requesting service type: " << chosenService << endl;
-  // Step 2: Look up nodes that provide this service
-  if (serviceTable.find(chosenService) == serviceTable.end()) {
-    EV << "No known providers for service type " << chosenService << endl;
-    return;
+  std::vector<int> providerIds;
+  // EVERY node can provide THE service
+  for (auto node : routingTable) {
+    providerIds.push_back(node.first);
   }
+  // if providerIds vector is empty, this node has no connected nodes,
+  // which is A FATAL PROBLEM; crash
+  assert(!providerIds.empty());
 
-  std::vector<int> providerIds = serviceTable[chosenService];
-  if (providerIds.empty()) {
-    EV << "Service list is empty for service type " << chosenService << endl;
-    return;
-  }
-
-  requestedServiceType = chosenService;
+  requestedServiceType = SERVICE_TYPE; // just the string "A"
   pendingResponses.clear();
   respondedProviders.clear();
   // Step 3: Send request to all eligible providers
   for (int providerId : providerIds) {
     if (providerId == getId())
       continue; // Don't request from self
-    if (routingTable.find(providerId) == routingTable.end())
-      continue; // No route
 
     int gateIndex = routingTable[providerId];
     ServiceRequest *request = new ServiceRequest("serviceRequest");
     request->setRequesterId(getId());
     request->setProviderId(providerId);
-    request->setServiceType(chosenService.c_str());
+    request->setServiceType(SERVICE_TYPE); // again, just the string "A"
 
     pendingResponses.insert(providerId);
     send(request, "inoutGate$o", gateIndex);
     EV << "Sent service request to Node " << providerId << " for type "
-       << chosenService << endl;
+       << SERVICE_TYPE << endl;
   }
 }
 
@@ -872,29 +854,7 @@ double IoTNode::calcQualityBenevolent(const double potency,
   }
   return quality;
 }
-bool IoTNode::givesService(std::string serviceType) {
-  if (providedService == serviceType) {
-    return true;
-  } else {
-    return false;
-  }
-}
-/* traverses ALL NODES IN THE SYSTEM, and returns the reciprocal of the number
- * of ondes that can provide the given service in (0,10)
- */
-double IoTNode::calculateRarity(std::string serviceType) {
-  int howManyNodes = 0;
-  for (const auto node : allNodes) {
-    if (node->givesService(serviceType)) {
-      ++howManyNodes;
-    }
-  }
-  if (howManyNodes == 0) {
-    return 10; // highest value it can get
-  } else {
-    return 10.0 / howManyNodes;
-  }
-}
+
 /** uses Quality, Timeliness and Rarity of the service to calculate a rating
  * all of which are in (-10,10)
  * simply takes the _weighted_ average of these three

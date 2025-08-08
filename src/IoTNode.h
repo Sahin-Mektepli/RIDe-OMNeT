@@ -110,8 +110,6 @@ private:
   std::map<int, double> respondedProviders;
   std::string requestedServiceType;
   //--rating calculation--
-  double calculateRarity(std::string serviceType); // about how many nodes
-                                                   // can provide that service
   double calculateRatingBenevolent(double quality, double timeliness,
                                    double rarity);
   double wQ = 1; // weight of quality
@@ -193,17 +191,12 @@ protected:
   // Node'a mahsus attribute'ler
   [[deprecated("NO GENERAL TRUST SCORES!!")]]
   double trustScore = 0.5;
-  [[deprecated("use map sumOfPositiveRatings!!")]]
-  double sumOfPositveRatings = 5;
-  [[deprecated("use map sumOfAllRatings!!")]]
-  double sumOfAllRatings = 10; // this takes abs of negative ratings.
   bool isClusterHead;
   double potency = 0;
   double consistency = 4; // draws a 'meaningfull' default curve
   bool benevolent = true;
   std::string providedService; // Node'un verdiği servis türü
 
-  std::string assignService();
   void populateRoutingTable();
 
   // -- attack parameters --
@@ -216,7 +209,6 @@ protected:
   double calculateRating(double quality, double timeliness, double rarity);
 
   // -- sending service, and determining the quality of it --
-  bool givesService(std::string serviceType);
   double calcQuality(double potency, double consistency);
   double calcQualityBenevolent(double potency, double consistency);
   double calcQualityCamouflage(double potency, double consistency);
