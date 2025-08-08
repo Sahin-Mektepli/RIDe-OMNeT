@@ -992,8 +992,8 @@ void IoTNode::finish() {
     int targetId = entry.first;
     double trustValue = entry.second.value();
     // Örneğin: TrustOf_5_in_3
-    std::string scalarName = "TrustOf_" + std::to_string(targetId) + "_in_" +
-                             std::to_string(getId());
+    std::string scalarName = "TrustOf_" + std::to_string(getId()) + "_in_" +
+                             std::to_string(targetId);
     recordScalar(scalarName.c_str(), trustValue);
   }
   // Accuracy için
