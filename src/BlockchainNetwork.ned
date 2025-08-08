@@ -23,10 +23,12 @@ network BlockchainNetwork {
   parameters:
     int numNodes;                     // Total number of IoT nodes
     double maliciousNodePercentage;  // % of nodes to be malicious
+    int attackerType;
     submodules:
         iotNode[numNodes]: IoTNode{
        	   parameters:
-            maliciousNodePercentage = parent.maliciousNodePercentage;}
+            maliciousNodePercentage = parent.maliciousNodePercentage;
+            attackerType = parent.attackerType;}
        // cluster2[numNodes]: IoTNode;
 
 

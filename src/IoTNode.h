@@ -34,7 +34,7 @@ private:
     double epsilon;//0.2
       double minEpsilon;//0.1
       double epsilonDecay;
-  //*******Yeni model için eklediklerim*****************
+  //*******Yeni model için eklediklerimiz*****************
   std::map<int, double> localTrustScores; // Node ID → Trust Score (diğer
                                           // nodeların trust skorları)
   std::map<int, std::vector<double>>
@@ -88,6 +88,7 @@ private:
 
 
   double calculateRatingSimilarityCoefficient(int providerId, double newRating);
+  void setPotencyAndConsistency();
   //******************************************************
 
   static int totalBadServicesReceived; // for logging
@@ -121,12 +122,12 @@ private:
   double b = 1;
   //-- attackers --
   enum AttackerType {
-    BENEVOLENT, // bunu eklemek sacma olabilir ama bulunsun
-    CAMOUFLAGE,
-    BAD_MOUTHING,
-    MALICIOUS_100,
-    COLLABORATIVE,
-    OPPORTUNISTIC
+    BENEVOLENT, //0
+    CAMOUFLAGE,//1
+    BAD_MOUTHING,//2
+    MALICIOUS_100,//3
+    COLLABORATIVE,//4
+    OPPORTUNISTIC//5
 
   }; // use this and switch statements to control
   enum AttackerType attackerType = BENEVOLENT; // default

@@ -82,6 +82,8 @@ void IoTNode::updateEpsilon() {
  * Extracted from initialize method
  * Attacker type part should be refactored too. */
 void IoTNode::setMalicious(AttackerType type) {
+  EV << "\n\n\n\nWe use attack number " << type
+     << " in this simulation\n\n\n\n";
   int totalNodes = getParentModule()->par("numNodes");
   int numMalicious =
       int(par("maliciousNodePercentage").doubleValue() * totalNodes);
@@ -109,8 +111,8 @@ void IoTNode::setMalicious(AttackerType type) {
     attackerType = OPPORTUNISTIC;
     isOpportunisticNode = true;
     benevolent = false; // Başta iyi
-    potency = 9;
-    consistency = 2.0;
+    // potency = 9; //These values should not be set after initalization
+    // consistency = 2.0;
   } else if (maliciousNodeIds.count(getId()) > 0) {
     //!!opportunistic saldırıda iyi davranan bir node belirli bir süre sonra
     //! kötü davranmaya başlıyor ama onun dışında da kötü nodelar olabilir
@@ -127,43 +129,43 @@ void IoTNode::setMalicious(AttackerType type) {
     // değişmeyecekse aşağıdaki satırları silebiliriz. Sadece potency = -10;
     // consistency = 1000; kalmalı
     if (attackerType == CAMOUFLAGE) {
-      // camouflageRate = 0.8;
-      EV << "\n\n\n\n\n\nTHIS NODE WITH ID " << getId()
-         << " PERFORMS CAMOUFLAGE ATTACK!!!\n"
-         << endl;
-      getDisplayString().setTagArg(
-          "i", 1, "blue"); // TODO Let each other have differnet colours?
-      potency = -10;
-      consistency = 1000;
+      getDisplayString().setTagArg("i", 1, "blue");
     } else if (attackerType == MALICIOUS_100) {
-      potency = -10;
-      consistency = 1000;
+      getDisplayString().setTagArg("i", 1, "red");
+
     } else if (attackerType == BAD_MOUTHING) {
       // iyi servis kötü yorum ise
-      potency = 9;
-      consistency = 2.0;
-    } else {
-      potency = -10;
-      consistency = 1000;
+      getDisplayString().setTagArg("i", 1, "purple");
     }
   } else {
     attackerType = BENEVOLENT;
     benevolent = true;
     totalBenevolentNodes++;
-    potency = 6;
-    consistency = 2.0;
   }
+}
 
-  // if (!benevolent) {
-  //   getDisplayString().setTagArg("i", 1, "red");
-  // }
-  // recordScalar("Attack Type_" + attackerType);
+/**
+ * Sets the potency and consistency values of the node.
+ * The values are uniformly distributed in "meaningful" ranges,
+ * so that even the worst benevolent node is quite performant */
+void IoTNode::setPotencyAndConsistency() {
+  int id = getId();
+
+  double pot = uniform(6, 10);
+  this->potency = pot;
+  EV << "Potency of node " << id << " is " << pot << '\n';
+
+  double cons = uniform(0.5, 2.0);
+  this->consistency = cons;
+  EV << "Consistency of node " << id << " is " << cons << '\n';
 }
 
 void IoTNode::initialize() {
 
-  epsilon = 0.2;    // 0.2
-  minEpsilon = 0.1; // 0.1
+  setPotencyAndConsistency();
+
+  epsilon = 0.2;
+  minEpsilon = 0.01;
   epsilonDecay = 0.90;
 
   serviceRequestEvent = new cMessage("serviceRequestTimer");
@@ -177,9 +179,9 @@ void IoTNode::initialize() {
   // Schedule service table update after all nodes are initialized
   scheduleAt(simTime() + 0.1, new cMessage("populateServiceTable"));
 
-  setMalicious(
-      CAMOUFLAGE); // BENEVOLENT, CAMOUFLAGE,BAD_MOUTHING,MALICIOUS_100,
-                   // COLLABORATIVE, OPPORTUNISTIC
+  // read the attacker type as an int from omnet.ini
+  int attackerTypeValue = getParentModule()->par("attackerType");
+  setMalicious(AttackerType(attackerTypeValue));
 
   // Start periodic logger(belirli aralıklarla kötü servis sayısını kaydetmek
   // için)
@@ -765,12 +767,9 @@ void IoTNode::handleServiceRequest(int requesterId) {
 // return true if the node performs camouflage; i.e. behaving "normally"
 bool performsCamouflage(double camouflageRate) {
   double random = uniform_real_dist(gen); // random number in (0,1)
-  if (random < camouflageRate) { // performing camouflage,normal service
-    return true;
-  } else { // giving bad service
-    return false;
-  }
+  return random < camouflageRate; // performing camouflage,normal service
 }
+
 /* With a prob of camouflageRate, perform camouflage and return "normal" rating
  * else, return -10
  */
@@ -786,10 +785,8 @@ double IoTNode::calculateRatingCamouflage(double quality, double timeliness,
 //"normal" quality if camouflage, -10 else
 double IoTNode::calcQualityCamouflage(double potency, double consistency) {
   if (performsCamouflage(this->camouflageRate)) { // normal service
-    // return calcQualityBenevolent(potency, consistency);//burada hata var
-    // bence çünkü kötü node'un potency'si farklı
-    return calcQualityBenevolent(9, 2.0); // bu değer değişebilir
-  } else {                                // giving bad service
+    return calcQualityBenevolent(potency, consistency);
+  } else { // giving bad service
     return -10;
   }
 }
