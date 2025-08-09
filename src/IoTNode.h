@@ -95,6 +95,9 @@ private:
   static int totalBenevolentNodes;     // for logging
   static std::set<int> maliciousNodeIds;
 
+  void recordLocalTrust();
+  void recordAbility();
+
   int lastProviderId = -1; // collaborative attack için
 
   int badServicesReceived = 0; // for logging
@@ -205,7 +208,7 @@ protected:
   /* change this rate depending on how much camouflage you want the nodes to
    * perform 1 means it never acts malicously and 0 is always malicious
    */
-  double camouflageRate = 0.0;
+  double camouflageRate = 0.3;
   // -- deciding on the rating of a service --
   double calculateRating(double quality, double timeliness, double rarity);
 

@@ -983,6 +983,29 @@ bool IoTNode::extract(const std::string &input, double &rating,
   }
 }
 
+/**
+ *  */
+void IoTNode::recordLocalTrust() {
+  double sumOfLocalTrust = 0;
+  int countOfNodesTrusting = 0;
+  int thisId = getId();
+  for (auto &node : allNodes) {
+    if (node->trustMap.find(thisId) != node->trustMap.end()) {
+      countOfNodesTrusting++;
+      sumOfLocalTrust += node->trustMap[thisId].value();
+    }
+  }
+  // if no nodes are counted, there has been a FATAL FLAW
+  assert(countOfNodesTrusting != 0);
+  double average = sumOfLocalTrust / countOfNodesTrusting;
+  std::string scalarName = "Local Trust to Node " + std::to_string(thisId);
+  recordScalar(scalarName.c_str(), average);
+}
+
+void IoTNode::recordAbility(){
+  double ability = this->potency * this->consistency;
+  recordScalar("Ability of the node", ability);
+}
 void IoTNode::finish() {
   // her node'un kendi tuttuğu trustları yazdırmak için
   for (auto &entry : trustMap) {
@@ -993,6 +1016,10 @@ void IoTNode::finish() {
                              std::to_string(targetId);
     recordScalar(scalarName.c_str(), trustValue);
   }
+  // Let us have each node record its "local trust" by its neighbours as well:
+  recordLocalTrust();
+  recordAbility();
+
   // Accuracy için
   /*if (getId() == 2) { // tek bir node içinde hesplamak için yazdım bu kısmı
   node
