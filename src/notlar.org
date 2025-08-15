@@ -1,0 +1,266 @@
+#+title: Notlar
+
+* Wed Jul 30 22:12:31 2025
+** On Trust Calculation
+We say that there shall be separate numerator and denominator values stored in each node for each node.
+There shall be an alternative to this set of values:
+1) Used for actual trust calculation and is affected by the ratings of other nodes.
+2) Used for calculating the similarity of ratings, so this is not affected by the foreign ratings.
+** Refute for the above trust calculation section
+There is this grave issue of the discrepency between the ranges of rating and trust score values.
+A rating is in (-10,10) and a trust score is in (0,1).
+Therefore one cannot simply use an alternative trust score which is not affected by ratings of third parties to calculate the similarity of a novel rating.
+We have opted to change this implemtation.
+Now there is a current rating variable which stores the average of the ratings that requestor has given to the provider.
+* epsilon greedy
+We want nodes to choose provieders by considering their "local trust" values.
+That is how much the requestor trusts in the possible provider.
+
+However, it can be of help if the requestor chooses the most trusted provider not always but almost always.
+Sometimes it shall choose a random provider from the possible providers list.
+This is to prevent a node choosing the same provier all the time.
+
+** We need a function that can return a random pair from a mapping for this.
+:properties:
+:header-args: :eval query :results verbatim :noweb yes
+:end:
+
+Let me have all the non function stuff in a single include snippet:
+#+name:include
+#+begin_src cpp
+#include <iostream>
+#include <map>
+#include <random>
+#include <iostream>
+#include <algorithm>
+std::default_random_engine gen;
+double epsilon = 0.5;
+#+end_src
+*** Create random int values for this.
+Since we do not know the size of the mapping beforehand,
+it seems sensical to define a funciton that returns a random integer from 0 to any upper limit n:
+#+name:randomInt
+#+begin_src cpp
+int random_0_to_n(int n){
+    std::uniform_int_distribution<int> dist{0, n-1};
+    int rand = dist(gen);
+    return rand;
+}
+#+end_src
+
+#+begin_src cpp
+<<include>>
+<<randomInt>>
+int main(){
+    std::cout << random_0_to_n(10)<<'\n';
+    std::cout << random_0_to_n(10)<<'\n';
+    std::cout << random_0_to_n(10)<<'\n';
+    std::cout << random_0_to_n(10)<<'\n';
+  }
+
+#+end_src
+
+#+RESULTS:
+: 0
+: 1
+: 7
+: 4
+
+*** Choose random pair from mapping
+We shall start from the beginning of the mapping and advance rand times to reach a random pair of the mapping.
+This interesting approach is what is suggested by many.
+
+We shall "advance" with the standard library function std::advance,
+which is a quite overloaded function working on iterators.
+#+name:randomPair
+#+begin_src cpp
+<<randomInt>>
+auto randomPairOfMapping(const std::map<int,double> &mapping){
+    if(mapping.empty())
+        throw std::invalid_argument("Map cannot be empty in function " + std::string(__FUNCTION__));
+    int number = random_0_to_n(mapping.size());
+    auto it = mapping.begin();
+    std::advance(it, number);
+    return it;
+}
+#+end_src
+
+#+begin_src cpp
+<<include>>
+<<randomPair>>
+int main(){
+    std::map<int,double> mapping;
+    mapping[7]= 1.4;
+    mapping[4]= 9.4;
+    mapping[9]= 20.4;
+    mapping[1]= 8.3;
+    mapping[8]= 1.0;
+    random_0_to_n(10);
+    std::cout << randomPairOfMapping(mapping)->second;
+  }
+
+#+end_src
+*** Implement the epsilon greedy choosing
+The function shall generate a random number in (0,1) and compare it to a given epsilon value.
+If the random double is higher than epsilon, it shall return the normal maximum value,
+-about which I shall not write a separate function-,
+otherwise, we shall take a random pair from the mapping:
+#+name:epsilonGreedy
+#+begin_src cpp
+<<randomPair>>
+
+auto epsilonGreedyMaxPair(const auto &mapping){
+    std::uniform_real_distribution<double> dist{0, 1};
+    double random = dist(gen);
+    if(random > epsilon){
+        //return maximum
+        return std::max_element(mapping.begin(), mapping.end(),
+                                [](const auto &a, const auto &b){
+                                    return a.second < b.second;
+                                });
+    }
+    else{
+        //return random pair
+        return randomPairOfMapping(mapping);
+    }
+  }
+#+end_src
+
+#+begin_src cpp :tangle /home/ouz/Desktop/tangled/epsilonGreedy.cpp
+<<include>>
+<<epsilonGreedy>>
+
+int main(){
+    std::map<int,double> mapping;
+    mapping[7]= 1.4;
+    mapping[4]= 9.4;
+    mapping[9]= 20.4;
+    mapping[1]= 8.3;
+    mapping[8]= 1.0;
+    random_0_to_n(10);
+    std::cout << epsilonGreedyMaxPair(mapping)->second <<'\n';
+    std::cout << epsilonGreedyMaxPair(mapping)->second <<'\n';
+    std::cout << epsilonGreedyMaxPair(mapping)->second <<'\n';
+  }
+
+#+end_src
+
+#+RESULTS:
+: 20.4
+: 20.4
+: 1
+* Camouflage
+The behaviour of a camouflage attack is well known:
+The attacker/malicious node performs camouflage with a certain chance which affects its actions:
+1) If camouflage, it provides subpar services and untruthful ratings for services it receives
+2) Else, it behaves as a normal/benevolent node does.
+
+One must define separate functions for benevolent and malicous versions of sendRating and sendService,
+and call the respective function for camouflage and non-camouflage cases.
+
+** Bad Rating
+Currently we say that a malicious rating is -10 no matter what.
+This can be improved.
+* Potency and Consistency
+
+
+** Cumulative Distribution Function Calculation
+We need a proper way of setting the potency and consistency values of each node.
+I believe it should be a good enough implementation to set these values randomly in "meaningful" ranges.
+That is, potency in (4,8) and consistency in (0.5,2)
+
+In this implementation there is a basically zero chance of the worst benevolent node providing a negative quality service.
+
+#+begin_src python :results output
+from scipy.stats import norm
+
+# Parameters of the normal distribution
+potency = 6
+consistency = 2
+mu = potency     # mean
+sigma = 1.0/consistency   # standard deviation
+x = 5      # value you're interested in
+
+# Calculate P(X < x)
+probability = norm.cdf(x, loc=mu, scale=sigma)
+
+print(f"P(X < {x}) = {probability:.4f}")
+
+
+#+end_src
+
+#+RESULTS:
+: P(X < 5) = 0.0228
+
+
+
+
+
+
+#+begin_src python :results output
+from scipy.stats import norm
+
+# Parameters
+potency = 4
+consistency = 0.5
+
+mu = potency
+sigma = 1.0/consistency
+confidence_level = 0.80
+
+# Calculate the tails
+alpha = 1 - confidence_level
+lower_percentile = alpha / 2
+upper_percentile = 1 - lower_percentile
+
+# Compute the bounds
+a = norm.ppf(lower_percentile, loc=mu, scale=sigma)
+b = norm.ppf(upper_percentile, loc=mu, scale=sigma)
+
+print(f"{confidence_level*100:.0f}% of the distribution lies between {a:.2f} and {b:.2f}")
+
+
+
+#+end_src
+
+#+RESULTS:
+: 80% of the distribution lies between 1.44 and 6.56
+
+
+
+
+
+#+begin_src python :results output
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.stats import norm
+
+# Define a list of (mean, stddev, label, color)
+distributions = [
+    (6, 2, 'μ=100, σ=15', 'blue'),
+    (4, 0.5, 'μ=120, σ=10', 'green'),
+    (8, 0.5,  'μ=100, σ=5',  'red'),
+    (8, 2,  'μ=100, σ=5',  'purple'),
+]
+
+# Define the x-axis range (extend it to cover all curves)
+x = np.linspace(-12, 12, 500)
+
+# Plot each distribution
+plt.figure(figsize=(10, 6))
+for mu, sigma, label, color in distributions:
+    y = norm.pdf(x, loc=mu, scale=sigma)
+    plt.plot(x, y, label=label, color=color)
+
+# Styling
+plt.title("Normal Distributions")
+plt.xlabel("x")
+plt.ylabel("Probability Density")
+plt.legend()
+plt.grid(True)
+plt.show()
+
+
+#+end_src
+
+#+RESULTS:
