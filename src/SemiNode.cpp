@@ -12,7 +12,6 @@
 #include <cmath>
 #include <cstdlib>
 #include <ctime>
-#include <filesystem>
 #include <map>
 #include <random>
 #include <string>
@@ -24,7 +23,6 @@ using namespace omnetpp;
 
 Define_Module(SemiNode);
 
-// TODO: bunlari henuz guncellemiyorum
 // a mapping from nodes to a mapping from nodes to counters
 static std::map<int, std::map<int, int>> nodeResponseCounts;
 // how many times this node requested from these nodes nodeId-->counter

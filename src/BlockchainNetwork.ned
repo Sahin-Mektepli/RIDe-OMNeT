@@ -31,11 +31,10 @@ network BlockchainNetwork {
        	   parameters:
             maliciousNodePercentage = parent.maliciousNodePercentage;
             attackerType = parent.attackerType;}
-       // cluster2[numNodes]: IoTNode;
 
 
         //iotNode[numNodes]: Semi;
-        //cluster2[numNodes]: Semi;
+        // semiNode[numNodes]: SemiNode;
     connections allowunconnected:
         
         // --- fully connected graph code---
@@ -45,22 +44,23 @@ network BlockchainNetwork {
         // --- fully connected graph code---
         
         // --- circular cluster code ---
-        for c=0..9 ,
-        	for i=c*clusterSize .. (c+1)*clusterSize - 1,
-            	for j=i+1 .. (c+1)*clusterSize - 1 {
-                	iotNode[i].inoutGate++ <--> iotNode[j].inoutGate++;}
-        for c=0..9 {
-            iotNode[c * clusterSize].inoutGate++ <--> iotNode[((c + 1) % 10) * clusterSize].inoutGate++;
-  		}
+        
+        //for c=0..9 ,
+        //	for i=c*clusterSize .. (c+1)*clusterSize - 1,
+         //   	for j=i+1 .. (c+1)*clusterSize - 1 {
+         //       	iotNode[i].inoutGate++ <--> iotNode[j].inoutGate++;}
+        //for c=0..9 {
+         //   iotNode[c * clusterSize].inoutGate++ <--> iotNode[((c + 1) % 10) * clusterSize].inoutGate++;
+  	//	}
   		// --- circular cluster code ---
         
         
         
         
         //I don't remember what this was for...
-      //  for i=0.. numNodes-1, for j=i+1.. numNodes-1{
-      // 	cluster2[i].inoutGate++ <--> cluster2[j].inoutGate++;
-      //  }
+        // for i=0.. numNodes-1, for j=i+1.. numNodes-1{
+        //     semiNode[i].inoutGate++ <--> semiNode[j].inoutGate++;
+        // }
        
         
 }
