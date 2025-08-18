@@ -37,21 +37,20 @@ network BlockchainNetwork {
         //iotNode[numNodes]: Semi;
         //cluster2[numNodes]: Semi;
     connections allowunconnected:
-        
-        // --- fully connected graph code---
-        for i=0.. numNodes-1, for j=i+1.. numNodes-1{
-       	iotNode[i].inoutGate++ <--> iotNode[j].inoutGate++;
-        }
-        // --- fully connected graph code---
-        
         // --- circular cluster code ---
-       // for c=0..9 ,
-        	//for i=c*clusterSize .. (c+1)*clusterSize - 1,
-            	//for j=i+1 .. (c+1)*clusterSize - 1 {
-                //	iotNode[i].inoutGate++ <--> iotNode[j].inoutGate++;}
-       // for c=0..9 {
-           // iotNode[c * clusterSize].inoutGate++ <--> iotNode[((c + 1) % 10) * clusterSize].inoutGate++;
-  		//}
+        if(clusterCount != 1),
+        for c=0..(clusterCount-1) ,
+        	for i=c*clusterSize .. (c+1)*clusterSize - 1,
+            	for j=i+1 .. (c+1)*clusterSize - 1 {
+                	iotNode[i].inoutGate++ <--> iotNode[j].inoutGate++;}
+       	if(clusterCount != 1),
+       	for c=0..(clusterCount-1) {
+           iotNode[c * clusterSize].inoutGate++ <--> iotNode[((c + 1) % clusterCount) * clusterSize].inoutGate++;
+  		}
+  		// for fully connected case
+  		if(clusterCount == 1),
+  			for i=0.. numNodes-1, for j=i+1.. numNodes-1{
+       			iotNode[i].inoutGate++ <--> iotNode[j].inoutGate++;}
   		// --- circular cluster code ---
         
         
