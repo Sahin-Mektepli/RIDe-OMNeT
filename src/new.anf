@@ -1,5 +1,16 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <analysis version="2">
-    <inputs/>
+    <inputs>
+        <input pattern="results/Batch10-0/Batch10-#0.sca"/>
+        <input pattern="results/Batch10-1/Batch10-#1.sca"/>
+        <input pattern="results/Batch10-2/Batch10-#2.sca"/>
+        <input pattern="results/Batch10-3/Batch10-#3.sca"/>
+        <input pattern="results/Batch10-4/Batch10-#4.sca"/>
+        <input pattern="results/Batch10-5/Batch10-#5.sca"/>
+        <input pattern="results/Batch10-6/Batch10-#6.sca"/>
+        <input pattern="results/Batch10-7/Batch10-#7.sca"/>
+        <input pattern="results/Batch10-8/Batch10-#8.sca"/>
+        <input pattern="results/Batch10-9/Batch10-#9.sca"/>
+    </inputs>
     <charts/>
 </analysis>
