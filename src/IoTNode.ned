@@ -20,6 +20,7 @@ simple IoTNode
         @display("i=device/pocketpc"); // Use a smartphone icon for IoT nodes
          double maliciousNodePercentage;
          int attackerType;
+         double camouflageRate = default(0);
     gates:
         inout inoutGate[];
 }

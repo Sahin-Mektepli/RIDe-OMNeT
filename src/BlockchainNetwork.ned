@@ -39,19 +39,19 @@ network BlockchainNetwork {
     connections allowunconnected:
         
         // --- fully connected graph code---
-        //for i=0.. numNodes-1, for j=i+1.. numNodes-1{
-       // 	iotNode[i].inoutGate++ <--> iotNode[j].inoutGate++;
-        //}
+        for i=0.. numNodes-1, for j=i+1.. numNodes-1{
+       	iotNode[i].inoutGate++ <--> iotNode[j].inoutGate++;
+        }
         // --- fully connected graph code---
         
         // --- circular cluster code ---
-        for c=0..9 ,
-        	for i=c*clusterSize .. (c+1)*clusterSize - 1,
-            	for j=i+1 .. (c+1)*clusterSize - 1 {
-                	iotNode[i].inoutGate++ <--> iotNode[j].inoutGate++;}
-        for c=0..9 {
-            iotNode[c * clusterSize].inoutGate++ <--> iotNode[((c + 1) % 10) * clusterSize].inoutGate++;
-  		}
+       // for c=0..9 ,
+        	//for i=c*clusterSize .. (c+1)*clusterSize - 1,
+            	//for j=i+1 .. (c+1)*clusterSize - 1 {
+                //	iotNode[i].inoutGate++ <--> iotNode[j].inoutGate++;}
+       // for c=0..9 {
+           // iotNode[c * clusterSize].inoutGate++ <--> iotNode[((c + 1) % 10) * clusterSize].inoutGate++;
+  		//}
   		// --- circular cluster code ---
         
         

@@ -43,6 +43,10 @@ std::set<int> IoTNode::maliciousNodeIds;
 int IoTNode::totalBadServicesReceived = 0;
 int IoTNode::totalBenevolentNodes = 0;
 int IoTNode::opportunisticNodeId = -1;
+int IoTNode::totalServicesReceived = 0;
+
+
+
 
 void printRoutingTable(const std::map<int, int> &routingTable) {
   EV << "Routing Table:\n";
@@ -129,6 +133,11 @@ void IoTNode::setMalicious(AttackerType type) {
     // değişmeyecekse aşağıdaki satırları silebiliriz. Sadece potency = -10;
     // consistency = 1000; kalmalı
     if (attackerType == CAMOUFLAGE) {
+        // read camouflageRate from omnetpp.ini (defaults to 0.0 if not provided)
+        if (hasPar("camouflageRate")) {
+          camouflageRate = par("camouflageRate").doubleValue();
+        }
+
       getDisplayString().setTagArg("i", 1, "blue");
     } else if (attackerType == MALICIOUS_100) {
       getDisplayString().setTagArg("i", 1, "red");
@@ -163,6 +172,13 @@ void IoTNode::setPotencyAndConsistency() {
 void IoTNode::initialize() {
 
   setPotencyAndConsistency();
+  // initialize()
+  if (hasPar("camouflageRate"))
+      this->camouflageRate = par("camouflageRate").doubleValue();
+  else
+      this->camouflageRate = 0.0;  // safe default
+  recordScalar("camouflageRate", camouflageRate);
+
 
   epsilon = 0.2;
   minEpsilon = 0.01;
@@ -458,6 +474,8 @@ void IoTNode::handleFinalServiceResponseMsg(cMessage *msg) {
   FinalServiceResponse *response = check_and_cast<FinalServiceResponse *>(msg);
   int providerId = response->getProviderId();
   double quality = response->getServiceQuality();
+  totalServicesReceived++;   // <-- count every service received
+
   std::string serviceType = response->getServiceType(); // lazim
   EV << "Node " << getId() << " received final service from " << providerId
      << " with quality: " << quality << endl;
@@ -637,6 +655,13 @@ void IoTNode::handleSelfMessage(cMessage *msg) {
               .c_str(),
           (double)totalBadServicesReceived / totalBenevolentNodes);
     }
+    if (totalServicesReceived > 0) {
+            double ratio = (double)totalBadServicesReceived / totalServicesReceived;
+            recordScalar(
+                ("BadServiceRatioAt_" + std::to_string((int)simTime().dbl()))
+                    .c_str(),
+                ratio);
+        }
     // belirli sürede bir(şu anda 10 saniye) tekrar ettiği için
     // badServiceLogger'ın içine yazdım bu opportunistic saldırıyı başlatan
     // kısmı
