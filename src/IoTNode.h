@@ -144,8 +144,10 @@ protected:
   auto epsilonGreedyMaxPair(const std::map<int, double> &mapping);
   virtual void finish() override;
   virtual void initialize() override;
-    // helper for initalize
-    void setMalicious(AttackerType type);
+  // helper for initalize
+  void setMalicious(AttackerType type);
+  bool noMalDominatedClusters();
+
   virtual void handleMessage(omnetpp::cMessage *msg) override;
   // --- Message Handling ---
 

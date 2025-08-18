@@ -83,6 +83,36 @@ void IoTNode::updateEpsilon() {
 }
 
 /**
+ * Examine each cluster in the graph and make sure that none of them are
+ * "dominated" by malicious nodes.
+ *  Dominated here means that at least 80 percent of the nodes are malicious. */
+bool IoTNode::noMalDominatedClusters() {
+  int clusterSize =
+      getParentModule()->par("clusterSize"); // we calculate this, not set
+  int clusterCount = getParentModule()->par("clusterCount");
+  int numNodes = getParentModule()->par("numNodes");
+
+  for (int clusterIndex = 0; clusterIndex < clusterCount; clusterIndex++) {
+    // check for each cluster in the system
+    int countMal = 0;
+    for (int nodeIndex = 0; nodeIndex < clusterSize; nodeIndex++) {
+      // nodeIndex == index in that cluster
+      // for 100 nodes and 10 clusters:
+      // first cluster --> 2...11
+      // second cluster--> 12...21
+      int nodeId =
+          (clusterIndex * clusterSize) + nodeIndex + 2; // ids start from 2
+      if (maliciousNodeIds.count(nodeId))
+        countMal++;
+    }
+    // counted malicious nodes in the cluster
+    if (double(countMal) / clusterSize > 0.8)
+      return false;
+  }
+  return true;
+}
+
+/**
  * Extracted from initialize method
  * Attacker type part should be refactored too. */
 void IoTNode::setMalicious(AttackerType type) {
@@ -101,14 +131,11 @@ void IoTNode::setMalicious(AttackerType type) {
 
     if (type == OPPORTUNISTIC) {
       opportunisticNodeId = allIds.front();
-      for (int i = 0; i < numMalicious; ++i) {
-        if (allIds[i] != opportunisticNodeId)
-          maliciousNodeIds.insert(allIds[i]); // Diğerleri malicious
-      }
-    } else {
-      // OPPORTUNISTIC değilse, seçilen sayıda saldırgan belirle
-      maliciousNodeIds.insert(allIds.begin(), allIds.begin() + numMalicious);
+      EV << "OPPORTUNISM BY NODE " << opportunisticNodeId << '\n';
     }
+      maliciousNodeIds.insert(allIds.begin(), allIds.begin() + numMalicious);
+      maliciousNodeIds.erase(opportunisticNodeId); //this is excluded for some reason
+      assert(noMalDominatedClusters());
   }
 
   if (type == OPPORTUNISTIC && getId() == opportunisticNodeId) {
@@ -129,15 +156,13 @@ void IoTNode::setMalicious(AttackerType type) {
                     // eşitleniyor saldırımız opportunistic ise seçilmiş node
                     // dışındakiler kamuflaj saldırısı yapıyor
     benevolent = false;
-    // TODO :eğer kötülerin potency ve consistency değerleri saldırıya göre
-    // değişmeyecekse aşağıdaki satırları silebiliriz. Sadece potency = -10;
-    // consistency = 1000; kalmalı
     if (attackerType == CAMOUFLAGE) {
         // read camouflageRate from omnetpp.ini (defaults to 0.0 if not provided)
         if (hasPar("camouflageRate")) {
           camouflageRate = par("camouflageRate").doubleValue();
         }
 
+      EV << "CAMOUFLAGE BY NODE " << getId() << "\n";
       getDisplayString().setTagArg("i", 1, "blue");
     } else if (attackerType == MALICIOUS_100) {
       getDisplayString().setTagArg("i", 1, "red");
