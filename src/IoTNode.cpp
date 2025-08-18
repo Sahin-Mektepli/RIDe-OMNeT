@@ -124,18 +124,23 @@ void IoTNode::setMalicious(AttackerType type) {
 
   // Sadece ilk node random seçim yapar
   if (getId() == 2) {
-    std::vector<int> allIds;
-    for (int i = 2; i < 2 + totalNodes; ++i)
-      allIds.push_back(i);
-    std::shuffle(allIds.begin(), allIds.end(), gen);
+    do {
+      maliciousNodeIds.clear();
+      std::vector<int> allIds;
+      for (int i = 2; i < 2 + totalNodes; ++i)
+        allIds.push_back(i);
+      std::shuffle(allIds.begin(), allIds.end(), gen);
 
-    if (type == OPPORTUNISTIC) {
-      opportunisticNodeId = allIds.front();
-      EV << "OPPORTUNISM BY NODE " << opportunisticNodeId << '\n';
-    }
+      if (type == OPPORTUNISTIC) {
+        opportunisticNodeId = allIds.front();
+        EV << "OPPORTUNISM BY NODE " << opportunisticNodeId << '\n';
+      }
       maliciousNodeIds.insert(allIds.begin(), allIds.begin() + numMalicious);
-      maliciousNodeIds.erase(opportunisticNodeId); //this is excluded for some reason
-      assert(noMalDominatedClusters());
+      maliciousNodeIds.erase(
+          opportunisticNodeId); // this is excluded for some reason
+
+    } while (!noMalDominatedClusters()); // try again until there are no such
+                                         // clusters.
   }
 
   if (type == OPPORTUNISTIC && getId() == opportunisticNodeId) {
