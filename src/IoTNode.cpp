@@ -106,7 +106,7 @@ bool IoTNode::noMalDominatedClusters() {
         countMal++;
     }
     // counted malicious nodes in the cluster
-    if (double(countMal) / clusterSize > 0.8)
+    if (double(countMal) / clusterSize > 0.5)
       return false;
   }
   return true;
@@ -1062,6 +1062,7 @@ void IoTNode::recordAbility(){
   recordScalar("Ability of the node", ability);
 }
 void IoTNode::finish() {
+    recordScalar("IsMalicious", benevolent ? 0 : 1);
   // her node'un kendi tuttuğu trustları yazdırmak için
   for (auto &entry : trustMap) {
     int targetId = entry.first;
