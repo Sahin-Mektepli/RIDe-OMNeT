@@ -40,6 +40,7 @@ static const std::vector<std::string> serviceTypes = {"A"};
 
 class SemiNode : public omnetpp::cSimpleModule {
 private:
+  static int totalServicesReceived;
   static int totalBadServicesReceived;
   static int totalBenevolentNodes;
   static std::set<int> maliciousNodeIds;

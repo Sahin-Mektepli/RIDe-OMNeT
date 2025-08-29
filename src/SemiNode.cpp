@@ -17,6 +17,7 @@
 #include <string>
 #include <vector>
 
+
 std::default_random_engine genS;
 std::uniform_real_distribution<double> uniform_real_distS{0, 1};
 using namespace omnetpp;
@@ -41,6 +42,7 @@ int SemiNode::globalBlockId = 0;
 std::set<int> SemiNode::maliciousNodeIds;
 int SemiNode::totalBadServicesReceived = 0;
 int SemiNode::totalBenevolentNodes = 0;
+int SemiNode::totalServicesReceived = 0;
 
 /*
  * How many times did I request a service from J
@@ -582,7 +584,9 @@ void SemiNode::handleFinalServiceResponseMsg(cMessage *msg) {
   if (benevolent && quality <= 0) {
     badServicesReceived++;
     totalBadServicesReceived++;
+
   }
+  ++totalServicesReceived;
   double rarity = calculateRarity(serviceType);
   double timeliness = 10; // TODO: bunu bilmiyom henuz...
   double rating =
@@ -653,6 +657,14 @@ void SemiNode::handleSelfMessage(cMessage *msg) {
               .c_str(),
           (double)totalBadServicesReceived / totalBenevolentNodes);
     }
+    double ratio = 0.0;
+        if (totalServicesReceived > 0) {
+            ratio = (double)totalBadServicesReceived / (double)totalServicesReceived;
+        }
+        recordScalar(
+            ("BadServiceRatioAt_" + std::to_string((int)simTime().dbl())).c_str(),
+            ratio
+        );
     scheduleAt(simTime() + 10.0, msg); // repeat every 10s
     // WARN: bunun suresini azaltmak fark yaratir mi acaba?
     return;
