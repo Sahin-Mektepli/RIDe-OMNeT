@@ -368,6 +368,10 @@ void SemiNode::initialize() {
     potency = -10; // bunlar kaç olmalı bilmiyorum burada chatgpt'nin yazdığını
                    // bıraktım buraya bakalım
     consistency = 1000;
+    if (hasPar("camouflageRate")) {
+             camouflageRate = par("camouflageRate").doubleValue();
+           }
+
   } else {
     benevolent = true;
     totalBenevolentNodes++;
@@ -382,6 +386,7 @@ void SemiNode::initialize() {
   // için)
   badServiceLogger = new cMessage("badServiceLogger");
   scheduleAt(simTime() + 10.0, badServiceLogger); // 10 saniyede bir şu anda
+  recordScalar("Camouflage Rate:",camouflageRate);
 }
 
 void SemiNode::printBlockChain(std::vector<Block> blockchain) {
