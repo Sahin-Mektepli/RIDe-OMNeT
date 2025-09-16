@@ -10,7 +10,13 @@ std::vector<int> ForestFire::allNodeIds;
 //NOTE there is a chance that having this in the header is better
 double rho = 0.9; //discount factor
 double lambda = 1; //TODO CHANGE THIS, I DON'T KNOW WHAT IS SHOULD BE
+std::set<int> ForestFire::maliciousNodeIds;
+int ForestFire::totalBadServicesReceived = 0;
+int ForestFire::totalBenevolentNodes = 0;
+int ForestFire::opportunisticNodeId = -1;
+int ForestFire::totalServicesReceived = 0;
 
+std::default_random_engine gen;
 //returns a random int in range [low,high]
 int uniform_int_in_range(int low, int high){
     std::uniform_int_distribution<int> dist{low, high};
@@ -26,7 +32,7 @@ void ForestFire::initialize(){
     // For nodes to find each other
     populateRoutingTable();
     // Schedule service table update after all nodes are initialized
-    scheduleAt(simTime() + 0.1, new cMessage("populateServiceTable"));
+    //scheduleAt(simTime() + 0.1, new cMessage("populateServiceTable"));
 
     int attackerTypeValue = getParentModule()->par("attackerType");
     setMalicious(AttackerType(attackerTypeValue));
@@ -44,7 +50,7 @@ void ForestFire::initialize(){
     //
     ffTick = new cMessage("ff_tick");
 
-        scheduleAt(simTime() + 5.0, ffTick);
+        scheduleAt(simTime() + 10.0, ffTick);
     joinTime = simTime();
 }
 /**
@@ -57,7 +63,73 @@ void ForestFire::setPotencyAndConsistency() {
   double cons = uniform_real_in_range(0.5, 2.0);
   this->consistency = cons;
 }
-void ForestFire::setMalicious(AttackerType type){//burayı neden boş bıraktık eski kod ile aynı olmayacak mı?
+void ForestFire::setMalicious(AttackerType type){//burayı neden boş bıraktık eski kod ile aynı olmayacak mı? şimdilik eski kodu yapıştırdım buraya(burası bir hataya yol açıyor olabilir)
+
+      EV << "\n\n\n\nWe use attack number " << type
+         << " in this simulation\n\n\n\n";
+      int totalNodes = getParentModule()->par("numNodes");
+      int numMalicious =
+          int(par("maliciousNodePercentage").doubleValue() * totalNodes);
+
+      // Sadece ilk node random seçim yapar
+      if (getId() == 2) {
+
+          maliciousNodeIds.clear();
+          std::vector<int> allIds;
+          for (int i = 2; i < 2 + totalNodes; ++i)
+            allIds.push_back(i);
+          std::shuffle(allIds.begin(), allIds.end(), gen);
+
+          if (type == OPPORTUNISTIC) {
+            opportunisticNodeId = allIds.front();
+            EV << "OPPORTUNISM BY NODE " << opportunisticNodeId << '\n';
+          }
+          maliciousNodeIds.insert(allIds.begin(), allIds.begin() + numMalicious);
+          maliciousNodeIds.erase(opportunisticNodeId); // this is excluded for some reason
+
+      }
+
+
+      if (type == OPPORTUNISTIC && getId() == opportunisticNodeId) {
+        attackerType = OPPORTUNISTIC;
+        //isOpportunisticNode = true;
+        //benevolent = false; // Başta iyi
+        // potency = 9; //These values should not be set after initalization
+        // consistency = 2.0;
+      } else if (maliciousNodeIds.count(getId()) > 0) {
+        //!!opportunistic saldırıda iyi davranan bir node belirli bir süre sonra
+        //! kötü davranmaya başlıyor ama onun dışında da kötü nodelar olabilir
+        //! onların türünü kamuflaj yaptım kamuflajı 0 yaparsak yüzde yüz kötücül de
+        //! olabilir
+        attackerType =
+            (type == OPPORTUNISTIC)
+                ? CAMOUFLAGE
+                : type; // opportunistic attack dışınadkiler direkt kendi türüne
+                        // eşitleniyor saldırımız opportunistic ise seçilmiş node
+                        // dışındakiler kamuflaj saldırısı yapıyor
+        //benevolent = false;
+        if (attackerType == CAMOUFLAGE) {
+            // read camouflageRate from omnetpp.ini (defaults to 0.0 if not provided)
+            if (hasPar("camouflageRate")) {
+              camouflageRate = par("camouflageRate").doubleValue();
+            }
+
+          EV << "CAMOUFLAGE BY NODE " << getId() << "\n";
+          getDisplayString().setTagArg("i", 1, "blue");
+        } else if (attackerType == MALICIOUS_100) {
+          getDisplayString().setTagArg("i", 1, "red");
+
+        } else if (attackerType == BAD_MOUTHING) {
+          // iyi servis kötü yorum ise
+          getDisplayString().setTagArg("i", 1, "purple");
+        }
+      } else {
+        attackerType = BENEVOLENT;
+        //benevolent = true;
+        totalBenevolentNodes++;
+      }
+
+
 }
 
 /**
@@ -146,9 +218,14 @@ void ForestFire::handleMessage(cMessage *msg) {
         handleCoreAndComp();
         // 2) Seçilen hedefler için T_final hesapla ve ban uygula
         updateTrustForSelected();
-        // 3) Bir sonraki tura planla
+        // 3) ŞİMDİ servis denemesi yap (sonraki tur için Act_recent güncellensin)
+                if (coreNode >= 0 && coreNode != getId()) probeAndUpdate(coreNode);
+                for (int id : compNodes) {
+                    if (id != getId()) probeAndUpdate(id);
+                }
 
-        scheduleAt(simTime() + 5.0, ffTick);
+        // 4) sonraki tura planla
+        scheduleAt(simTime() + 10.0, ffTick);
         return;
     }
 
@@ -251,6 +328,48 @@ void ForestFire::ban(int nodeId, double tfinal) {
                << " < threshold=" << trustThreshold << ")\n";
         }
     }
+}//servis al ver servisin içinde kalitesi yazsın gibi olan kısımları yazmak yerine böyle yazdım. Sıkıntı varsa değiştiririz
+bool ForestFire::simulateServiceSuccessFrom(int serverId) {
+    //dblrand(): 0-1 arası random değer döndürür
+    ForestFire* s = getNodeById(serverId);
+    if (!s || s->banned) return false;
+
+    double pr = s->pGood;
+    switch (s->attackerType) {
+        case BENEVOLENT:
+            pr = s->pGood; break;
+        case MALICIOUS_100:
+            pr = 0.0; break;
+        case CAMOUFLAGE:
+            pr = (dblrand() < s->camouflageRate) ? s->pGood : s->pBad;
+            break;
+    }
+    return dblrand() < pr; //pr: iyi servis verme olasılığı, hata payı ekledim değerleri farklı verirsek hata payı olmayabilir de
 }
+
+void ForestFire::probeAndUpdate(int serverId) {
+    bool ok  = simulateServiceSuccessFrom(serverId);
+    double old = getActRecent(serverId);      // yoksa 1.0
+    double obs = ok ? 1.0 : 0.0;
+    activityRecent[serverId] = (1.0 - actAlpha) * old + actAlpha * obs; // recent dediği için normal bir ortalama almak yerine yakın zamanda olanların etkisini daha çok aldım
+
+
+}
+void ForestFire::finish() {
+    // Zamanlayıcıyı güvenli kapat
+    if (ffTick) {
+        cancelAndDelete(ffTick);
+        ffTick = nullptr;
+    }
+
+    // Bu modülü global listelerden çıkar
+    auto it = std::find(allNodes.begin(), allNodes.end(), this);
+    if (it != allNodes.end()) allNodes.erase(it);
+
+    auto it2 = std::find(allNodeIds.begin(), allNodeIds.end(), getId());
+    if (it2 != allNodeIds.end()) allNodeIds.erase(it2);
+}
+
+
 
 

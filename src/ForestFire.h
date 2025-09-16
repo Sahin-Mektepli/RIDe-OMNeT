@@ -46,6 +46,11 @@ private:
     bool isClusterHead = false;
     double potency; //How good the services generally are
     double consistency; //How consistant the quality is
+    static int totalBadServicesReceived; // for logging
+     static int totalBenevolentNodes;     // for logging
+     static std::set<int> maliciousNodeIds;
+     static int totalServicesReceived;
+     static int opportunisticNodeId;
     enum AttackerType {
         BENEVOLENT, //0
         CAMOUFLAGE,//1
@@ -66,6 +71,7 @@ protected:
     simtime_t joinTime;
     virtual void initialize() override;
     virtual void handleMessage(omnetpp::cMessage *msg) override;
+    virtual void finish() override;
     static std::vector<ForestFire *> allNodes;
     void setPotencyAndConsistency();
     std::map<int, int> routingTable; // Maps Node ID → Gate Index
@@ -79,6 +85,15 @@ protected:
     static std::vector<int> allNodeIds;
     ForestFire* getNodeById(int);
     bool banned = false; //a flag to effectively expell the nodes from the system
+     double actAlpha      = 0.2;   //  (yakın geçmişe ağırlık)
+
+      // --- Davranış parametreleri
+      AttackerType attackerType = BENEVOLENT;
+      double pGood = 0.98;           // iyi düğüm servis başarı olasılığı
+      double pBad  = 0.05;           // kötü davranışta "yanlışlıkla iyi" olasılığı
+      //simtime_t switchTime = 30.0;   // CAMOUFLAGE kötüleşme zamanı
+      double camouflageRate = 0.3;
+
 
     double calcPsi(double actRec, double rho_,double tSecs);
     auto gettrecent(int targetId)const;
@@ -89,6 +104,8 @@ protected:
     double computeTfinalFor(int targetId) const;
     void updateTrustForSelected() ;
     void ban(int nodeId, double tfinal);
+    bool simulateServiceSuccessFrom(int serverId);
+    void probeAndUpdate(int serverId);
 
         };
 #endif
