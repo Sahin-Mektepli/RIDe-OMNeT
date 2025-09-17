@@ -154,7 +154,7 @@ void ForestFire::populateRoutingTable() {
  * Just takes them by random
  * TODO should there be a core node for each group? evet ama bizim uyarlamamızda olması ya da olmaması bir şey değiştirmiyor
  */
-auto ForestFire::handleCoreAndComp(){
+/*auto ForestFire::handleCoreAndComp(){
     int coreNodeId;
     std::vector<int> compNodeIds;
 
@@ -172,12 +172,12 @@ auto ForestFire::handleCoreAndComp(){
                break;
            }
         }
-    }while(badId);
+    }while(badId);//burada loop'a giriyor diye düşündüm o yüzden değiştirdim
     coreNodeId = randomId;
     std::vector<int> availableNodeIds;
     for(const auto& node : allNodes){
         if(!node->banned){
-            int id = getId();
+            int id = node->getId();//burada da sadece getId() yazıyordu o zaman hep aynı node'un Id'sini eklemiş oluyorduk
             if(id != coreNodeId)
                 availableNodeIds.push_back(id);
         }
@@ -190,7 +190,39 @@ auto ForestFire::handleCoreAndComp(){
 
     setCoreNode(coreNodeId);
     setCompNodes(compNodeIds);
+}*/
+auto ForestFire::handleCoreAndComp(){
+    // 1) Banlı olmayanları topla
+    std::vector<int> eligible;
+    eligible.reserve(allNodes.size());
+    for (auto* n : allNodes) {
+        if (n && !n->banned) eligible.push_back(n->getId());
+    }
+    if (eligible.empty()) {
+        setCoreNode(-1);
+        setCompNodes({});
+        return;
+    }
+
+    // 2) Core
+    int coreIdx = intuniform(0, (int)eligible.size()-1);
+    int coreNodeId = eligible[coreIdx];
+
+    // 3) Complementary
+    std::vector<int> pool;
+    pool.reserve(eligible.size());
+    for (int id : eligible) if (id != coreNodeId) pool.push_back(id);
+
+    // 4) compNodes'ı tekrarsız rastgele doldur
+    std::shuffle(pool.begin(), pool.end(), gen);
+    const int take = std::min(10, (int)pool.size());
+    std::vector<int> compNodeIds(pool.begin(), pool.begin()+take);
+
+
+    setCoreNode(coreNodeId);
+    setCompNodes(compNodeIds);
 }
+
 void ForestFire::setCoreNode(int id){coreNode = id;}
 void ForestFire::setCompNodes(std::vector<int> ids){
     //this function "sets" the compNodes vector
@@ -228,6 +260,23 @@ void ForestFire::handleMessage(cMessage *msg) {
         scheduleAt(simTime() + 10.0, ffTick);
         return;
     }
+    else if (strcmp(msg->getName(), "badServiceLogger") == 0) {
+
+        if (totalBenevolentNodes > 0) {
+          recordScalar(
+              ("AverageBadServicesAt_" + std::to_string((int)simTime().dbl()))
+                  .c_str(),
+              (double)totalBadServicesReceived / totalBenevolentNodes);
+        }
+        if (totalServicesReceived > 0) {
+                double ratio = (double)totalBadServicesReceived / totalServicesReceived;
+                recordScalar(
+                    ("BadServiceRatioAt_" + std::to_string((int)simTime().dbl()))
+                        .c_str(),
+                    ratio);
+            }scheduleAt(simTime() + 10.0, msg); // repeat every 10s
+            return;
+          }
 
     // ...buraya eklme yapmamız gerekebilir düşünmedim daha ...
 }
