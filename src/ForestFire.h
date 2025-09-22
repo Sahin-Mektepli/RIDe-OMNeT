@@ -61,7 +61,7 @@ private:
     }; // use this and switch statements to control
     void setMalicious(AttackerType type);
     int groupNo;
-    double trustThreshold = 0.5;   // .ini'den okunur hale getirebiliriz bunları
+    double trustThreshold = 0.3;   // .ini'den okunur hale getirebiliriz bunları
     double rho = 0.9;              // .ini'den okunur
     double lambdaScale = 1.0;      // .ini'den okunur
     int compCount = 5;             // .ini'den okunur

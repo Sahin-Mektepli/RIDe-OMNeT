@@ -251,11 +251,18 @@ void ForestFire::handleMessage(cMessage *msg) {
         // 2) Seçilen hedefler için T_final hesapla ve ban uygula
         updateTrustForSelected();
         // 3) ŞİMDİ servis denemesi yap (sonraki tur için Act_recent güncellensin)
-                if (coreNode >= 0 && coreNode != getId()) probeAndUpdate(coreNode);
-                for (int id : compNodes) {
-                    if (id != getId()) probeAndUpdate(id);
-                }
-
+        // Core
+               if (coreNode >= 0 && coreNode != getId()) {
+                   if (auto* s = getNodeById(coreNode); s && !s->banned) {
+                       probeAndUpdate(coreNode);
+                   }
+               }
+               // Complementary
+               for (int id : compNodes) {
+                   if (id == getId()) continue;
+                   if (auto* s = getNodeById(id); s && !s->banned) {
+                       probeAndUpdate(id);
+                   }}
         // 4) sonraki tura planla
         scheduleAt(simTime() + 10.0, ffTick);
         return;
@@ -386,7 +393,8 @@ bool ForestFire::simulateServiceSuccessFrom(int serverId) {
     double pr = s->pGood;
     switch (s->attackerType) {
         case BENEVOLENT:
-            pr = s->pGood; break;
+           // pr = s->pGood; break;
+            pr = 1.0; break;
         case MALICIOUS_100:
             pr = 0.0; break;
         case CAMOUFLAGE:
@@ -397,7 +405,17 @@ bool ForestFire::simulateServiceSuccessFrom(int serverId) {
 }
 
 void ForestFire::probeAndUpdate(int serverId) {
+    ForestFire* s = getNodeById(serverId);
+    if (!s || s->banned) {
+            // Banlı ya da bulunamadı -> deneme yok, kötü servis sayma
+            return;
+        }
     bool ok  = simulateServiceSuccessFrom(serverId);
+
+    // --- AĞ GENELİ sayaçlar ---
+        totalServicesReceived++;
+        if (!ok) totalBadServicesReceived++;
+
     double old = getActRecent(serverId);      // yoksa 1.0
     double obs = ok ? 1.0 : 0.0;
     activityRecent[serverId] = (1.0 - actAlpha) * old + actAlpha * obs; // recent dediği için normal bir ortalama almak yerine yakın zamanda olanların etkisini daha çok aldım
