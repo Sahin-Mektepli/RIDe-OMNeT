@@ -16,6 +16,8 @@ int ForestFire::totalBenevolentNodes = 0;
 int ForestFire::opportunisticNodeId = -1;
 int ForestFire::totalServicesReceived = 0;
 
+bool ForestFire::summaryWritten = false;//en son ekrana bütün sonuçları sadece bir kere yazdırmak için
+
 std::default_random_engine gen;
 //returns a random int in range [low,high]
 int uniform_int_in_range(int low, int high){
@@ -244,6 +246,14 @@ ForestFire* ForestFire::getNodeById(int id){
         return nullptr;
     }
 }
+
+const ForestFire* ForestFire::getNodeById(int id) const {
+    auto it = find_if(allNodes.begin(), allNodes.end(),
+                      [id](const auto& node){ return node->getId() == id; });
+    if (it != allNodes.end()) return *it;
+    EV << "Warning: Node with ID " << id << " not found!" << endl;
+    return nullptr;
+}
 void ForestFire::handleMessage(cMessage *msg) {
     if (msg == ffTick) {
         // 1) Bu tur için rastgele core + complementary seç
@@ -293,14 +303,14 @@ void ForestFire::handleMessage(cMessage *msg) {
 auto ForestFire:: gettrecent(int targetId) const {
     auto it = recentTrust.find(targetId);
     if (it != recentTrust.end()) return it->second;
-    return 0.51;
+    return 0.5;
 }
 auto ForestFire::calcZeta(double Trecent){
     double zeta;
     zeta = 0.51 + Trecent;
     return zeta;
 }
-auto ForestFire::getTime(){
+auto ForestFire::getTime()const{
     //TODO implement this
     return (simTime() - joinTime).dbl();
     //her node kendi içinde tutabilir banned olunca sıfırlanmalı
@@ -309,12 +319,12 @@ auto ForestFire::getTime(){
 auto ForestFire::getActRecent(int targetId) const {
         auto it = activityRecent.find(targetId);
         if (it != activityRecent.end()) return it->second;
-        return 1.0;
+        return 0.5;
     }
 
 
 double ForestFire::calcPsi(double actRec, double rho_, double tSecs) {
-    return std::pow(rho_, tSecs) * actRec;
+    return std::clamp((1-std::pow(rho_, tSecs) )* actRec, 0.0, 1.0);//1- yeni eklendi
 }
 auto ForestFire::calcT_now(double zeta, double psi, double lambda_){
 
@@ -335,13 +345,14 @@ double ForestFire::computeTfinalFor(int targetId) const {
         if (observer->getId() == targetId) continue; // self-vote yok
 
         // Her gözlemci kendi hafızasından bakarak T_now hesaplar:
-        const double t   = observer->getTime();//TODO : observer'ın mı target'ın mı süresi olmalı burada ona karar ver
+        double t = getNodeById(targetId)->getTime();//TODO : observer'ın mı target'ın mı süresi olmalı burada ona karar ver
         const double Tr  = observer->gettrecent(targetId);
         const double Ar  = observer->getActRecent(targetId);
         const double z   = observer->calcZeta(Tr);
         const double psi = observer->calcPsi(Ar, observer->rho, t);
 
-        const double tn  = observer->calcT_now(z, psi, observer->lambdaScale);
+         double tn  = observer->calcT_now(z, psi, observer->lambdaScale);
+        tn = std::clamp(tn, 0.0, 1.0);
         votes.push_back(tn);
     }
 
@@ -422,7 +433,45 @@ void ForestFire::probeAndUpdate(int serverId) {
 
 
 }
+const char* ForestFire::roleToStr(AttackerType a) {
+    switch (a) {
+        case BENEVOLENT:     return "benevolent";
+        case MALICIOUS_100:  return "malicious_100";
+        case CAMOUFLAGE:     return "camouflage";
+        case BAD_MOUTHING:   return "bad_mouthing";
+        case OPPORTUNISTIC:  return "opportunistic";
+        default:             return "unknown";
+    }
+}
 void ForestFire::finish() {
+    if (!summaryWritten) {
+        summaryWritten = true;
+
+        // Pretty header (goes to the event log / console)
+        EV_INFO << "\n===== FINAL NODE SNAPSHOT =====\n"
+                << "nodeId   t_final     role            banned\n";
+
+        // Snapshot all nodes once
+        for (auto* n : allNodes) {
+            if (!n) continue;
+
+            const double tf = n->computeTfinalFor(n->getId());
+            //updateTrustForSelected();//burada olması hiç mantıklı değil amam bir şeyi kontrol etmek içi koydum
+            const int bannedFlag = n->banned ? 1 : 0;
+
+
+
+            EV << "nodeId=" << n->getId()
+               << "  t_final=" << tf
+               << "  role=" << roleToStr(n->attackerType)
+               << "  banned=" << (n->banned ? 1 : 0)
+               << "\n";
+
+
+        }}
+
+
+
     // Zamanlayıcıyı güvenli kapat
     if (ffTick) {
         cancelAndDelete(ffTick);

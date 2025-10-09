@@ -61,9 +61,9 @@ private:
     }; // use this and switch statements to control
     void setMalicious(AttackerType type);
     int groupNo;
-    double trustThreshold = 0.3;   // .ini'den okunur hale getirebiliriz bunları
+    double trustThreshold = 0.55;   // .ini'den okunur hale getirebiliriz bunları
     double rho = 0.9;              // .ini'den okunur
-    double lambdaScale = 1.0;      // .ini'den okunur
+    double lambdaScale = 0.5;      // .ini'den okunur
     int compCount = 5;             // .ini'den okunur
 protected:
     std::map<int,double> activityRecent; // Act_recent
@@ -84,28 +84,33 @@ protected:
     void setCompNodes(std::vector<int> ids);
     static std::vector<int> allNodeIds;
     ForestFire* getNodeById(int);
+    const ForestFire* getNodeById(int id) const;
     bool banned = false; //a flag to effectively expell the nodes from the system
-     double actAlpha      = 0.2;   //  (yakın geçmişe ağırlık)
+     double actAlpha      = 0.4;   //  (yakın geçmişe ağırlık)
 
       // --- Davranış parametreleri
       AttackerType attackerType = BENEVOLENT;
       double pGood = 0.98;           // iyi düğüm servis başarı olasılığı
       double pBad  = 0.05;           // kötü davranışta "yanlışlıkla iyi" olasılığı
       //simtime_t switchTime = 30.0;   // CAMOUFLAGE kötüleşme zamanı
-      double camouflageRate = 0.3;
+      double camouflageRate = 0.0;
 
 
     double calcPsi(double actRec, double rho_,double tSecs);
     auto gettrecent(int targetId)const;
     auto calcZeta(double Trecent);
     auto getActRecent(int targetId) const;
-    auto getTime();
+    auto getTime()const;
     auto calcT_now(double zeta, double psi, double lambda_);
     double computeTfinalFor(int targetId) const;
     void updateTrustForSelected() ;
     void ban(int nodeId, double tfinal);
     bool simulateServiceSuccessFrom(int serverId);
     void probeAndUpdate(int serverId);
+
+    const char* roleToStr(AttackerType a);
+    static bool summaryWritten;
+
 
         };
 #endif
