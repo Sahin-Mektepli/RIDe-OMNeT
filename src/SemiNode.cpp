@@ -185,9 +185,14 @@ int SemiNode::numberOfRecommendors(int provId) {
   return counter;
 }
 // recTrust of this node i, to a recommender k, about node j
-double SemiNode::recommendationTrust(int reqId, int provId, int recId) {
+double SemiNode::recommendationTrust(int reqId, int recId, int provId) {
   // find out the difference between the previous recommendation trust and the
   // rating of the service resulted because of that recom
+
+  //we need to ignore the provId in this function
+  // because we should iterate over all the ratings of the requestor
+  // and inspect the direct trust of k to all of them
+  // not just to a single provider
 
   // sum over a time window:
   // RR_ik(t) * DR_ik(t) --> numerator
@@ -202,23 +207,28 @@ double SemiNode::recommendationTrust(int reqId, int provId, int recId) {
   double rating;
   for (const auto &block : blocksInWindow) {
     extract(block.transactionData, rating, blockReqId, blockProvId);
+    int j_prime = blockProvId; //makes it easier to follow
     // trying to see if the block is relevant
-    if (blockReqId != reqId || blockProvId != provId) {
+    if (blockReqId != reqId){
+      //the requestor should be this node
+      continue;
+    }
+    // ignore the ratings to the recommender by the requestor
+    // or the recommenders ratings to the requestor
+    if (j_prime == recId || j_prime == provId){
       continue;
     }
     // if the block is relevant, go on
     double blockTime = block.timestamp;
     double timeDif = simTime().dbl() - blockTime;
 
-    double decayParameter = recommendationDecay(reqId, provId, recId, timeDif);
+    double decayParameter = recommendationDecay(reqId, j_prime, recId, timeDif);
 
     // bu, mevzubahis oylamanin verildigi anda i'nin j'ye verdigi oy ile
     // k'nin j'ye ne kadar guvendiginin farki.
     double diff;
-    double directTrust_kj = semiDT(recId, provId); // direct trust of k to j
+    double directTrust_kj = semiDT(recId, j_prime); // direct trust of k to j
     double rating_ij = rating;                     // the rating of i to j
-    //FIXME ratings are in (-10,10) and trust is in (0,1)
-    //ratings should be normalised from start as well!
     diff = std::abs(directTrust_kj - rating_ij);
 
     // recommendation rating of i to k is max(1 - diff_ik*2 , 0)
