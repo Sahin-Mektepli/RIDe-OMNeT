@@ -19,6 +19,7 @@ simple SemiNode
     parameters:
         @display("i=device/laptop");
         double maliciousNodePercentage;
+        int attackerType;
        // bool isMalicious = default(false);
         //string serviceType = default("default");
         // Add more parameters as needed

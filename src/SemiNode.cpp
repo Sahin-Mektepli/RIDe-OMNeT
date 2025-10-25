@@ -24,7 +24,6 @@ using namespace omnetpp;
 
 Define_Module(SemiNode);
 
-// TODO: bunlari henuz guncellemiyorum
 // a mapping from nodes to a mapping from nodes to counters
 static std::map<int, std::map<int, int>> nodeResponseCounts;
 // how many times this node requested from these nodes nodeId-->counter
@@ -152,7 +151,7 @@ double SemiNode::ratingTrustTo(int thisId, int nodeId) {
     return 0.5;
   }
   // over all the decay coefs (for some reason)
-  return ratings / decays * 0.1; // bizde rating'ler (-10,10)'da...
+  return ratings / decays;
 }
 
 // just responseTrust * ratingTrust
@@ -186,9 +185,14 @@ int SemiNode::numberOfRecommendors(int provId) {
   return counter;
 }
 // recTrust of this node i, to a recommender k, about node j
-double SemiNode::recommendationTrust(int reqId, int provId, int recId) {
+double SemiNode::recommendationTrust(int reqId, int recId, int provId) {
   // find out the difference between the previous recommendation trust and the
   // rating of the service resulted because of that recom
+
+  //we need to ignore the provId in this function
+  // because we should iterate over all the ratings of the requestor
+  // and inspect the direct trust of k to all of them
+  // not just to a single provider
 
   // sum over a time window:
   // RR_ik(t) * DR_ik(t) --> numerator
@@ -203,20 +207,27 @@ double SemiNode::recommendationTrust(int reqId, int provId, int recId) {
   double rating;
   for (const auto &block : blocksInWindow) {
     extract(block.transactionData, rating, blockReqId, blockProvId);
+    int j_prime = blockProvId; //makes it easier to follow
     // trying to see if the block is relevant
-    if (blockReqId != reqId || blockProvId != provId) {
+    if (blockReqId != reqId){
+      //the requestor should be this node
+      continue;
+    }
+    // ignore the ratings to the recommender by the requestor
+    // or the recommenders ratings to the requestor
+    if (j_prime == recId || j_prime == provId){
       continue;
     }
     // if the block is relevant, go on
     double blockTime = block.timestamp;
     double timeDif = simTime().dbl() - blockTime;
 
-    double decayParameter = recommendationDecay(reqId, provId, recId, timeDif);
+    double decayParameter = recommendationDecay(reqId, j_prime, recId, timeDif);
 
     // bu, mevzubahis oylamanin verildigi anda i'nin j'ye verdigi oy ile
     // k'nin j'ye ne kadar guvendiginin farki.
     double diff;
-    double directTrust_kj = semiDT(recId, provId); // direct trust of k to j
+    double directTrust_kj = semiDT(recId, j_prime); // direct trust of k to j
     double rating_ij = rating;                     // the rating of i to j
     diff = std::abs(directTrust_kj - rating_ij);
 
@@ -591,7 +602,7 @@ void SemiNode::handleFinalServiceResponseMsg(cMessage *msg) {
     totalBadServicesReceived++;
   }
   double rarity = calculateRarity(serviceType);
-  double timeliness = 10; // TODO: bunu bilmiyom henuz...
+  double timeliness = 10;
   double rating =
       calculateRating(quality, timeliness, rarity); // handles attacks too
 
@@ -823,7 +834,7 @@ double SemiNode::calculateRatingCamouflage(double quality, double timeliness,
   if (performsCamouflage(this->camouflageRate)) { // normal rating
     return calculateRatingBenevolent(quality, timeliness, rarity);
   } else {
-    return -10;
+    return 0; //worst rating is 0 in Semi
   }
 }
 
@@ -837,8 +848,15 @@ double SemiNode::calcQualityCamouflage(double potency, double consistency) {
     return -10;
   }
 }
-double SemiNode::badMouthingRating() { return 0; }
+double SemiNode::badMouthingRating() {
+  // Simply returns the worst rating possible.
+  return 0; }
 
+double normaliseRating(double rating_neg10_10){
+  // Normalises a rating in [-10,10] to [0,1]
+  return (rating_neg10_10+10.0) /20;
+}
+//TODO ratings should be in (0,1) in Semi!!
 double SemiNode::calculateRating(double quality, double timeliness,
                                  double rarity) {
   enum AttackerType type = this->attackerType;
@@ -926,13 +944,19 @@ double SemiNode::calculateRatingBenevolent(double quality, double timeliness,
      << " AND WAS FOUND TO BE: " << quality << '\n';
   // the weighted average of the thre components
   rating = (wQ * quality + wR * rarity + wT * timeliness) / (wQ + wR + wT);
+  double normalised_rating =normaliseRating(rating);
   EV << "TIMELINESS IS: " << timeliness
      << " AND RARITY OF THE SERVICE IS: " << rarity << "\n";
-  EV << "RATING IS CALCULATED AS: " << rating << '\n';
-  return rating;
+  EV << "RATING IS CALCULATED AS: " << rating << '\n'
+    << "IT IS NORMALISED AS " << normalised_rating << '\n';
+
+  return normalised_rating;
 }
 void SemiNode::sendRating(int providerId, double rating) {
-  // rating in (-10,10)'e karar verildi
+  if(rating > 1 || rating < 0){
+    EV << "\n\n\nRating is not in range (0,1)\nSomething is really wrong!\n\n\n";
+  }
+
   EV << "IoT Node " << getId() << " gives a score of " << rating << " to Node "
      << providerId << endl;
 
@@ -965,7 +989,7 @@ void SemiNode::sendTransactionToClusterHead(ServiceRating *transaction) {
   }
 
   // Select a random Cluster Head
-  // TODO: This should not be random. Each node must have one and only one
+  // This should not be random. Each node must have one and only one
   // CH to which it sends.
   int randomIndex = intuniform(0, clusterHeads.size() - 1);
   SemiNode *bestClusterHead = clusterHeads[randomIndex];
@@ -977,7 +1001,7 @@ void SemiNode::sendTransactionToClusterHead(ServiceRating *transaction) {
     EV << "Error: No known route to Cluster Head " << clusterHeadId << endl;
     delete transaction; // Prevent memory leak
                         // this is not ideal.
-                        // TODO: it should create a new route or sth if
+                        // it should create a new route or sth if
                         // there is none!
     return;
   }
