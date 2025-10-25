@@ -20,6 +20,7 @@ simple SemiNode
         @display("i=device/laptop");
         double maliciousNodePercentage;
         int attackerType;
+         double camouflageRate = default(0);
        // bool isMalicious = default(false);
         //string serviceType = default("default");
         // Add more parameters as needed
