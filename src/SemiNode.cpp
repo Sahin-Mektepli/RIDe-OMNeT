@@ -42,6 +42,7 @@ int SemiNode::globalBlockId = 0;
 std::set<int> SemiNode::maliciousNodeIds;
 int SemiNode::totalBadServicesReceived = 0;
 int SemiNode::totalBenevolentNodes = 0;
+int SemiNode::totalServicesReceived = 0;
 
 /*
  * How many times did I request a service from J
@@ -601,6 +602,7 @@ void SemiNode::handleFinalServiceResponseMsg(cMessage *msg) {
     badServicesReceived++;
     totalBadServicesReceived++;
   }
+  totalServicesReceived++;
   double rarity = calculateRarity(serviceType);
   double timeliness = 10;
   double rating =
@@ -671,6 +673,13 @@ void SemiNode::handleSelfMessage(cMessage *msg) {
               .c_str(),
           (double)totalBadServicesReceived / totalBenevolentNodes);
     }
+    if (totalServicesReceived > 0) {
+              double ratio = (double)totalBadServicesReceived / totalServicesReceived;
+              recordScalar(
+                  ("BadServiceRatioAt_" + std::to_string((int)simTime().dbl()))
+                      .c_str(),
+                  ratio);
+          }
     scheduleAt(simTime() + 10.0, msg); // repeat every 10s
     // WARN: bunun suresini azaltmak fark yaratir mi acaba?
     return;
@@ -1118,6 +1127,44 @@ bool SemiNode::extract(const std::string &input, double &rating,
   }
 }
 void SemiNode::finish() {
+    //Accuracy için
+           if (getId() == 2) {//tek bir node içinde hesplamak için yazdım bu kısmı node id'leri 2'den başlıyor omnet'te
+               std::vector<std::pair<double, bool>> trustAndLabel;
+
+               for (SemiNode* node : allNodes) {
+                   trustAndLabel.emplace_back(node->trustScore, node->benevolent);
+               }
+
+               double bestF1 = 0.0;
+               double bestThreshold = 0.5;  // default threshold
+               double bestPrecision = 0.0, bestRecall = 0.0, bestAccuracy = 0.0;
+               double threshold = 0.5;//!!
+
+                     // for (double threshold = 0.0; threshold <= 1.0; threshold += 0.01) {
+                          int TP = 0, TN = 0, FP = 0, FN = 0;
+
+                          for (const auto& [score, isBenevolent] : trustAndLabel) {
+                              bool predictedBenevolent = (score >= threshold);
+                              //bu önemli!!!!
+                              //positive= malicious bu testlerde çünkü amacımız kötüyü bulmak
+                              if (!isBenevolent && !predictedBenevolent) TP++; // kötü olana kötü demiş
+                              else if (isBenevolent && predictedBenevolent) TN++;// iyi olana iyi demiş
+                              else if (!isBenevolent && predictedBenevolent) FN++;// kötüye iyi demiş
+                              else if (isBenevolent && !predictedBenevolent) FP++;// iyiye kötü demiş
+                          }
+
+                          double precision = (double)TP / (TP + FP + 1e-6);
+                          double recall = (double)TP / (TP + FN + 1e-6);
+                          double f1 = 2 * precision * recall / (precision + recall + 1e-6);
+                          double accuracy = (double)(TP + TN) / (TP + TN + FP + FN + 1e-6);
+
+
+                      recordScalar("BestThreshold", threshold);
+                      recordScalar("BestF1Score", f1);
+                      recordScalar("BestPrecision", precision);
+                      recordScalar("BestRecall", recall);
+                      recordScalar("BestAccuracy", accuracy);
+                  }        //
   if (badServiceLogger != nullptr) {
     cancelAndDelete(badServiceLogger);
     badServiceLogger = nullptr;

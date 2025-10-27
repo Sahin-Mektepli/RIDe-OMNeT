@@ -447,45 +447,65 @@ void ForestFire::finish() {
     if (!summaryWritten) {
         summaryWritten = true;
 
-        // Pretty header (goes to the event log / console)
         EV_INFO << "\n===== FINAL NODE SNAPSHOT =====\n"
                 << "nodeId   t_final     role            banned\n";
 
-        // Snapshot all nodes once
+        int TP = 0, TN = 0, FP = 0, FN = 0;
+
         for (auto* n : allNodes) {
             if (!n) continue;
-
             const double tf = n->computeTfinalFor(n->getId());
-            //updateTrustForSelected();//burada olması hiç mantıklı değil amam bir şeyi kontrol etmek içi koydum
-            const int bannedFlag = n->banned ? 1 : 0;
+            const bool banned = n->banned;
+            const bool isMalicious = (n->attackerType != BENEVOLENT);
 
-
+            // Confusion matrix components
+            if (isMalicious && banned) TP++;           // correctly detected attacker
+            else if (!isMalicious && !banned) TN++;    // correctly kept benevolent
+            else if (!isMalicious && banned) FP++;     // wrongly banned benevolent
+            else if (isMalicious && !banned) FN++;     // missed malicious
 
             EV << "nodeId=" << n->getId()
                << "  t_final=" << tf
                << "  role=" << roleToStr(n->attackerType)
-               << "  banned=" << (n->banned ? 1 : 0)
+               << "  banned=" << banned
                << "\n";
+        }
 
+        // ---- Compute Metrics ----
+        double accuracy = 0.0, precision = 0.0, recall = 0.0, f1 = 0.0;
+        int total = TP + TN + FP + FN;
+        if (total > 0) accuracy = double(TP + TN) / total;
+        if ((TP + FP) > 0) precision = double(TP) / (TP + FP);
+        if ((TP + FN) > 0) recall = double(TP) / (TP + FN);
+        if ((precision + recall) > 0) f1 = 2.0 * precision * recall / (precision + recall);
 
-        }}
+        // ---- Record Scalars ----
+        recordScalar("Final_Accuracy", accuracy);
+        recordScalar("Final_F1_Score", f1);
+        recordScalar("Final_Precision", precision);
+        recordScalar("Final_Recall", recall);
+        recordScalar("TruePositives", TP);
+        recordScalar("FalsePositives", FP);
+        recordScalar("TrueNegatives", TN);
+        recordScalar("FalseNegatives", FN);
 
+        EV_INFO << "\n===== FINAL PERFORMANCE =====\n"
+                << "Accuracy = " << accuracy
+                << " | F1 = " << f1
+                << " | Precision = " << precision
+                << " | Recall = " << recall << "\n";
+    }
 
-
-    // Zamanlayıcıyı güvenli kapat
+    // Cleanup timers and lists (keep your existing part)
     if (ffTick) {
         cancelAndDelete(ffTick);
         ffTick = nullptr;
     }
-
-    // Bu modülü global listelerden çıkar
     auto it = std::find(allNodes.begin(), allNodes.end(), this);
     if (it != allNodes.end()) allNodes.erase(it);
-
     auto it2 = std::find(allNodeIds.begin(), allNodeIds.end(), getId());
     if (it2 != allNodeIds.end()) allNodeIds.erase(it2);
 }
-
 
 
 
