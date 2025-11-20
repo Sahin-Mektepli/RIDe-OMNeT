@@ -146,7 +146,7 @@ void IoTNode::setMalicious(AttackerType type) {
   if (type == OPPORTUNISTIC && getId() == opportunisticNodeId) {
     attackerType = OPPORTUNISTIC;
     isOpportunisticNode = true;
-    benevolent = false; // Başta iyi
+    benevolent = true; // Başta iyi
     // potency = 9; //These values should not be set after initalization
     // consistency = 2.0;
   } else if (maliciousNodeIds.count(getId()) > 0) {

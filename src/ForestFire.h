@@ -51,6 +51,9 @@ private:
      static std::set<int> maliciousNodeIds;
      static int totalServicesReceived;
      static int opportunisticNodeId;
+     bool isOpportunisticNode = false;      // true for the selected opportunistic node
+     double opportunisticAttackTime = 500.0; // seconds, default
+
     enum AttackerType {
         BENEVOLENT, //0
         CAMOUFLAGE,//1

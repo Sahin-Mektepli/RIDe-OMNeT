@@ -1,24 +1,19 @@
 /*
- * SemiNode.h
+ * ride.h
  *
- *  Created on: 3 May 2025
- *      Author: esm
- *  IoTNode.h'nin bugunku halinin bir kopyasi uzerinden
+ *  Created on: 20 Kas 2025
+ *      Author: ipekm
  */
 
-#ifndef SEMI_H_
-#define SEMI_H_
+#ifndef SRC_RIDE_H_
+#define SRC_RIDE_H_
 
 #include "BlockchainMessage_m.h"
 #include <map>
 #include <omnetpp.h>
-#include <random>
 #include <set>
-#include <sstream>
-#include <string>
-#include <utility>
 #include <vector>
-
+// Add this at the top of IoTNode.h
 using namespace omnetpp;
 
 struct Block {
@@ -28,31 +23,23 @@ struct Block {
   double timestamp;
 };
 
-struct InteractionRecord {
-  double serviceQuality;
-  simtime_t timestamp;
-};
-
-// static const std::vector<std::string> serviceTypes = {"A", "B", "C", "D",
-// "E"};
-static const std::vector<std::string> serviceTypes = {"A"};
-// bunu ayri ayri yerlere koymamali
-
-class SemiNode : public omnetpp::cSimpleModule {
+class ride : public omnetpp::cSimpleModule {
 private:
   static int totalBadServicesReceived;
   static int totalBenevolentNodes;
-  static int totalServicesReceived;
   static std::set<int> maliciousNodeIds;
+  static int totalServicesReceived;
+
+  int lastProviderId = -1;//collaborative attack için
 
   int badServicesReceived = 0;
   cMessage *badServiceLogger = nullptr;
   //--parameters--
-  int windowSize = 100;         // just for testing purposes90 idi bu
+  int windowSize = 100;          // just for testing purposes90 idi bu
   int enoughEncounterLimit = 1; // TODO: these two parameters are just examples
   double genTrustCoef = 0.01;
-  double rancorCoef = 1.0;         // defined to be higher than 1
-  double decayFactor = 1;          // WARN: bunu 1'de unutmak, decay yok demek!
+  double rancorCoef = 2.0;           // defined to be higher than 1
+  double decayFactor = 0.5;          // WARN: bunu 1'de unutmak, decay yok demek!
   std::map<int, int> routingTable; // Maps Node ID → Gate Index
   //  std::map<int, std::string> serviceTable; // private olmalı gibi geldi
   //  TODO: bu eski hali sil
@@ -65,8 +52,6 @@ private:
                                                    // can provide that service
   double calculateRatingBenevolent(double quality, double timeliness,
                                    double rarity);
-  double calcQualityOpportunistic(double potency, double consistency);
-
   double wQ = 10; // weight of quality
   double wR = 1;  // weight of rarity
   double wT = 0;  // weight of timeliness
@@ -74,30 +59,29 @@ private:
   // -- TS coefficients -- (provider secerken kullanilan TS=a*dt + b*gt)
   double a = 1;
   double b = 1;
-  // -- Semi DT IT dengesini tayin etmekye mustamel l ve m kardinalleri:
-  double m = 10;
-  double l = 25;
-  double aWeight(int reqId, int provId);
-  double bWeight(int provId);
   //-- attackers --
   enum AttackerType {
     BENEVOLENT, // bunu eklemek sacma olabilir ama bulunsun
     CAMOUFLAGE,
     BAD_MOUTHING,
     MALICIOUS_100,
+    COLLABORATIVE,
     OPPORTUNISTIC
+
   }; // use this and switch statements to control
   enum AttackerType attackerType = BENEVOLENT; // default
   double calculateMalRating(enum AttackerType);
   double calculateRatingCamouflage(double quality, double timeliness,
                                    double rarity);
-
+  void setPotencyAndConsistency();
 protected:
+  bool noMalDominatedClusters();
+
   virtual void finish() override;
   virtual void initialize() override;
   virtual void handleMessage(omnetpp::cMessage *msg) override;
   // --- Message Handling ---
-
+  void setMalicious(AttackerType type);
   void handleSelfMessage(cMessage *msg);
 
   void handleNetworkMessage(cMessage *msg);
@@ -129,43 +113,23 @@ protected:
 
   bool extract(const std::string &input, double &rating, int &requesterId,
                int &providerId);
-  double calculateDirectTrust(int requestorId, int providerId, double time,
-                              int depth); // between a single i,j pair at time t
-  double calculateIndirectTrust(int requestor, int provider, double time,
-                                int depth); // if DT cannot be
-                                            // calculated
+  double
+  calculateDirectTrust(int requestorId, int providerId,
+                       double time ); // between a single i,j pair at time t
+  double calculateIndirectTrust(int requestor, int provider,
+                                double time); // if DT cannot be
+                                              // calculated
   bool enoughInteractions(int requestorId, int provider);
   // can I calculate DT for i and j? (this = i)
   double
   calculateDecay(double currentTime,
-                 double blockTime);  // this can be changed for many reasons!
-  const double semiDecayConst = 0.5; // DONE: makalede bu da yaziyormus
-  double semiDecay(int thisId, int nodeId, double timeDif);
-  double recomDecayConstantCr = 10; // makaleden meluf
-  void updateProviderGeneralTrust(SemiNode *provider, double requestorTrust,
+                 double blockTime); // this can be changed for many reasons!
+  void updateProviderGeneralTrust(ride *provider, double requestorTrust,
                                   double rating);
   double getTrust(int nodeId); // returns the general trust of a node given its
                                // id, may be unnecessary
 
-  SemiNode *getNodeById(int nodeId);
-
-  // -- Seminin mahsusati --
-
-  // Calculate the response trust of req to res(ponder)
-  double responseTrustTo(int reqId, int resId);
-  // Rating trust of this to the given node
-  double ratingTrustTo(int reqId, int resId);
-
-  // DT of this to node
-  double semiDT(int thisId, int nodeId);
-  double semiIT(int thisId, int nodeId);
-  std::vector<int> findRecommenders(int provInodeId);
-  int numberOfRecommendors(int provId);
-  double recommendationTrust(int thisId, int recId, int provId);
-  double recommendationDecay(int reqId, int provId, int recommenderId,
-                             double timeDif);
-  double totalTrust(int thisId, int nodeId);
-
+  ride *getNodeById(int nodeId);
   // Node'a mahsus attribute'ler
   double trustScore;
   double sumOfPositveRatings = 5;
@@ -191,24 +155,20 @@ protected:
   double calcQuality(double potency, double consistency);
   double calcQualityBenevolent(double potency, double consistency);
   double calcQualityCamouflage(double potency, double consistency);
-  static std::vector<SemiNode *> allNodes;
+  static std::vector<ride *> allNodes;
   static int numClusterHeads;
   static int globalBlockId;
   static std::vector<Block> blockchain;
 
   cMessage *serviceRequestEvent; // Add this line
-  static int opportunisticNodeId;   // chosen once, same for all
-  bool isOpportunisticNode = false; // true only for selected node
-  cMessage* opportunisticTriggerMsg = nullptr;
-  double opportunisticAttackTime = 500.0; // seconds (500 ticks if a tick is 1s)
-  // public:
-  // -- ihtilaf yuzunden buraya bazi gereksiz tanimlar ekliyorum--
-  void printBlockChain(std::vector<Block> blockchain);
-  std::vector<Block> takeBlocksInWindow();
-  bool performsCamouflage(double camouflageRate);
-  double badMouthingRating();
-  void printRoutingTable(const std::map<int, int> &routingTable);
-  int findRoute(int requesterId, int providerId);
+
+  //oppurtunistic attack: trust skoru en yüksek olan iyi node belirli bir zamanadan(opportunisticAttackTime) sonra kötü dvaranmaya başlarsa ne olur onu test ediyoruz
+  double opportunisticAttackTime = 500;
+   bool opportunisticAttackTriggered = false;
+   ride *opportunisticNode = nullptr;
+   bool isOpportunisticNode = false;
+   static int opportunisticNodeId;
+   cMessage *opportunisticTriggerMsg = nullptr;
 };
 
-#endif /* SEMI_H_ */
+#endif

@@ -43,6 +43,8 @@ std::set<int> SemiNode::maliciousNodeIds;
 int SemiNode::totalBadServicesReceived = 0;
 int SemiNode::totalBenevolentNodes = 0;
 int SemiNode::totalServicesReceived = 0;
+int SemiNode::opportunisticNodeId = -1;
+
 
 /*
  * How many times did I request a service from J
@@ -390,6 +392,39 @@ void SemiNode::initialize() {
     potency = 9; // quality 8-9 arası olacak diye düşündüm
     consistency = 2.0;
   }
+
+  if (getId() == 2 && SemiNode::opportunisticNodeId < 0) {
+      if (!maliciousNodeIds.empty()) {
+          // pick a random one among malicious nodes
+          std::vector<int> mlist(maliciousNodeIds.begin(), maliciousNodeIds.end());
+          int idx = intuniform(0, (int)mlist.size()-1);
+          SemiNode::opportunisticNodeId = mlist[idx];
+          EV << "[INIT] Opportunistic node selected: " << SemiNode::opportunisticNodeId << "\n";
+      } else {
+          // fallback: pick any node (very rare if malicious % is 0)
+          SemiNode::opportunisticNodeId = 2;
+          EV << "[INIT] Opportunistic fallback to nodeId=2\n";
+      }
+  }// --- mark self as opportunistic if selected ---
+  if (getId() == SemiNode::opportunisticNodeId) {
+      attackerType = OPPORTUNISTIC;
+      benevolent = true;                    // acts nice before the flip
+      isOpportunisticNode = true;
+
+      // allow override from .ini
+      if (hasPar("opportunisticAttackTime"))
+          opportunisticAttackTime = par("opportunisticAttackTime").doubleValue();
+
+      getDisplayString().setTagArg("i", 1, "orange");
+
+      // schedule a one-shot trigger at absolute sim time
+      opportunisticTriggerMsg = new cMessage("triggerOpportunistic");
+      scheduleAt(opportunisticAttackTime, opportunisticTriggerMsg);
+
+      EV << "[OPPORTUNISTIC] Node " << getId()
+         << " will flip at t=" << opportunisticAttackTime << "s\n";
+  }
+
   if (!benevolent) {
     getDisplayString().setTagArg("i", 1, "red"); // highlight malicious nodes
   }
@@ -665,6 +700,20 @@ void SemiNode::handleNetworkMessage(cMessage *msg) {
 
 void SemiNode::handleSelfMessage(cMessage *msg) {
   const char *msgName = msg->getName();
+  if (strcmp(msg->getName(), "triggerOpportunistic") == 0) {
+      if (isOpportunisticNode) {
+          // After flip: act fully malicious (equivalent to camouflageRate=0)
+          attackerType = CAMOUFLAGE;
+          camouflageRate = 0.0;
+          benevolent = false; // it is malicious from now on
+          EV << "[OPPORTUNISTIC] Node " << getId()
+             << " flips to fully malicious at t=" << simTime() << "s\n";
+          recordScalar("OpportunisticFlipTime", simTime().dbl());
+      }
+      delete msg;
+      opportunisticTriggerMsg = nullptr;
+      return;
+  }
 
   if (strcmp(msg->getName(), "badServiceLogger") == 0) {
     if (totalBenevolentNodes > 0) {
@@ -857,6 +906,14 @@ double SemiNode::calcQualityCamouflage(double potency, double consistency) {
     return -10;
   }
 }
+double SemiNode::calcQualityOpportunistic(double potency, double consistency) {
+    // benevolent until flip time, then worst quality
+    if (simTime().dbl() < opportunisticAttackTime)
+        return calcQualityBenevolent(9, 2.0); // serve good quality
+    else
+        return -10.0; // always bad afterwards
+}
+
 double SemiNode::badMouthingRating() {
   // Simply returns the worst rating possible.
   return 0; }
@@ -875,6 +932,11 @@ double SemiNode::calculateRating(double quality, double timeliness,
     return calculateRatingBenevolent(quality, timeliness, rarity);
   case CAMOUFLAGE:
     return calculateRatingCamouflage(quality, timeliness, rarity);
+  case OPPORTUNISTIC:
+      if (simTime().dbl() < opportunisticAttackTime)
+          return calculateRatingBenevolent(quality, timeliness, rarity);
+      else
+          return calculateRatingCamouflage(quality, timeliness, rarity);
   default:
     EV << "SOMETHING WENT WRONG WITH calculateRating!!\n";
     return 0; // should not defualt to here!
@@ -887,6 +949,9 @@ double SemiNode::calcQuality(const double potency, const double consistency) {
     return calcQualityBenevolent(potency, consistency);
   case CAMOUFLAGE:
     return calcQualityCamouflage(potency, consistency);
+  case OPPORTUNISTIC:
+      return calcQualityOpportunistic(potency, consistency);
+
   default:
     EV << "SOMETHING WENT WRONG WITH calcQuality!!\n";
     return 0; // should not defualt to here!
@@ -1169,6 +1234,11 @@ void SemiNode::finish() {
     cancelAndDelete(badServiceLogger);
     badServiceLogger = nullptr;
   }
+  if (opportunisticTriggerMsg != nullptr) {
+      cancelAndDelete(opportunisticTriggerMsg);
+      opportunisticTriggerMsg = nullptr;
+  }
+
 
   if (benevolent) {
     recordScalar("FinalBadServicesReceived", badServicesReceived);

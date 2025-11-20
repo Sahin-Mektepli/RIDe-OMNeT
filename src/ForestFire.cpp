@@ -91,10 +91,12 @@ void ForestFire::setMalicious(AttackerType type){//burayı neden boş bıraktık
 
       }
 
+      // read ffInterval and opportunisticStartTick from .ini if provided
 
       if (type == OPPORTUNISTIC && getId() == opportunisticNodeId) {
         attackerType = OPPORTUNISTIC;
-        //isOpportunisticNode = true;
+        isOpportunisticNode = true;
+
         //benevolent = false; // Başta iyi
         // potency = 9; //These values should not be set after initalization
         // consistency = 2.0;
@@ -411,9 +413,29 @@ bool ForestFire::simulateServiceSuccessFrom(int serverId) {
         case CAMOUFLAGE:
             pr = (dblrand() < s->camouflageRate) ? s->pGood : s->pBad;
             break;
-    }
-    return dblrand() < pr; //pr: iyi servis verme olasılığı, hata payı ekledim değerleri farklı verirsek hata payı olmayabilir de
-}
+
+        case OPPORTUNISTIC:
+                   // Opportunistic: benevolent until opportunisticSwitchTime, then fully malicious
+                   if (s->isOpportunisticNode) {
+                       if (simTime().dbl() >= s->opportunisticAttackTime) {
+                           // still benevolent phase
+                           pr = 1.0;
+                       } else {
+                           // after switch -> full malicious
+                           pr = 0.0;
+                       }
+                   } else {
+                       // defensive fallback: if the node type is opportunistic but not flagged as opportunistic
+                       pr = (dblrand() < s->camouflageRate) ? s->pGood : s->pBad;
+                   }
+        break;
+
+
+           }
+
+           return dblrand() < pr;
+       }
+
 
 void ForestFire::probeAndUpdate(int serverId) {
     ForestFire* s = getNodeById(serverId);
