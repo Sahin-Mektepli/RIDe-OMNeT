@@ -22,6 +22,8 @@ simple ride
         double maliciousNodePercentage;
         int attackerType;
          double camouflageRate = default(0);
+         double rancorCoef = default(2.0);
+         
        // bool isMalicious = default(false);
         //string serviceType = default("default");
         // Add more parameters as needed

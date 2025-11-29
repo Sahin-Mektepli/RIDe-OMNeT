@@ -154,6 +154,9 @@ void ride ::setPotencyAndConsistency() {
 }
 
 void ride::initialize() {
+    if (hasPar("rancorCoef"))
+        rancorCoef = par("rancorCoef");
+    recordScalar("RancorCoef", rancorCoef);
 
     setPotencyAndConsistency();
       // initialize()
