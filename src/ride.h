@@ -76,7 +76,7 @@ private:
   void setPotencyAndConsistency();
 
 protected:
-  bool noMalDominatedClusters();
+  bool noMalDominatedClusters(double threshold);
 
   virtual void finish() override;
   virtual void initialize() override;
@@ -176,6 +176,7 @@ protected:
 
   // ---  Record keeping functions ---
   void record_ability_and_trust(std::string filename);
+  void record_trust_and_benevolence(std::string filename);
 };
 
 #endif

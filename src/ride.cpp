@@ -10,6 +10,7 @@
 #include "BlockchainMessage_m.h"
 #include <algorithm>
 #include <cmath>
+#include <filesystem>
 #include <fstream>
 #include <map>
 #include <random>
@@ -50,7 +51,12 @@ static void printRoutingTable(const std::map<int, int> &routingTable) {
     EV << entry.first << "-->" << entry.second << "\n";
   }
 }
-bool ride::noMalDominatedClusters() {
+/**
+ * Examine each cluster in the graph and make sure that none of them are
+ * "dominated" by malicious nodes.
+ *  Dominated here means that at least "threshold" percent of the nodes are
+ * malicious. */
+bool ride::noMalDominatedClusters(double threshold) {
   int clusterSize =
       getParentModule()->par("clusterSize"); // we calculate this, not set
   int clusterCount = getParentModule()->par("clusterCount");
@@ -70,7 +76,7 @@ bool ride::noMalDominatedClusters() {
         countMal++;
     }
     // counted malicious nodes in the cluster
-    if (double(countMal) / clusterSize > 0.5)
+    if (double(countMal) / clusterSize > threshold)
       return false;
   }
   return true;
@@ -99,8 +105,8 @@ void ride::setMalicious(AttackerType type) {
       maliciousNodeIds.erase(
           opportunisticNodeId); // this is excluded for some reason
 
-    } while (!noMalDominatedClusters()); // try again until there are no such
-                                         // clusters.
+    } while (!noMalDominatedClusters(0.4)); // try again until there are no such
+                                            // clusters.
   }
 
   if (type == OPPORTUNISTIC && getId() == opportunisticNodeId) {
@@ -145,7 +151,7 @@ void ride::setMalicious(AttackerType type) {
 void ride ::setPotencyAndConsistency() {
   int id = getId();
 
-  double pot = uniform(-6, 10);
+  double pot = uniform(6, 10);
   this->potency = pot;
   EV << "Potency of node " << id << " is " << pot << '\n';
 
@@ -1028,25 +1034,67 @@ bool ride::extract(const std::string &input, double &rating, int &requesterId,
 }
 
 /*
- * Append the ability-score pair of this node to the csv file.
- * Each node shall call this function in the finish() function sequentially.
- * Therefore, all of them will be appending their own values.
+** This is a helper funciton that I had AI to write.
+**
+** Returns a timestamp like 2025-11-30_23-35-08
+*/
+std::string getTimestamp() {
+  // Get the current time as a "time_t" object (seconds since Epoch)
+  std::time_t now = std::time(nullptr);
+
+  // Convert to local time structure (struct tm)
+  std::tm *localTime = std::localtime(&now);
+
+  char buffer[100];
+  // Format: YYYY-MM-DD_HH-MM-SS
+  std::strftime(buffer, sizeof(buffer), "%Y-%m-%d_%H-%M-%S", localTime);
+
+  return std::string(buffer);
+}
+
+/*
+** Check if the given filename exists.
+** If it exists and is not empty, take a backup
+*/
+void handle_file_backup(const std::string filename) {
+  if (std::filesystem::exists(filename) &&
+      !std::filesystem::is_empty(filename)) {
+    std::string backupName = filename + getTimestamp() + ".bak";
+    std::filesystem::rename(filename, backupName);
+  }
+  // no need for a backup :p
+}
+
+/*
+ * Append the ability-score pair of this node and if it's benevolent to the csv
+ * file. Each node shall call this function in the finish() function
+ * sequentially. Therefore, all of them will be appending their own values.
  *
- * NOTE This function assumes that ability_trust.csv
- * (or the provided filename) is empty.
+ * NOTE if the given filename is not empty, this function creates a backup
+ * and then uses the filename for its own output.
  * */
 void ride::record_ability_and_trust(
-    std::string filename = "ability_trust.csv") {
+    const std::string filename = "ability_trust.csv") {
+  // calculate abillity first
   double ability = potency * consistency;
   // store the results in a designated folder
   std::string full_filename = "results/RIDe/" + filename;
 
+  // check if the file already exists and take backup if it's not empty
+  // did you already take a backup? don't try to backup for each node!
+  static bool taken_backup = false;
+  if (!taken_backup) { // realise that it's a static varible
+    handle_file_backup(full_filename);
+    taken_backup = true;
+  }
+
   std::ofstream resultsFile;
-  resultsFile.open(full_filename, std::ios::app); // open file in append mode
+  // open file in append mode
+  resultsFile.open(full_filename, std::ios::app);
 
   if (resultsFile.is_open()) {
-    // each line is of the form ability, trust_score
-    resultsFile << ability << "," << trustScore << "\n";
+    // each line is of the form ability,trust_score,benevolent
+    resultsFile << ability << "," << trustScore << "," << benevolent << "\n";
     resultsFile.close();
   } else {
     EV << "Could not open resultsFile :( \n";
