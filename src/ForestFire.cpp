@@ -18,7 +18,7 @@ int ForestFire::totalServicesReceived = 0;
 
 bool ForestFire::summaryWritten = false;//en son ekrana bütün sonuçları sadece bir kere yazdırmak için
 
-std::default_random_engine gen;
+static std::default_random_engine gen;
 //returns a random int in range [low,high]
 int uniform_int_in_range(int low, int high){
     std::uniform_int_distribution<int> dist{low, high};

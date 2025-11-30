@@ -2,7 +2,7 @@
  * ride.cpp
  *
  *  Created on: 20 Kas 2025
- *      Author: ipekm
+ *      Author: ipekm, esm
  */
 
 #include "ride.h"
@@ -10,13 +10,14 @@
 #include "BlockchainMessage_m.h"
 #include <algorithm>
 #include <cmath>
+#include <fstream>
 #include <map>
 #include <random>
 #include <string>
 #include <vector>
 
-std::default_random_engine gen; // WARN: bunu buraya koyabilir miyim??
-std::uniform_real_distribution<double> uniform_real_dist{
+static std::default_random_engine gen; // WARN: bunu buraya koyabilir miyim??
+static std::uniform_real_distribution<double> uniform_real_dist{
     0, 1}; // bu da burda dursun madem
 // Some notes:
 // TODO is a nice tag to have, with which we can follow what is left "to do" :p
@@ -42,7 +43,7 @@ int ride::totalBenevolentNodes = 0;
 int ride::opportunisticNodeId = -1;
 int ride::totalServicesReceived = 0;
 
-void printRoutingTable(const std::map<int, int> &routingTable) {
+static void printRoutingTable(const std::map<int, int> &routingTable) {
   EV << "Routing Table:\n";
   EV << "NodeID --> Gate Index\n";
   for (const auto &entry : routingTable) {
@@ -121,10 +122,10 @@ void ride::setMalicious(AttackerType type) {
                     // dışındakiler kamuflaj saldırısı yapıyor
     benevolent = false;
     if (attackerType == CAMOUFLAGE) {
-        // read camouflageRate from omnetpp.ini (defaults to 0.0 if not provided)
-        if (hasPar("camouflageRate")) {
-          camouflageRate = par("camouflageRate").doubleValue();
-        }
+      // read camouflageRate from omnetpp.ini (defaults to 0.0 if not provided)
+      if (hasPar("camouflageRate")) {
+        camouflageRate = par("camouflageRate").doubleValue();
+      }
 
       EV << "CAMOUFLAGE BY NODE " << getId() << "\n";
       getDisplayString().setTagArg("i", 1, "blue");
@@ -144,7 +145,7 @@ void ride::setMalicious(AttackerType type) {
 void ride ::setPotencyAndConsistency() {
   int id = getId();
 
-  double pot = uniform(6, 10);
+  double pot = uniform(-6, 10);
   this->potency = pot;
   EV << "Potency of node " << id << " is " << pot << '\n';
 
@@ -154,30 +155,34 @@ void ride ::setPotencyAndConsistency() {
 }
 
 void ride::initialize() {
-    if (hasPar("rancorCoef"))
-        rancorCoef = par("rancorCoef");
-    recordScalar("RancorCoef", rancorCoef);
+  if (hasPar("rancorCoef"))
+    rancorCoef = par("rancorCoef");
+  recordScalar("RancorCoef", rancorCoef);
 
-    setPotencyAndConsistency();
-      // initialize()
-      if (hasPar("camouflageRate"))
-          this->camouflageRate = par("camouflageRate").doubleValue();
-      else
-          this->camouflageRate = 0.0;  // safe default
-      recordScalar("camouflageRate", camouflageRate);
+  setPotencyAndConsistency();
+  // initialize()
+  if (hasPar("camouflageRate"))
+    this->camouflageRate = par("camouflageRate").doubleValue();
+  else
+    this->camouflageRate = 0.0; // safe default
+  recordScalar("camouflageRate", camouflageRate);
 
   serviceRequestEvent =
       new cMessage("serviceRequestTimer"); // Give a distinct name
   scheduleAt(simTime() + uniform(1, 5), serviceRequestEvent);
-  trustScore = 0.5; // start with moderate to high trust between 0.5 to 1.0 !!burayı değiştirdim
- // Initial random trust score
-            // this can stay like this for the time being but
-            // TODO: in the real sim, this should be decided by a "higher level"
+  trustScore = 0.5; // start with moderate to high trust between 0.5 to 1.0
+                    // !!burayı değiştirdim
+                    // Initial random trust score
+                    // this can stay like this for the time being but
+  // TODO: in the real sim, this should be decided by a "higher level"
   isClusterHead = false;
   allNodes.push_back(this);
 
   // Define possible service types
-  std::vector<std::string> serviceTypes = {"A", "B","C","D","E"};//bunu azalttım şimdilik!!! initiateServiceRequest'e bak orada da servis tipleri var
+  std::vector<std::string> serviceTypes = {
+      "A", "B", "C", "D",
+      "E"}; // bunu azalttım şimdilik!!! initiateServiceRequest'e bak orada da
+            // servis tipleri var
 
   // Her node'a rastgele bir servis tanımlıyoruz şu anda bunu belki daha farklı
   // da yapabiliriz servis tipi içinde başka şeyler de barındıran bir obje
@@ -212,13 +217,9 @@ void ride::initialize() {
   // yuzden dokumantasyona yeniden bakmak gerekecek
   // malicious olanları belirlemek için başka bir yol bulamadım
 
-
-
-
   int totalNodes = getParentModule()->par("numNodes");
 
   int attackerTypeValue = getParentModule()->par("attackerType");
-
 
   setMalicious(AttackerType(attackerTypeValue));
 
@@ -226,14 +227,14 @@ void ride::initialize() {
   scheduleAt(simTime() + 10.0, badServiceLogger); // 10 saniyede bir şu anda
 
   if (attackerTypeValue == OPPORTUNISTIC && isOpportunisticNode) {
-      opportunisticTriggerMsg = new cMessage("triggerOpportunistic");
-      scheduleAt(opportunisticAttackTime, opportunisticTriggerMsg);
-      EV << "Node " << getId() << " is opportunistic and will switch at time "
-         << opportunisticAttackTime << "\n";
-    }
+    opportunisticTriggerMsg = new cMessage("triggerOpportunistic");
+    scheduleAt(opportunisticAttackTime, opportunisticTriggerMsg);
+    EV << "Node " << getId() << " is opportunistic and will switch at time "
+       << opportunisticAttackTime << "\n";
+  }
 }
 
-void printBlockChain(std::vector<Block> blockchain) {
+static void printBlockChain(std::vector<Block> blockchain) {
   EV << "je veux voir tous les block a la fois:\n";
   for (Block &block : blockchain) {
     EV << block.transactionData << "\nat time: " << block.timestamp << "\n";
@@ -422,15 +423,16 @@ void ride::handleFinalServiceResponseMsg(cMessage *msg) {
   }
   totalServicesReceived++;
   double rarity = calculateRarity(serviceType);
-  double timeliness = 10; // TODO: bunu bilmiyom henuz...
-  lastProviderId = providerId;  // New global member needed
+  double timeliness = 10;      // TODO: bunu bilmiyom henuz...
+  lastProviderId = providerId; // New global member needed
 
   double rating =
       calculateRating(quality, timeliness, rarity); // handles attacks too
 
   sendRating(providerId, rating);
   ride *provider = getNodeById(providerId);
-  updateProviderGeneralTrust(provider, trustScore, rating);//şimdilik this kısmını sildim
+  updateProviderGeneralTrust(provider, trustScore,
+                             rating); // şimdilik this kısmını sildim
   // WARN: bu metod normalde pointer degil, objenin kendisni aliyordu
   // cok dusuk de olsa duzgun yazmamis olma ihtimalim var
   // hata olursa buraya bakin
@@ -483,78 +485,76 @@ void ride::handleNetworkMessage(cMessage *msg) {
 }
 
 void ride::handleSelfMessage(cMessage *msg) {
-    const char *msgName = msg->getName();
-     if (strcmp(msg->getName(), "triggerOpportunistic") == 0) {
-       EV << "Node " << getId()
-          << " is now switching from opportunistic to malicious.\n";
+  const char *msgName = msg->getName();
+  if (strcmp(msg->getName(), "triggerOpportunistic") == 0) {
+    EV << "Node " << getId()
+       << " is now switching from opportunistic to malicious.\n";
 
-       attackerType = CAMOUFLAGE; // davranışı değiştirdik
-       camouflageRate = 0.0;      // artık hep kötü
-       benevolent = false;
-       getDisplayString().setTagArg("i", 1, "orange");
+    attackerType = CAMOUFLAGE; // davranışı değiştirdik
+    camouflageRate = 0.0;      // artık hep kötü
+    benevolent = false;
+    getDisplayString().setTagArg("i", 1, "orange");
 
-       delete msg;
-       opportunisticTriggerMsg = nullptr;
-       return;
-     }
+    delete msg;
+    opportunisticTriggerMsg = nullptr;
+    return;
+  }
 
-     else if (strcmp(msg->getName(), "badServiceLogger") == 0) {
+  else if (strcmp(msg->getName(), "badServiceLogger") == 0) {
 
-       if (totalBenevolentNodes > 0) {
-         recordScalar(
-             ("AverageBadServicesAt_" + std::to_string((int)simTime().dbl()))
-                 .c_str(),
-             (double)totalBadServicesReceived / totalBenevolentNodes);
-       }
-       if (totalServicesReceived > 0) {
-               double ratio = (double)totalBadServicesReceived / totalServicesReceived;
-               recordScalar(
-                   ("BadServiceRatioAt_" + std::to_string((int)simTime().dbl()))
+    if (totalBenevolentNodes > 0) {
+      recordScalar(
+          ("AverageBadServicesAt_" + std::to_string((int)simTime().dbl()))
+              .c_str(),
+          (double)totalBadServicesReceived / totalBenevolentNodes);
+    }
+    if (totalServicesReceived > 0) {
+      double ratio = (double)totalBadServicesReceived / totalServicesReceived;
+      recordScalar(
+          ("BadServiceRatioAt_" + std::to_string((int)simTime().dbl())).c_str(),
+          ratio);
+    }
+    // belirli sürede bir(şu anda 10 saniye) tekrar ettiği için
+    // badServiceLogger'ın içine yazdım bu opportunistic saldırıyı başlatan
+    // kısmı
+    /*if (!opportunisticAttackTriggered &&
+        simTime().dbl() >= opportunisticAttackTime) {
+      opportunisticAttackTriggered = true;
+      IoTNode *mostTrusted = *std::max_element(
+          allNodes.begin(), allNodes.end(),
+          [](IoTNode *a, IoTNode *b) { return a->trustScore < b->trustScore; });
+
+      mostTrusted->attackerType = CAMOUFLAGE;
+      mostTrusted->camouflageRate =
+          0.0; // hep kötücül davranıyor şu anda aslında kamuflaj dememeliydik o
+               // yüzden ama böyle yapıp %100 kötücüle çevirmek daha kolay geldi
+      mostTrusted->benevolent = false;
+      mostTrusted->getDisplayString().setTagArg("i", 1,
+                                                "orange"); // rengi değişiyor
+
+      EV << "Opportunistic attack triggered! Node " << mostTrusted->getId()
+         << " is now malicious.\n";
+      opportunisticNode = mostTrusted;
+    }
+    if (opportunisticAttackTriggered) { // kötü davranmaya başlayan node'un
+                                        // trust skorunu kaydetmek için
+      recordScalar(("OpportunisticNodeTrustScoreAt_" +
+                    std::to_string((int)simTime().dbl()))
                        .c_str(),
-                   ratio);
-           }
-       // belirli sürede bir(şu anda 10 saniye) tekrar ettiği için
-       // badServiceLogger'ın içine yazdım bu opportunistic saldırıyı başlatan
-       // kısmı
-       /*if (!opportunisticAttackTriggered &&
-           simTime().dbl() >= opportunisticAttackTime) {
-         opportunisticAttackTriggered = true;
-         IoTNode *mostTrusted = *std::max_element(
-             allNodes.begin(), allNodes.end(),
-             [](IoTNode *a, IoTNode *b) { return a->trustScore < b->trustScore; });
+                   opportunisticNode->trustScore);
+    }*/
 
-         mostTrusted->attackerType = CAMOUFLAGE;
-         mostTrusted->camouflageRate =
-             0.0; // hep kötücül davranıyor şu anda aslında kamuflaj dememeliydik o
-                  // yüzden ama böyle yapıp %100 kötücüle çevirmek daha kolay geldi
-         mostTrusted->benevolent = false;
-         mostTrusted->getDisplayString().setTagArg("i", 1,
-                                                   "orange"); // rengi değişiyor
-
-         EV << "Opportunistic attack triggered! Node " << mostTrusted->getId()
-            << " is now malicious.\n";
-         opportunisticNode = mostTrusted;
-       }
-       if (opportunisticAttackTriggered) { // kötü davranmaya başlayan node'un
-                                           // trust skorunu kaydetmek için
-         recordScalar(("OpportunisticNodeTrustScoreAt_" +
-                       std::to_string((int)simTime().dbl()))
-                          .c_str(),
-                      opportunisticNode->trustScore);
-       }*/
-
-
-       scheduleAt(simTime() + 10.0, msg); // repeat every 10s
-       return;
-     } else if (strcmp(msgName, "populateServiceTable") == 0) {
-       populateServiceTable();
-       delete msg;
-     } else if (strcmp(msgName, "serviceRequestTimer") == 0) {
-       EV << "IoTNode " << getId() << " is initiating a service request." << endl;
-       initiateServiceRequest();
-       scheduleAt(simTime() + uniform(1, 5), msg); // Reschedule
-     }
-   }
+    scheduleAt(simTime() + 10.0, msg); // repeat every 10s
+    return;
+  } else if (strcmp(msgName, "populateServiceTable") == 0) {
+    populateServiceTable();
+    delete msg;
+  } else if (strcmp(msgName, "serviceRequestTimer") == 0) {
+    EV << "IoTNode " << getId() << " is initiating a service request." << endl;
+    initiateServiceRequest();
+    scheduleAt(simTime() + uniform(1, 5), msg); // Reschedule
+  }
+}
 
 // bu fonksiyonu böldüm içindeki fonksiyonlar yukarıda yazıyor
 // çoğu eski haliyle aynı sadece final service request ve response
@@ -569,8 +569,8 @@ void ride::handleMessage(cMessage *msg) {
   }
 }
 
-void ride::updateProviderGeneralTrust(ride *provider,
-                                         double requestorTrust, double rating) {
+void ride::updateProviderGeneralTrust(ride *provider, double requestorTrust,
+                                      double rating) {
   double oldTS = provider->trustScore;
   double weightedRating = rating * requestorTrust;
 
@@ -578,27 +578,30 @@ void ride::updateProviderGeneralTrust(ride *provider,
     provider->sumOfPositveRatings += weightedRating;
     provider->sumOfAllRatings += weightedRating;
   } else {
-    provider->sumOfAllRatings += std::abs(weightedRating) * rancorCoef;//mutlak değere çevirdim önceki ile aynı şeyi yapıyor aslında değiştirmesem de olabilirdi
+    provider->sumOfAllRatings +=
+        std::abs(weightedRating) *
+        rancorCoef; // mutlak değere çevirdim önceki ile aynı şeyi yapıyor
+                    // aslında değiştirmesem de olabilirdi
   }
 
-  provider->trustScore = std::clamp(
-      provider->sumOfPositveRatings / (provider->sumOfAllRatings + 1e-6),//NaN olmasın diye ekledim 1e-6'yı
-      0.1, 1.0 //böyle yazınca trust skor 0.1'den küçük gelirse 0.1'e eşitleniyor, 1'den büyük olursa da 1'e (aslında bu mümkün değil ama ne olur ne olmaz ekledim)
-  );
+  provider->trustScore = std::clamp(provider->sumOfPositveRatings /
+                                        (provider->sumOfAllRatings + 1e-6),
+                                    0.1, 1.0);
+  // NaN olmasın diye ekledim 1e-6'yı
+  // böyle yazınca trust skor 0.1'den küçük gelirse 0.1'e
+  // eşitleniyor, 1'den büyük olursa da 1'e (aslında bu mümkün
+  // değil ama ne olur ne olmaz ekledim)
 
   EV << "ProviderTS " << oldTS << " got a rating " << rating
-     << " from a node with TS " << requestorTrust
-     << " and was updated to " << provider->trustScore << "\n";
+     << " from a node with TS " << requestorTrust << " and was updated to "
+     << provider->trustScore << "\n";
 }
-
-
 
 void ride::electClusterHeads() {
   // sorts the allNodes array according to the nodes' trustScores
   // third param is a lambda func.
-  std::sort(allNodes.begin(), allNodes.end(), [](ride *a, ride *b) {
-    return a->trustScore > b->trustScore;
-  });
+  std::sort(allNodes.begin(), allNodes.end(),
+            [](ride *a, ride *b) { return a->trustScore > b->trustScore; });
 
   for (size_t i = 0; i < allNodes.size();
        i++) { // bunu da daha farklı yazabiliriz böyle biraz saçma oldu ama
@@ -617,7 +620,10 @@ int findRoute(int requesterId, int providerId) {
 }
 void ride::initiateServiceRequest() {
   // Step 1: Choose a random service type
-  std::vector<std::string> serviceTypes = {"A", "B","C","D","E"};//şimdilik böyle yukarıda da var bundan nodeları oluştururken yazmışım teke düşürsek daha kolay olabilir
+  std::vector<std::string> serviceTypes = {
+      "A", "B", "C", "D",
+      "E"}; // şimdilik böyle yukarıda da var bundan nodeları oluştururken
+            // yazmışım teke düşürsek daha kolay olabilir
   std::string chosenService =
       serviceTypes[intuniform(0, serviceTypes.size() - 1)];
   EV << "IoT Node " << getId()
@@ -679,7 +685,7 @@ void ride::handleServiceRequest(int requesterId) {
   }
 }
 // return true if the node performs camouflage; i.e. behaving "normally"
-bool performsCamouflage(double camouflageRate) {
+static bool performsCamouflage(double camouflageRate) {
   double random = uniform_real_dist(gen); // random number in (0,1)
   if (random < camouflageRate) { // performing camouflage,normal service
     return true;
@@ -691,7 +697,7 @@ bool performsCamouflage(double camouflageRate) {
  * else, return -10
  */
 double ride::calculateRatingCamouflage(double quality, double timeliness,
-                                          double rarity) {
+                                       double rarity) {
   if (performsCamouflage(this->camouflageRate)) { // normal rating
     return calculateRatingBenevolent(quality, timeliness, rarity);
   } else {
@@ -702,16 +708,17 @@ double ride::calculateRatingCamouflage(double quality, double timeliness,
 //"normal" quality if camouflage, -10 else
 double ride::calcQualityCamouflage(double potency, double consistency) {
   if (performsCamouflage(this->camouflageRate)) { // normal service
-    //return calcQualityBenevolent(potency, consistency);//burada hata var bence çünkü kötü node'un potency'si farklı
-    return calcQualityBenevolent(9, 2.0); //bu değer değişebilir
-  } else { // giving bad service
+    // return calcQualityBenevolent(potency, consistency);//burada hata var
+    // bence çünkü kötü node'un potency'si farklı
+    return calcQualityBenevolent(9, 2.0); // bu değer değişebilir
+  } else {                                // giving bad service
     return -10;
   }
 }
-double badMouthingRating() { return 0; }
+// multiple definitions
+// double badMouthingRating() { return 0; }
 
-double ride::calculateRating(double quality, double timeliness,
-                                double rarity) {
+double ride::calculateRating(double quality, double timeliness, double rarity) {
   enum AttackerType type = this->attackerType;
 
   switch (type) {
@@ -720,10 +727,14 @@ double ride::calculateRating(double quality, double timeliness,
   case CAMOUFLAGE:
     return calculateRatingCamouflage(quality, timeliness, rarity);
   case COLLABORATIVE: {
-       ride* provider = getNodeById(lastProviderId);
-       if (!provider) return 0;
-       return provider->benevolent ?calculateRatingBenevolent(-10, timeliness, rarity) :calculateRatingBenevolent(8, timeliness, rarity); // punish honest, reward malicious
-     }
+    ride *provider = getNodeById(lastProviderId);
+    if (!provider)
+      return 0;
+    return provider->benevolent
+               ? calculateRatingBenevolent(-10, timeliness, rarity)
+               : calculateRatingBenevolent(
+                     8, timeliness, rarity); // punish honest, reward malicious
+  }
   default:
     EV << "SOMETHING WENT WRONG WITH calculateRating!!\n";
     return 0; // should not defualt to here!
@@ -747,11 +758,8 @@ double ride::calcQuality(const double potency, const double consistency) {
  * potency = mean & consistency = 1/stddev
  */
 double ride::calcQualityBenevolent(const double potency,
-                                      const double consistency) {
+                                   const double consistency) {
   double quality;
- /* if(consistency==1000){
-       EV << "*****************************************************************************" ;
-  }*/
 
   double stddev = 1.0 / consistency;
   std::normal_distribution<double> dist{potency, stddev};
@@ -792,7 +800,7 @@ double ride::calculateRarity(std::string serviceType) {
  * simply takes the _weighted_ average of these three
  */
 double ride::calculateRatingBenevolent(double quality, double timeliness,
-                                          double rarity) {
+                                       double rarity) {
   double rating;
   // double quality = calcQuality(potency, consistency);
   EV << "QUALITY IS CALCULATED WITH POTENCY: " << potency
@@ -903,15 +911,18 @@ bool ride::enoughInteractions(int requestorId, int providerId) {
   }
   std::vector<Block> blocksInWindow(blockchain.end() - windowSize,
                                     blockchain.end());*/
-    //bu kısımı değiştirdim eski halinde ile window size dolmamışsa eskiden hesaplama yapılmıyordu
-    //ama o zamana kadar eklenmiş blokları kullanabiliriz bence çünkü window size çok büyük de olabilir diğer makalelerde 1000 yapmışlar
-    std::vector<Block> blocksInWindow;
-      if (blockchain.size() < windowSize) {
-        EV << "Blockchain not full — using available " << blockchain.size() << " blocks.\n";
-        blocksInWindow.assign(blockchain.begin(), blockchain.end());
-      } else {
-        blocksInWindow.assign(blockchain.end() - windowSize, blockchain.end());
-      }
+  // bu kısımı değiştirdim eski halinde ile window size dolmamışsa eskiden
+  // hesaplama yapılmıyordu ama o zamana kadar eklenmiş blokları kullanabiliriz
+  // bence çünkü window size çok büyük de olabilir diğer makalelerde 1000
+  // yapmışlar
+  std::vector<Block> blocksInWindow;
+  if (blockchain.size() < windowSize) {
+    EV << "Blockchain not full — using available " << blockchain.size()
+       << " blocks.\n";
+    blocksInWindow.assign(blockchain.begin(), blockchain.end());
+  } else {
+    blocksInWindow.assign(blockchain.end() - windowSize, blockchain.end());
+  }
 
   int encounterCounter = 0; // I like naming stuff :p
   for (Block block : blocksInWindow) {
@@ -924,7 +935,8 @@ bool ride::enoughInteractions(int requestorId, int providerId) {
       ++encounterCounter;
     }
   }
-  if (encounterCounter > enoughEncounterLimit) {// bu kısıma bağlı aslında DT mi yoksa IT mi çalışacağı
+  if (encounterCounter > enoughEncounterLimit) { // bu kısıma bağlı aslında DT
+                                                 // mi yoksa IT mi çalışacağı
     EV << "Enough interactions between " << requestorId << " and " << providerId
        << "\n";
     return true;
@@ -948,7 +960,7 @@ double ride::calculateDecay(double currentTime, double blockTime) {
  * else, resorts to indirectTrust
  */
 double ride::calculateDirectTrust(int requestorId, int providerId,
-                                     double time) {
+                                  double time) {
   // TODO: divide this method if you want. Too long in this format.
   if (!enoughInteractions(requestorId, providerId))
     return calculateIndirectTrust(requestorId, providerId, time);
@@ -1000,8 +1012,8 @@ double ride::calculateDirectTrust(int requestorId, int providerId,
  * 'rating: <rating> from <reqId> to <provId>' a disposition of the colon
  * breaks the function
  */
-bool ride::extract(const std::string &input, double &rating,
-                      int &requesterId, int &providerId) {
+bool ride::extract(const std::string &input, double &rating, int &requesterId,
+                   int &providerId) {
   // this is to parse the input; rather cool!
   std::istringstream iss(input);
   // to store filler words
@@ -1014,59 +1026,89 @@ bool ride::extract(const std::string &input, double &rating,
     return false;
   }
 }
+
+/*
+ * Append the ability-score pair of this node to the csv file.
+ * Each node shall call this function in the finish() function sequentially.
+ * Therefore, all of them will be appending their own values.
+ *
+ * NOTE This function assumes that ability_trust.csv
+ * (or the provided filename) is empty.
+ * */
+void ride::record_ability_and_trust(
+    std::string filename = "ability_trust.csv") {
+  double ability = potency * consistency;
+  // store the results in a designated folder
+  std::string full_filename = "results/RIDe/" + filename;
+
+  std::ofstream resultsFile;
+  resultsFile.open(full_filename, std::ios::app); // open file in append mode
+
+  if (resultsFile.is_open()) {
+    // each line is of the form ability, trust_score
+    resultsFile << ability << "," << trustScore << "\n";
+    resultsFile.close();
+  } else {
+    EV << "Could not open resultsFile :( \n";
+  }
+}
+
 void ride::finish() {
 
-    //Accuracy için
-    if (getId() == 2) {//tek bir node içinde hesplamak için yazdım bu kısmı node id'leri 2'den başlıyor omnet'te
-        std::vector<std::pair<double, bool>> trustAndLabel;
+  record_ability_and_trust();
 
-        for (ride* node : allNodes) {
-            trustAndLabel.emplace_back(node->trustScore, node->benevolent);
-        }
+  // Accuracy için
+  if (getId() == 2) { // tek bir node içinde hesplamak için yazdım bu kısmı node
+                      // id'leri 2'den başlıyor omnet'te
+    std::vector<std::pair<double, bool>> trustAndLabel;
 
-        double bestF1 = 0.0;
-        double bestThreshold = 0.5;  // default threshold
-        double bestPrecision = 0.0, bestRecall = 0.0, bestAccuracy = 0.0;
-        double threshold = 0.5;//!!
-
-       // for (double threshold = 0.0; threshold <= 1.0; threshold += 0.01) {
-            int TP = 0, TN = 0, FP = 0, FN = 0;
-
-            for (const auto& [score, isBenevolent] : trustAndLabel) {
-                bool predictedBenevolent = (score >= threshold);
-                //bu önemli!!!!
-                //positive= malicious bu testlerde çünkü amacımız kötüyü bulmak
-                if (!isBenevolent && !predictedBenevolent) TP++; // kötü olana kötü demiş
-                else if (isBenevolent && predictedBenevolent) TN++;// iyi olana iyi demiş
-                else if (!isBenevolent && predictedBenevolent) FN++;// kötüye iyi demiş
-                else if (isBenevolent && !predictedBenevolent) FP++;// iyiye kötü demiş
-            }
-
-            double precision = (double)TP / (TP + FP + 1e-6);
-            double recall = (double)TP / (TP + FN + 1e-6);
-            double f1 = 2 * precision * recall / (precision + recall + 1e-6);
-            double accuracy = (double)(TP + TN) / (TP + TN + FP + FN + 1e-6);
-
-            if (f1 > bestF1) {
-                bestF1 = f1;
-                bestThreshold = threshold;
-                bestPrecision = precision;
-                bestRecall = recall;
-                bestAccuracy = accuracy;
-            }
-        //}
-
-        // Record best metrics
-        recordScalar("BestThreshold", bestThreshold);
-        recordScalar("BestF1Score", bestF1);
-        recordScalar("BestPrecision", bestPrecision);
-        recordScalar("BestRecall", bestRecall);
-        recordScalar("BestAccuracy", bestAccuracy);
+    for (ride *node : allNodes) {
+      trustAndLabel.emplace_back(node->trustScore, node->benevolent);
     }
 
+    double bestF1 = 0.0;
+    double bestThreshold = 0.5; // default threshold
+    double bestPrecision = 0.0, bestRecall = 0.0, bestAccuracy = 0.0;
+    double threshold = 0.5; //!!
 
+    // for (double threshold = 0.0; threshold <= 1.0; threshold += 0.01) {
+    int TP = 0, TN = 0, FP = 0, FN = 0;
 
+    for (const auto &[score, isBenevolent] : trustAndLabel) {
+      bool predictedBenevolent = (score >= threshold);
+      // bu önemli!!!!
+      // positive= malicious bu testlerde çünkü amacımız kötüyü bulmak
+      if (!isBenevolent && !predictedBenevolent)
+        TP++; // kötü olana kötü demiş
+      else if (isBenevolent && predictedBenevolent)
+        TN++; // iyi olana iyi demiş
+      else if (!isBenevolent && predictedBenevolent)
+        FN++; // kötüye iyi demiş
+      else if (isBenevolent && !predictedBenevolent)
+        FP++; // iyiye kötü demiş
+    }
 
+    double precision = (double)TP / (TP + FP + 1e-6);
+    double recall = (double)TP / (TP + FN + 1e-6);
+    double f1 = 2 * precision * recall / (precision + recall + 1e-6);
+    double accuracy = (double)(TP + TN) / (TP + TN + FP + FN + 1e-6);
+
+    if (f1 > bestF1) {
+      bestF1 = f1;
+      bestThreshold = threshold;
+      bestPrecision = precision;
+      bestRecall = recall;
+      bestAccuracy = accuracy;
+    }
+    //}
+
+    // Record best metrics
+    recordScalar("BestThreshold", bestThreshold);
+    recordScalar("BestF1Score", bestF1);
+    recordScalar("BestPrecision", bestPrecision);
+    recordScalar("BestRecall", bestRecall);
+    recordScalar("BestAccuracy", bestAccuracy);
+  }
 
   if (badServiceLogger != nullptr) {
     cancelAndDelete(badServiceLogger);
@@ -1081,9 +1123,6 @@ void ride::finish() {
     recordScalar("FinalAverageBadServices",
                  (double)totalBadServicesReceived / totalBenevolentNodes);
   }
-
-
-
 }
 // bunu kullanmıyorum şu anda
 int ride::selectPoTValidator() {

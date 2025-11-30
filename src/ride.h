@@ -30,16 +30,16 @@ private:
   static std::set<int> maliciousNodeIds;
   static int totalServicesReceived;
 
-  int lastProviderId = -1;//collaborative attack için
+  int lastProviderId = -1; // collaborative attack için
 
   int badServicesReceived = 0;
   cMessage *badServiceLogger = nullptr;
   //--parameters--
-  int windowSize = 100;          // just for testing purposes90 idi bu
+  int windowSize = 100;         // just for testing purposes90 idi bu
   int enoughEncounterLimit = 1; // TODO: these two parameters are just examples
   double genTrustCoef = 0.01;
-  double rancorCoef = 2.0;           // defined to be higher than 1
-  double decayFactor = 0.5;          // WARN: bunu 1'de unutmak, decay yok demek!
+  double rancorCoef = 2.0;         // defined to be higher than 1
+  double decayFactor = 0.5;        // WARN: bunu 1'de unutmak, decay yok demek!
   std::map<int, int> routingTable; // Maps Node ID → Gate Index
   //  std::map<int, std::string> serviceTable; // private olmalı gibi geldi
   //  TODO: bu eski hali sil
@@ -74,6 +74,7 @@ private:
   double calculateRatingCamouflage(double quality, double timeliness,
                                    double rarity);
   void setPotencyAndConsistency();
+
 protected:
   bool noMalDominatedClusters();
 
@@ -115,7 +116,7 @@ protected:
                int &providerId);
   double
   calculateDirectTrust(int requestorId, int providerId,
-                       double time ); // between a single i,j pair at time t
+                       double time); // between a single i,j pair at time t
   double calculateIndirectTrust(int requestor, int provider,
                                 double time); // if DT cannot be
                                               // calculated
@@ -126,6 +127,7 @@ protected:
                  double blockTime); // this can be changed for many reasons!
   void updateProviderGeneralTrust(ride *provider, double requestorTrust,
                                   double rating);
+  // TODO yazmamisiz bunu??
   double getTrust(int nodeId); // returns the general trust of a node given its
                                // id, may be unnecessary
 
@@ -162,13 +164,18 @@ protected:
 
   cMessage *serviceRequestEvent; // Add this line
 
-  //oppurtunistic attack: trust skoru en yüksek olan iyi node belirli bir zamanadan(opportunisticAttackTime) sonra kötü dvaranmaya başlarsa ne olur onu test ediyoruz
+  // oppurtunistic attack: trust skoru en yüksek olan iyi node belirli bir
+  // zamanadan(opportunisticAttackTime) sonra kötü dvaranmaya başlarsa ne olur
+  // onu test ediyoruz
   double opportunisticAttackTime = 500;
-   bool opportunisticAttackTriggered = false;
-   ride *opportunisticNode = nullptr;
-   bool isOpportunisticNode = false;
-   static int opportunisticNodeId;
-   cMessage *opportunisticTriggerMsg = nullptr;
+  bool opportunisticAttackTriggered = false;
+  ride *opportunisticNode = nullptr;
+  bool isOpportunisticNode = false;
+  static int opportunisticNodeId;
+  cMessage *opportunisticTriggerMsg = nullptr;
+
+  // ---  Record keeping functions ---
+  void record_ability_and_trust(std::string filename);
 };
 
 #endif

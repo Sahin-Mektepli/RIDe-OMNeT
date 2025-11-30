@@ -27,8 +27,8 @@
 ** TODO Our graph is currently a fully connected one...
 */
 
-std::default_random_engine gen;
-std::uniform_real_distribution<double> uniform_real_dist{
+static std::default_random_engine gen;
+static std::uniform_real_distribution<double> uniform_real_dist{
     0, 1}; // bu da burda dursun madem
 [[deprecated("There is only a single service!!!!")]]
 #define SERVICE_TYPE "A" // as a substitue for depricated serviceTypes
