@@ -131,7 +131,8 @@ private:
     BAD_MOUTHING,//2
     MALICIOUS_100,//3
     COLLABORATIVE,//4
-    OPPORTUNISTIC//5
+    OPPORTUNISTIC,//5
+    HYBRID//6
 
   }; // use this and switch statements to control
   enum AttackerType attackerType = BENEVOLENT; // default
@@ -236,6 +237,10 @@ protected:
   bool isOpportunisticNode = false;
   static int opportunisticNodeId;
   cMessage *opportunisticTriggerMsg = nullptr;
+  cMessage* hybridTrigger=nullptr;
+
+  bool hybridHasSwitched = false;
+  double hybridSwitchTime = 500.0;
 };
 
 #endif

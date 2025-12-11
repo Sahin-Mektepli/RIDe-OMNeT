@@ -176,7 +176,13 @@ void IoTNode::setMalicious(AttackerType type) {
       // iyi servis kötü yorum ise
       getDisplayString().setTagArg("i", 1, "purple");
     }
-  } else {
+
+  else if (attackerType == HYBRID) {
+
+      benevolent = false;   // hybrid attacker does not act benevolent in trust
+      getDisplayString().setTagArg("i", 1, "pink");
+  }}
+else {
     attackerType = BENEVOLENT;
     benevolent = true;
     totalBenevolentNodes++;
@@ -240,6 +246,11 @@ void IoTNode::initialize() {
     EV << "Node " << getId() << " is opportunistic and will switch at time "
        << opportunisticAttackTime << "\n";
   }
+  if (attackerType == HYBRID) {
+      cMessage* hybridTrigger = new cMessage("triggerHybrid");
+      scheduleAt(hybridSwitchTime, hybridTrigger);
+  }
+
 }
 
 void printBlockChain(std::vector<Block> blockchain) {
@@ -676,6 +687,17 @@ void IoTNode::handleSelfMessage(cMessage *msg) {
     opportunisticTriggerMsg = nullptr;
     return;
   }
+  else if (strcmp(msgName, "triggerHybrid") == 0) {
+      EV << "HYBRID node " << getId()
+         << " has switched: will now give BAD SERVICES.\n";
+
+      hybridHasSwitched = true;
+      getDisplayString().setTagArg("i", 1, "darkred");
+
+      delete msg;
+      return;
+  }
+
 
   else if (strcmp(msg->getName(), "badServiceLogger") == 0) {
     updateEpsilon();
@@ -857,6 +879,14 @@ double IoTNode::calculateRating(double quality, double timeliness,
     return calculateRatingBenevolent(quality, timeliness, rarity);
   case CAMOUFLAGE:
     return calculateRatingCamouflage(quality, timeliness, rarity);
+  case HYBRID:{
+      IoTNode *provider = getNodeById(lastProviderId);
+          if (!provider)
+            return 0;
+      return provider->benevolent
+                    ? calculateRatingBenevolent(-10, timeliness, rarity)
+                    : calculateRatingBenevolent(
+                          8, timeliness, rarity); }// punish honest, reward malicious
   case OPPORTUNISTIC:
     return calculateRatingBenevolent(quality, timeliness, rarity);
   case COLLABORATIVE: {
@@ -882,6 +912,11 @@ double IoTNode::calcQuality(const double potency, const double consistency) {
     return calcQualityCamouflage(potency, consistency);
   case OPPORTUNISTIC:
     return calcQualityBenevolent(potency, consistency);
+  case HYBRID:
+      return hybridHasSwitched
+          ? -10                         // after switch: bad service
+          : calcQualityBenevolent(potency, consistency);  // before switch: good service
+
   default:
     EV << "SOMETHING WENT WRONG WITH calcQuality!!\n";
     return -10; // should not defualt to here!
