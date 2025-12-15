@@ -17,6 +17,9 @@
 #include <string>
 #include <vector>
 
+#define RANDOMISED_PROVIDER_SELECTION true
+#define RANDOM_PROVIDER_SELECTION_CHANCE 0.2
+
 static std::default_random_engine gen; // WARN: bunu buraya koyabilir miyim??
 static std::uniform_real_distribution<double> uniform_real_dist{
     0, 1}; // bu da burda dursun madem
@@ -151,7 +154,8 @@ void ride::setMalicious(AttackerType type) {
 void ride ::setPotencyAndConsistency() {
   int id = getId();
 
-  double pot = uniform(6, 10);
+  // double pot = uniform(6, 10);
+  double pot = uniform(-6, 10); // to test the ability stuff
   this->potency = pot;
   EV << "Potency of node " << id << " is " << pot << '\n';
 
@@ -354,10 +358,24 @@ void ride::handleServiceResponseMsg(cMessage *msg) {
       int bestProviderId = -1;
       double maxTrust = -1;
 
-      for (const auto &entry : respondedProviders) {
-        if (entry.second > maxTrust) {
-          bestProviderId = entry.first;
-          maxTrust = entry.second;
+      // I need to choose providers at some randomness for the ability report
+      if (RANDOMISED_PROVIDER_SELECTION &&
+          uniform(0, 1) < RANDOM_PROVIDER_SELECTION_CHANCE &&
+          !respondedProviders.empty()) {
+        // select a random element from the map
+        auto it = respondedProviders.begin();
+        // advance the iterator by a random offset
+        std::advance(it, intuniform(0, respondedProviders.size() - 1));
+
+        bestProviderId = it->first;
+        maxTrust = it->second;
+        EV << "Chose provider randomly!!!\n";
+      } else {
+        for (const auto &entry : respondedProviders) {
+          if (entry.second > maxTrust) {
+            bestProviderId = entry.first;
+            maxTrust = entry.second;
+          }
         }
       }
 
@@ -1094,7 +1112,8 @@ void ride::record_ability_and_trust(
 
   if (resultsFile.is_open()) {
     // each line is of the form ability,trust_score,benevolent
-    resultsFile << ability << "," << trustScore << "," << benevolent << "\n";
+    // resultsFile << ability << "," << trustScore << "," << benevolent << "\n";
+    resultsFile << ability << "," << trustScore << "\n";
     resultsFile.close();
   } else {
     EV << "Could not open resultsFile :( \n";
