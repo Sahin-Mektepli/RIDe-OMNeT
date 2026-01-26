@@ -145,6 +145,15 @@ class IoTNode : public omnetpp::cSimpleModule
     double calculateRatingCamouflage (double quality, double timeliness, double rarity);
 
   protected:
+    // XXX TODO government-private farkı için bunlar
+
+    // keep a hold of who the government is
+    static std::set<int> governmentNodeIds;
+    bool isPrivate;
+    // hususi düğümlerin güven güncellemelerine etkisi (mesela) yarımdan başlıyor
+    double privateTrustCoef;
+    void setGovernmentPrivate ();
+
     void updateEpsilon ();
     auto epsilonGreedyMaxPair (const std::map<int, double> &mapping);
     virtual void finish () override;

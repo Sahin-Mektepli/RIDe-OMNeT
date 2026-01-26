@@ -44,6 +44,8 @@ int IoTNode::totalBenevolentNodes = 0;
 int IoTNode::opportunisticNodeId = -1;
 int IoTNode::totalServicesReceived = 0;
 
+std::set<int> IoTNode::governmentNodeIds;
+
 void
 printRoutingTable (const std::map<int, int> &routingTable)
 {
@@ -229,9 +231,49 @@ IoTNode::setPotencyAndConsistency ()
     EV << "Consistency of node " << id << " is " << cons << '\n';
 }
 
+/*
+ * * Handles the origin of the nodes during the initiation.
+ * Parallels setMalicious closely
+ */
+void
+IoTNode::setGovernmentPrivate ()
+{
+    int totalNodes = getParentModule ()->par ("numNodes");
+    int numPrivate = int (getParentModule ()->par ("privPercentage").doubleValue () * totalNodes);
+    int numGov = totalNodes - numPrivate;
+
+    // adet oldu ilkiyle tayin yapmak
+    if (getId () == 2)
+	{
+	    governmentNodeIds.clear ();
+	    // copy the election logic from setMalicious
+	    std::vector<int> allIds;
+	    for (int i = 2; i < 2 + totalNodes; ++i)
+		allIds.push_back (i);
+	    std::shuffle (allIds.begin (), allIds.end (), gen);
+
+	    governmentNodeIds.insert (allIds.begin (), allIds.begin () + numGov);
+	}
+
+    if (governmentNodeIds.count (getId ()))
+	{ // this is a governmental node
+	    this->isPrivate = false;
+	    getDisplayString ().setTagArg ("i", 1, "green"); // governments are green
+	    EV << "My ID is " << getId () << ".Can I see your papers?\n";
+	}
+    else
+	{ // private node
+	    this->isPrivate = true;
+	    this->privateTrustCoef = getParentModule ()->par ("privateTrustCoef").doubleValue ();
+	    EV << "hi, I am an innocent bystander with id " << getId () << " my trust coef is "
+	       << this->privateTrustCoef << "\n";
+	}
+}
+
 void
 IoTNode::initialize ()
 {
+    setGovernmentPrivate ();
 
     setPotencyAndConsistency ();
     // initialize()
