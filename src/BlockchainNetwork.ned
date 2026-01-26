@@ -23,6 +23,8 @@ network BlockchainNetwork {
   parameters:
     int numNodes;                     // Total number of IoT nodes
     double maliciousNodePercentage;  // % of nodes to be malicious
+    double privPercentage;          // % of nodes to be private
+    double privateTrustCoef;       // initially the private nodes are not full men
     int attackerType;
     int clusterCount; //how many clusters there are
     int clusterSize; //how many nodes there are in a cluster

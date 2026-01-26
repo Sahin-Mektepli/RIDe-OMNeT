@@ -270,13 +270,49 @@ IoTNode::setGovernmentPrivate ()
 	}
 }
 
+/*
+ * * Starts government nodes with higher values than private nodes
+ * * Let's pretent we have received perfect service 10 times from governments.
+ * * And a single 5 point service from private ones
+ */
+void
+IoTNode::setInitialTrustValues ()
+{
+    EV << "Node " << getId () << " is initializing trust scores...\n";
+
+    for (IoTNode *targetNode : allNodes)
+	{
+	    int targetId = targetNode->getId ();
+
+	    // Skip thyself
+	    if (targetId == getId ())
+		continue;
+
+	    if (trustMap.find (targetId) == trustMap.end ())
+		{ // a trust value is not assigned yet
+		    struct trustScore &initTrust = trustMap[targetId];
+
+		    if (targetNode->isPrivate == false)
+			{ // Government
+			    initTrust.sumOfPositiveRatings = 100.0;
+			    initTrust.sumOfAllRatings = 100.0;
+			}
+		    else
+			{ // Private
+			    initTrust.sumOfPositiveRatings = 5.0;
+			    initTrust.sumOfAllRatings = 10.0;
+			}
+		}
+	}
+}
+
 void
 IoTNode::initialize ()
 {
     setGovernmentPrivate ();
 
     setPotencyAndConsistency ();
-    // initialize()
+
     if (hasPar ("camouflageRate"))
 	this->camouflageRate = par ("camouflageRate").doubleValue ();
     else
@@ -297,6 +333,8 @@ IoTNode::initialize ()
 
     // Schedule service table update after all nodes are initialized
     scheduleAt (simTime () + 0.1, new cMessage ("populateServiceTable"));
+    // bana da lazim oldu
+    scheduleAt (simTime () + 0.1, new cMessage ("setInitialTrustValues "));
 
     // read the attacker type as an int from omnet.ini
     int attackerTypeValue = getParentModule ()->par ("attackerType");
@@ -912,6 +950,11 @@ IoTNode::handleSelfMessage (cMessage *msg)
     else if (strcmp (msgName, "populateServiceTable") == 0)
 	{
 	    populateServiceTable ();
+	    delete msg;
+	}
+    else if (strcmp (msgName, "setInitialTrustValues ") == 0)
+	{
+	    setInitialTrustValues ();
 	    delete msg;
 	}
     else if (strcmp (msgName, "serviceRequestTimer") == 0)

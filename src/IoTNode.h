@@ -153,6 +153,8 @@ class IoTNode : public omnetpp::cSimpleModule
     // hususi düğümlerin güven güncellemelerine etkisi (mesela) yarımdan başlıyor
     double privateTrustCoef;
     void setGovernmentPrivate ();
+    void setInitialTrustValues ();
+    // --- gov-priv stuff done ---
 
     void updateEpsilon ();
     auto epsilonGreedyMaxPair (const std::map<int, double> &mapping);
