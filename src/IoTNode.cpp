@@ -319,7 +319,7 @@ IoTNode::initialize ()
 	this->camouflageRate = 0.0; // safe default
     recordScalar ("camouflageRate", camouflageRate);
 
-    epsilon = 0.2;
+    epsilon = 1; // FIXME 0.2 idi
     minEpsilon = 0.01;
     epsilonDecay = 0.90;
 
@@ -752,6 +752,18 @@ IoTNode::addBlockToBC (double rating, int requesterId, int providerId)
     return blockId;
 }
 
+bool
+IoTNode::isNodePrivate (int nodeId)
+{
+    if (governmentNodeIds.empty ())
+	{
+	    EV << "\n\n\nWHY ARE YOU TRYING TO FIND WHETHER A NODE IS PRIV OR NOT BEFORE THE "
+		  "INITIALISATION????\n\n\n";
+	    return false;
+	}
+    return !governmentNodeIds.count (nodeId);
+}
+
 /**
  * Update the trustScore to the node providerId with given rating, which is in
  * [-10,10] and similarity coefficient alpha, which is strictly in (0,1) */
@@ -764,6 +776,17 @@ IoTNode::updateTrustScore (int providerId, double rating, double alpha)
 		    << ".\nSomehow alpha was not in [0,1]!" << std::endl;
 	}
     double ratingEffect = rating * alpha;
+
+    // update the rating effect according to the provider's origin
+    if (isNodePrivate (providerId))
+	{
+	    double privTrustCoef = getNodeById (providerId)->privateTrustCoef;
+	    ratingEffect *= privTrustCoef;
+	    EV << "\n Node" << providerId
+	       << " is private, so the effect of the rating given to it is multiplied with "
+	       << privTrustCoef;
+	}
+
     // The following adds to the map if providerId does not already exist
     // We ought to add it anyways...
     struct trustScore &alterandum = trustMap[providerId];
@@ -1242,6 +1265,8 @@ IoTNode::sendTransactionToClusterHead (ServiceRating *transaction)
     // Check if there's a known route to the selected Cluster Head
     if (routingTable.find (clusterHeadId) == routingTable.end ())
 	{
+	    // FIXME aga bu hata veriyor doğal olarak
+	    // küçük yığınlara bölündüğünde çalışmıyor bu
 	    EV << "Error: No known route to Cluster Head " << clusterHeadId << endl;
 	    delete transaction; // Prevent memory leak
 	    return;

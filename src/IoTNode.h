@@ -154,6 +154,7 @@ class IoTNode : public omnetpp::cSimpleModule
     double privateTrustCoef;
     void setGovernmentPrivate ();
     void setInitialTrustValues ();
+    bool isNodePrivate (int nodeId);
     // --- gov-priv stuff done ---
 
     void updateEpsilon ();
