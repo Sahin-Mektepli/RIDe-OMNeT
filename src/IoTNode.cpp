@@ -237,7 +237,7 @@ IoTNode::setPotencyAndConsistency ()
 	}
     else
 	{
-	    pot = uniform (5, 10);
+	    pot = uniform (-2, 10);
 	    cons = uniform (0.5, 2.0);
 	}
     this->potency = pot;
