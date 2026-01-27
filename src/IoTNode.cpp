@@ -12,6 +12,7 @@
 #include <map>
 #include <random>
 #include <string>
+#include <type_traits>
 #include <vector>
 
 #ifdef NDEBUG
@@ -129,6 +130,10 @@ IoTNode::noMalDominatedClusters ()
 void
 IoTNode::setMalicious (AttackerType type)
 {
+    if (type == GOV_PRIV)
+	{ // resmi hususi zıkkımında bir de kötülerle uğraşmıyoruz
+	    return;
+	}
     EV << "\n\n\n\nWe use attack number " << type << " in this simulation\n\n\n\n";
     int totalNodes = getParentModule ()->par ("numNodes");
     int numMalicious = int (par ("maliciousNodePercentage").doubleValue () * totalNodes);
@@ -213,12 +218,40 @@ IoTNode::setMalicious (AttackerType type)
 	}
 }
 
+void
+IoTNode::setPotencyAndConsistency ()
+{
+    int attackerTypeValue = getParentModule ()->par ("attackerType");
+    if (attackerTypeValue != GOV_PRIV)
+	{ // standard stuff
+	    standardPotencyAndConsistency ();
+	    return;
+	}
+    // distinguish p
+    double pot;
+    double cons;
+    if (this->isPrivate)
+	{
+	    pot = uniform (-5, 5);
+	    cons = uniform (0.5, 4.0);
+	}
+    else
+	{
+	    pot = uniform (5, 10);
+	    cons = uniform (0.5, 2.0);
+	}
+    this->potency = pot;
+    this->consistency = cons;
+}
+
 /**
  * Sets the potency and consistency values of the node.
  * The values are uniformly distributed in "meaningful" ranges,
- * so that even the worst benevolent node is quite performant */
+ * so that even the worst benevolent node is quite performant
+ * * This used to be the original setPotencyAndConsistency
+ * */
 void
-IoTNode::setPotencyAndConsistency ()
+IoTNode::standardPotencyAndConsistency ()
 {
     int id = getId ();
 
@@ -321,7 +354,7 @@ IoTNode::initialize ()
 
     epsilon = 1; // FIXME 0.2 idi
     minEpsilon = 0.01;
-    epsilonDecay = 0.90;
+    epsilonDecay = 0.999;
 
     serviceRequestEvent = new cMessage ("serviceRequestTimer");
     scheduleAt (simTime () + uniform (1, 5), serviceRequestEvent);
@@ -617,6 +650,46 @@ IoTNode::handleServiceResponseMsg (cMessage *msg)
 
     delete response;
 }
+
+void
+IoTNode::updatePrivateTrustCoef ()
+{
+    // 1. Eğer zaten bir devlet düğümü ise veya katsayı 1.0'a ulaştıysa işlem yapma.
+    if (!isPrivate || privateTrustCoef >= 1.0)
+	return;
+
+    // 2. İlk çağırışta başlangıç değerini hafızaya al ("Bilmiyorum" numarası yapmamak için
+    // öğreniyoruz)
+    if (initialPrivateTrustCoef < 0)
+	{
+	    initialPrivateTrustCoef = privateTrustCoef;
+	}
+
+    // 3. Sayaç arttır
+    serviceProvisionCount++;
+    int targetSteps = getParentModule ()->par ("serviceToForgetPriv"); // 20 falan
+
+    // 4. Eğer 20. adıma geldiysek veya geçtiysek 1.0'a sabitle
+    if (serviceProvisionCount >= targetSteps)
+	{
+	    privateTrustCoef = 1.0;
+	    EV << "Node " << getId () << " privateTrustCoef is fully matured to 1.0\n";
+	}
+    else
+	{
+	    // 5. Lineer Artış Hesabı (Linear Interpolation)
+	    // Formül: YeniDeğer = Başlangıç + (Hedef - Başlangıç) * (GeçenAdım / ToplamAdım)
+	    // Hedef = 1.0
+
+	    double progress = (double)serviceProvisionCount / targetSteps;
+	    privateTrustCoef = initialPrivateTrustCoef + (1.0 - initialPrivateTrustCoef) * progress;
+
+	    EV << "Node " << getId () << " privateTrustCoef updated linearly to "
+	       << privateTrustCoef << " (Step: " << serviceProvisionCount << "/" << targetSteps
+	       << ")\n";
+	}
+}
+
 void
 IoTNode::handleFinalServiceRequestMsg (cMessage *msg)
 {
@@ -651,6 +724,9 @@ IoTNode::handleFinalServiceRequestMsg (cMessage *msg)
 	    EV << "No route to requester " << requesterId << " for final service!" << endl;
 	    delete response;
 	}
+
+    if (this->isPrivate)
+	updatePrivateTrustCoef ();
 
     delete request;
 }
@@ -1022,6 +1098,31 @@ IoTNode::electClusterHeads ()
 	}
     EV << "Updated Cluster Head selection." << endl;
 }
+
+/*
+ * * Remove governmental nodes from the possible provider list if "they are busy"
+ * * Read the "government node's being busy rate" from the ini
+ */
+void
+IoTNode::removeBusyGovs (std::vector<int> &providerIds)
+{
+    double govBusyRate = getParentModule ()->par ("govBusyRate").doubleValue ();
+
+    std::uniform_real_distribution<double> dist{ 0, 1 };
+    double random = dist (gen);
+
+    if (random < govBusyRate)
+	{ // govs are busy, do remove
+	    providerIds.erase (std::remove_if (providerIds.begin (), providerIds.end (),
+					       [] (int id) {
+						   return governmentNodeIds.find (id)
+							  != governmentNodeIds.end ();
+					       }),
+			       providerIds.end ());
+	    // C++ is so grotesque, I love it
+	}
+}
+
 void
 IoTNode::initiateServiceRequest ()
 {
@@ -1031,9 +1132,15 @@ IoTNode::initiateServiceRequest ()
 	{
 	    providerIds.push_back (node.first);
 	}
+    // governmental nodes may be "busy"
+    // if so, don't even send them the request.
+    removeBusyGovs (providerIds);
     // if providerIds vector is empty, this node has no connected nodes,
     // which is A FATAL PROBLEM; crash
     assert (!providerIds.empty ());
+    // TODO if there are many sevice types, there is a chance that a service type is dominated by
+    // government nodes this will cause a crash in that case (since govs may be busy) which is
+    // great!
 
     requestedServiceType = SERVICE_TYPE; // just the string "A"
     pendingResponses.clear ();
@@ -1386,6 +1493,72 @@ IoTNode::recordAbility ()
     double ability = this->potency * this->consistency;
     recordScalar ("Ability of the node", ability);
 }
+
+void
+IoTNode::recordTrustData ()
+{
+    // Bu işlemi sadece Node 2 yapsın (Tek elden kayıt)
+    if (getId () != 2)
+	return;
+
+    // Dosyayı oluştur/aç (Overwrite modunda - her testte yenisi oluşsun)
+    std::ofstream csvFile;
+
+    csvFile.open ("results/trust_vs_ability.csv", std::ios::out | std::ios::trunc);
+
+    if (!csvFile.is_open ())
+	{ // AI yazdi bunlari, yorumlar falan ne sirin dimi :p
+	    EV_WARN << "CSV dosyası açılamadı! results klasörünün varlığından emin olun.\n";
+	    return;
+	}
+
+    // CSV Başlığı
+    csvFile << "NodeID,Type,Ability,AvgTrustScore\n";
+
+    // Tüm düğümleri gez (Target Node)
+    for (IoTNode *targetNode : allNodes)
+	{
+	    int targetId = targetNode->getId ();
+
+	    // --- 1. Trust Score Hesapla (Diğerlerinin ona verdiği puanların ortalaması) ---
+	    double sumTrust = 0.0;
+	    int count = 0;
+
+	    for (IoTNode *observer : allNodes)
+		{
+		    // Kendisinin kendisine güvenine bakmıyoruz (isteğe bağlı)
+		    if (observer->getId () == targetId)
+			continue;
+
+		    // Gözlemcinin map'inde bu hedef var mı?
+		    auto it = observer->trustMap.find (targetId);
+		    if (it != observer->trustMap.end ())
+			{
+			    sumTrust
+				+= it->second.value (); // TrustScore struct'ının value() fonksiyonu
+			    count++;
+			}
+		}
+
+	    // Eğer kimse bu node'u tanımıyorsa (imkansız ama) 0.0, yoksa ortalama
+	    double avgTrust = (count > 0) ? (sumTrust / count) : 0.0;
+
+	    // --- 2. Ability Hesapla ---
+	    double ability = targetNode->potency * targetNode->consistency;
+
+	    // --- 3. Tip Belirle ---
+	    // isPrivate true ise "Private", false ise "Gov"
+	    // CSV'ye 1 (Private) veya 0 (Gov) olarak yazalım, işlemesi kolay olsun.
+	    std::string nodeType = targetNode->isPrivate ? "Private" : "Government";
+
+	    // --- 4. Dosyaya Yaz ---
+	    csvFile << targetId << "," << nodeType << "," << ability << "," << avgTrust << "\n";
+	}
+
+    csvFile.close ();
+    EV << "Trust vs Ability verileri 'results/trust_vs_ability.csv' dosyasına kaydedildi.\n";
+}
+
 void
 IoTNode::finish ()
 {
@@ -1404,59 +1577,8 @@ IoTNode::finish ()
     recordLocalTrust ();
     recordAbility ();
 
-    // Accuracy için
-    /*if (getId() == 2) { // tek bir node içinde hesplamak için yazdım bu kısmı
-    node
-			// id'leri 2'den başlıyor omnet'te
-      std::vector<std::pair<double, bool>> trustAndLabel;
+    recordTrustData (); // bunun ismi cok salak oldu la
 
-      for (IoTNode *node : allNodes) {
-	trustAndLabel.emplace_back(node->trustScore, node->benevolent);
-      }
-
-      double bestF1 = 0.0;
-      double bestThreshold = 0.5; // default threshold
-      double bestPrecision = 0.0, bestRecall = 0.0, bestAccuracy = 0.0;
-      double threshold = 0.5; //!!
-
-      // for (double threshold = 0.0; threshold <= 1.0; threshold += 0.01) {
-      int TP = 0, TN = 0, FP = 0, FN = 0;
-
-      for (const auto &[score, isBenevolent] : trustAndLabel) {
-	bool predictedBenevolent = (score >= threshold);
-	// bu önemli!!!!
-	// positive= malicious bu testlerde çünkü amacımız kötüyü bulmak
-	if (!isBenevolent && !predictedBenevolent)
-	  TP++; // kötü olana kötü demiş
-	else if (isBenevolent && predictedBenevolent)
-	  TN++; // iyi olana iyi demiş
-	else if (!isBenevolent && predictedBenevolent)
-	  FN++; // kötüye iyi demiş
-	else if (isBenevolent && !predictedBenevolent)
-	  FP++; // iyiye kötü demiş
-      }
-
-      double precision = (double)TP / (TP + FP + 1e-6);
-      double recall = (double)TP / (TP + FN + 1e-6);
-      double f1 = 2 * precision * recall / (precision + recall + 1e-6);
-      double accuracy = (double)(TP + TN) / (TP + TN + FP + FN + 1e-6);
-
-      if (f1 > bestF1) {
-	bestF1 = f1;
-	bestThreshold = threshold;
-	bestPrecision = precision;
-	bestRecall = recall;
-	bestAccuracy = accuracy;
-      }
-      //}
-
-      // Record best metrics
-      recordScalar("BestThreshold", bestThreshold);
-      recordScalar("BestF1Score", bestF1);
-      recordScalar("BestPrecision", bestPrecision);
-      recordScalar("BestRecall", bestRecall);
-      recordScalar("BestAccuracy", bestAccuracy);
-    }*/
     if (badServiceLogger != nullptr)
 	{
 	    cancelAndDelete (badServiceLogger);

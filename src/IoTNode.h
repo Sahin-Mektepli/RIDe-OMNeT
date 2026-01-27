@@ -9,6 +9,7 @@
 #define __IOTNODE_H_
 
 #include "BlockchainMessage_m.h"
+#include <fstream>
 #include <map>
 #include <omnetpp.h>
 #include <set>
@@ -137,7 +138,8 @@ class IoTNode : public omnetpp::cSimpleModule
 	MALICIOUS_100, // 3
 	COLLABORATIVE, // 4
 	OPPORTUNISTIC, // 5
-	HYBRID	       // 6
+	HYBRID,	       // 6
+	GOV_PRIV       // 7 TODO this is not really an "attack"
 
     };						 // use this and switch statements to control
     enum AttackerType attackerType = BENEVOLENT; // default
@@ -152,9 +154,15 @@ class IoTNode : public omnetpp::cSimpleModule
     bool isPrivate;
     // hususi düğümlerin güven güncellemelerine etkisi (mesela) yarımdan başlıyor
     double privateTrustCoef;
+    double initialPrivateTrustCoef; // lineer olarak azaltmak için lazım
+    int serviceProvisionCount = 0;  // bu da aynı sebepten
+    void updatePrivateTrustCoef ();
     void setGovernmentPrivate ();
     void setInitialTrustValues ();
     bool isNodePrivate (int nodeId);
+    void standardPotencyAndConsistency ();
+    void removeBusyGovs (std::vector<int> &providerIds);
+    void recordTrustData ();
     // --- gov-priv stuff done ---
 
     void updateEpsilon ();
