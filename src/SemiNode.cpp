@@ -377,8 +377,10 @@ void SemiNode::initialize() {
   }
 
   if (maliciousNodeIds.count(getId()) > 0) {
+      int attackerTypeValue = getParentModule()->par("attackerType");
+
     benevolent = false;
-    attackerType = CAMOUFLAGE; // saldırının adı değişecek
+    attackerType = AttackerType(attackerTypeValue); // saldırının adı değişecek
     potency = -10; // bunlar kaç olmalı bilmiyorum burada chatgpt'nin yazdığını
                    // bıraktım buraya bakalım
     consistency = 1000;
@@ -434,6 +436,18 @@ void SemiNode::initialize() {
   badServiceLogger = new cMessage("badServiceLogger");
   scheduleAt(simTime() + 10.0, badServiceLogger); // 10 saniyede bir şu anda
   recordScalar("Camouflage Rate:",camouflageRate);
+  if (attackerType == HYBRID) {
+      if (hasPar("hybridSwitchTime"))
+          hybridSwitchTime = par("hybridSwitchTime").doubleValue();
+
+      getDisplayString().setTagArg("i", 1, "pink");
+      cMessage* hybridTrigger = new cMessage("triggerHybrid");
+      scheduleAt(hybridSwitchTime, hybridTrigger);
+
+      EV << "[HYBRID] Node " << getId()
+         << " will switch service behavior at t=" << hybridSwitchTime << "\n";
+  }
+
 }
 
 void SemiNode::printBlockChain(std::vector<Block> blockchain) {
@@ -741,6 +755,18 @@ void SemiNode::handleSelfMessage(cMessage *msg) {
     initiateServiceRequest();
     scheduleAt(simTime() + uniform(1, 5), msg); // Reschedule
   }
+  if (strcmp(msg->getName(), "triggerHybrid") == 0) {
+      EV << "[HYBRID] Node " << getId()
+         << " switches to BAD SERVICE phase at t=" << simTime() << "\n";
+
+      hybridHasSwitched = true;
+      benevolent = false;  // now truly malicious
+      getDisplayString().setTagArg("i", 1, "darkred");
+
+      delete msg;
+      return;
+  }
+
 }
 
 // bu fonksiyonu böldüm içindeki fonksiyonlar yukarıda yazıyor
@@ -932,6 +958,8 @@ double SemiNode::calculateRating(double quality, double timeliness,
     return calculateRatingBenevolent(quality, timeliness, rarity);
   case CAMOUFLAGE:
     return calculateRatingCamouflage(quality, timeliness, rarity);
+  case HYBRID:
+      return badMouthingRating();   // ALWAYS bad rating
   case OPPORTUNISTIC:
       if (simTime().dbl() < opportunisticAttackTime)
           return calculateRatingBenevolent(quality, timeliness, rarity);
@@ -951,7 +979,11 @@ double SemiNode::calcQuality(const double potency, const double consistency) {
     return calcQualityCamouflage(potency, consistency);
   case OPPORTUNISTIC:
       return calcQualityOpportunistic(potency, consistency);
-
+  case HYBRID:
+      if (!hybridHasSwitched)
+          return calcQualityBenevolent(9, 2.0); // good service before switch
+      else
+          return -10.0;                         // bad service after switch
   default:
     EV << "SOMETHING WENT WRONG WITH calcQuality!!\n";
     return 0; // should not defualt to here!

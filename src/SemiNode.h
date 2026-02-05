@@ -85,7 +85,9 @@ private:
     CAMOUFLAGE,
     BAD_MOUTHING,
     MALICIOUS_100,
-    OPPORTUNISTIC
+    OPPORTUNISTIC,
+    COLLABORATIVE,
+    HYBRID
   }; // use this and switch statements to control
   enum AttackerType attackerType = BENEVOLENT; // default
   double calculateMalRating(enum AttackerType);
@@ -201,6 +203,10 @@ protected:
   bool isOpportunisticNode = false; // true only for selected node
   cMessage* opportunisticTriggerMsg = nullptr;
   double opportunisticAttackTime = 500.0; // seconds (500 ticks if a tick is 1s)
+  // --- hybrid attack ---
+  bool hybridHasSwitched = false;
+  double hybridSwitchTime = 500.0;
+
   // public:
   // -- ihtilaf yuzunden buraya bazi gereksiz tanimlar ekliyorum--
   void printBlockChain(std::vector<Block> blockchain);

@@ -132,14 +132,14 @@ private:
     MALICIOUS_100,//3
     COLLABORATIVE,//4
     OPPORTUNISTIC,//5
-    HYBRID//6
+    HYBRID,//6
 
   }; // use this and switch statements to control
   enum AttackerType attackerType = BENEVOLENT; // default
   double calculateMalRating(enum AttackerType);
   double calculateRatingCamouflage(double quality, double timeliness,
                                    double rarity);
-
+  double calculateRatingBadMouthing(double quality, double timeliness, double rarity);
 protected:
   void updateEpsilon();
   auto epsilonGreedyMaxPair(const std::map<int, double> &mapping);

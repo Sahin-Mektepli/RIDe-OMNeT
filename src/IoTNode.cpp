@@ -869,6 +869,23 @@ double IoTNode::calcQualityCamouflage(double potency, double consistency) {
 }
 // TODO implement rating calculation for bad mouthing
 double badMouthingRating() { return 0; }
+double IoTNode::calculateRatingBadMouthing(double quality,
+                                           double timeliness,
+                                           double rarity)
+{
+    IoTNode *provider = getNodeById(lastProviderId);
+    if (!provider) {
+        EV_WARN << "BadMouthing: provider not found\n";
+        return 0;
+    }
+
+    if (provider->benevolent) {
+        return -10;
+    }
+
+
+    return 10; //bu kısım değişebilir şimdilik kötüler kötülere en yüksek ratingi veriyor
+}
 
 double IoTNode::calculateRating(double quality, double timeliness,
                                 double rarity) {
@@ -879,6 +896,8 @@ double IoTNode::calculateRating(double quality, double timeliness,
     return calculateRatingBenevolent(quality, timeliness, rarity);
   case CAMOUFLAGE:
     return calculateRatingCamouflage(quality, timeliness, rarity);
+  case BAD_MOUTHING:
+      return calculateRatingBadMouthing(quality, timeliness, rarity);
   case HYBRID:{
       IoTNode *provider = getNodeById(lastProviderId);
           if (!provider)
@@ -912,10 +931,10 @@ double IoTNode::calcQuality(const double potency, const double consistency) {
     return calcQualityCamouflage(potency, consistency);
   case OPPORTUNISTIC:
     return calcQualityBenevolent(potency, consistency);
+  case BAD_MOUTHING:
+      return calcQualityBenevolent(potency, consistency);
   case HYBRID:
-      return hybridHasSwitched
-          ? -10                         // after switch: bad service
-          : calcQualityBenevolent(potency, consistency);  // before switch: good service
+      return hybridHasSwitched ? -10 : calcQualityBenevolent(potency, consistency);  // before switch: good service
 
   default:
     EV << "SOMETHING WENT WRONG WITH calcQuality!!\n";

@@ -53,6 +53,8 @@ private:
      static int opportunisticNodeId;
      bool isOpportunisticNode = false;      // true for the selected opportunistic node
      double opportunisticAttackTime = 500.0; // seconds, default
+     bool hybridHasSwitched = false;
+     double hybridSwitchTime = 500.0;   // default
 
     enum AttackerType {
         BENEVOLENT, //0
@@ -60,7 +62,8 @@ private:
         BAD_MOUTHING,//2
         MALICIOUS_100,//3
         COLLABORATIVE,//4
-        OPPORTUNISTIC//5
+        OPPORTUNISTIC,//5
+        HYBRID
     }; // use this and switch statements to control
     void setMalicious(AttackerType type);
     int groupNo;

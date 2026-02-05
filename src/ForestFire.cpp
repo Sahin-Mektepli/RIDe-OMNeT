@@ -39,6 +39,8 @@ void ForestFire::initialize(){
     int attackerTypeValue = getParentModule()->par("attackerType");
     setMalicious(AttackerType(attackerTypeValue));
 
+
+
     badServiceLogger = new cMessage("badServiceLogger");
     scheduleAt(simTime() + 10.0, badServiceLogger); // log every 10 seconds
 
@@ -120,14 +122,24 @@ void ForestFire::setMalicious(AttackerType type){//burayı neden boş bıraktık
 
           EV << "CAMOUFLAGE BY NODE " << getId() << "\n";
           getDisplayString().setTagArg("i", 1, "blue");
-        } else if (attackerType == MALICIOUS_100) {
+        }else if (attackerType  == HYBRID ) {
+            hybridHasSwitched = false;
+            getDisplayString().setTagArg("i", 1, "pink");
+
+                cMessage* hybridTrigger = new cMessage("triggerHybrid");
+                scheduleAt(hybridSwitchTime, hybridTrigger);
+
+        }
+
+        else if (attackerType == MALICIOUS_100) {
           getDisplayString().setTagArg("i", 1, "red");
 
         } else if (attackerType == BAD_MOUTHING) {
           // iyi servis kötü yorum ise
           getDisplayString().setTagArg("i", 1, "purple");
         }
-      } else {
+      }
+      else {
         attackerType = BENEVOLENT;
         //benevolent = true;
         totalBenevolentNodes++;
@@ -296,6 +308,16 @@ void ForestFire::handleMessage(cMessage *msg) {
             }scheduleAt(simTime() + 10.0, msg); // repeat every 10s
             return;
           }
+    else if (strcmp(msg->getName(), "triggerHybrid") == 0) {
+        EV << "HYBRID node " << getId()
+           << " has switched: will now give BAD SERVICES.\n";
+
+        hybridHasSwitched = true;
+        getDisplayString().setTagArg("i", 1, "darkred");
+        delete msg;
+        return;
+    }
+
 
     // ...buraya eklme yapmamız gerekebilir düşünmedim daha ...
 }
@@ -413,6 +435,12 @@ bool ForestFire::simulateServiceSuccessFrom(int serverId) {
         case CAMOUFLAGE:
             pr = (dblrand() < s->camouflageRate) ? s->pGood : s->pBad;
             break;
+        case HYBRID:
+            if (s->hybridHasSwitched)
+                pr = 0.0;     // after switch: always bad
+            else
+                pr = 1.0;     // before switch: always good
+            break;
 
         case OPPORTUNISTIC:
                    // Opportunistic: benevolent until opportunisticSwitchTime, then fully malicious
@@ -444,10 +472,19 @@ void ForestFire::probeAndUpdate(int serverId) {
             return;
         }
     bool ok  = simulateServiceSuccessFrom(serverId);
+    totalServicesReceived++;
+    if (!ok) totalBadServicesReceived++;
+
+    if (this->attackerType == BAD_MOUTHING ||
+            this->attackerType == HYBRID) {
+
+            // if target is benevolent, report failure even if success
+            if (s->attackerType == BENEVOLENT) {
+                ok = false;
+            }
+        }
 
     // --- AĞ GENELİ sayaçlar ---
-        totalServicesReceived++;
-        if (!ok) totalBadServicesReceived++;
 
     double old = getActRecent(serverId);      // yoksa 1.0
     double obs = ok ? 1.0 : 0.0;
