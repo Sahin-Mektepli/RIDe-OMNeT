@@ -144,17 +144,32 @@ IoTNode::setMalicious (AttackerType type)
 	    do
 		{
 		    maliciousNodeIds.clear ();
-		    std::vector<int> allIds;
+
+		    // govs cannot be malicious
+		    std::vector<int> privateIds;
+
+		    // std::vector<int> allIds;
 		    for (int i = 2; i < 2 + totalNodes; ++i)
-			allIds.push_back (i);
-		    std::shuffle (allIds.begin (), allIds.end (), gen);
+			{
+			    if (governmentNodeIds.find (i) == governmentNodeIds.end ())
+				privateIds.push_back (i);
+			}
+		    if (privateIds.size () < numMalicious)
+			{
+			    EV_WARN
+				<< "\n\nUyarı: Kötücül olması istenen sayı, mevcut Hususi düğüm "
+				   "sayısından fazla! Hepsi kötü yapılacak.\n";
+			    numMalicious = privateIds.size ();
+			}
+		    std::shuffle (privateIds.begin (), privateIds.end (), gen);
 
 		    if (type == OPPORTUNISTIC)
 			{
-			    opportunisticNodeId = allIds.front ();
+			    opportunisticNodeId = privateIds.front ();
 			    EV << "OPPORTUNISM BY NODE " << opportunisticNodeId << '\n';
 			}
-		    maliciousNodeIds.insert (allIds.begin (), allIds.begin () + numMalicious);
+		    maliciousNodeIds.insert (privateIds.begin (),
+					     privateIds.begin () + numMalicious);
 		    maliciousNodeIds.erase (
 			opportunisticNodeId); // this is excluded for some reason
 		}
@@ -187,10 +202,14 @@ IoTNode::setMalicious (AttackerType type)
 		    // read camouflageRate from omnetpp.ini (defaults to 0.0 if not provided)
 		    if (hasPar ("camouflageRate"))
 			{
-			    camouflageRate = par ("camouflageRate").doubleValue ();
+			    this->camouflageRate = par ("camouflageRate").doubleValue ();
+			    EV << "The camouflage rate is " << camouflageRate << '\n';
 			}
 
-		    EV << "CAMOUFLAGE BY NODE " << getId () << "\n";
+		    // TODO REMOVE THIS FOR RESULTS OTHER THAN PUBLIC-PRIVATE
+		    this->potency = 10;
+		    EV << "CAMOUFLAGE BY NODE " << getId () << "\n"
+		       << "with ability " << this->potency * this->consistency << "\n";
 		    getDisplayString ().setTagArg ("i", 1, "blue");
 		}
 	    else if (attackerType == MALICIOUS_100)
@@ -221,23 +240,23 @@ IoTNode::setMalicious (AttackerType type)
 void
 IoTNode::setPotencyAndConsistency ()
 {
-    int attackerTypeValue = getParentModule ()->par ("attackerType");
-    if (attackerTypeValue != GOV_PRIV)
-	{ // standard stuff
-	    standardPotencyAndConsistency ();
-	    return;
-	}
+    // int attackerTypeValue = getParentModule ()->par ("attackerType");
+    // if (attackerTypeValue != GOV_PRIV)
+    // { // standard stuff
+    //     standardPotencyAndConsistency ();
+    //     return;
+    // }
     // distinguish p
     double pot;
     double cons;
     if (this->isPrivate)
 	{
-	    pot = uniform (-5, 5);
-	    cons = uniform (0.5, 4.0);
+	    pot = uniform (-10, 3);
+	    cons = uniform (0.25, 1.0);
 	}
     else
 	{
-	    pot = uniform (-2, 10);
+	    pot = uniform (0, 10);
 	    cons = uniform (0.5, 2.0);
 	}
     this->potency = pot;
@@ -354,7 +373,7 @@ IoTNode::initialize ()
 
     epsilon = 1; // FIXME 0.2 idi
     minEpsilon = 0.01;
-    epsilonDecay = 0.999;
+    epsilonDecay = 0.9;
 
     serviceRequestEvent = new cMessage ("serviceRequestTimer");
     scheduleAt (simTime () + uniform (1, 5), serviceRequestEvent);
@@ -668,6 +687,7 @@ IoTNode::updatePrivateTrustCoef ()
     // 3. Sayaç arttır
     serviceProvisionCount++;
     int targetSteps = getParentModule ()->par ("serviceToForgetPriv"); // 20 falan
+    // TODO is this too few?
 
     // 4. Eğer 20. adıma geldiysek veya geçtiysek 1.0'a sabitle
     if (serviceProvisionCount >= targetSteps)
