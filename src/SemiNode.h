@@ -205,7 +205,7 @@ protected:
   double opportunisticAttackTime = 500.0; // seconds (500 ticks if a tick is 1s)
   // --- hybrid attack ---
   bool hybridHasSwitched = false;
-  double hybridSwitchTime = 500.0;
+  double hybridSwitchTime = 200.0;
 
   // public:
   // -- ihtilaf yuzunden buraya bazi gereksiz tanimlar ekliyorum--
