@@ -240,7 +240,7 @@ protected:
   cMessage* hybridTrigger=nullptr;
 
   bool hybridHasSwitched = false;
-  double hybridSwitchTime = 500.0;
+  double hybridSwitchTime = 200.0;
 };
 
 #endif
