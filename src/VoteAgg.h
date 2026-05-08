@@ -24,7 +24,7 @@ struct trustScore {
 
   double value() const {
     if (sumOfAllRatings <= 0.0)
-      return 0.5;  // neutral default until enough ratings exist
+      return 0.1;  // neutral default until enough ratings exist
     return sumOfPositiveRatings / sumOfAllRatings;
   }
 };

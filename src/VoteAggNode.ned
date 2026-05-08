@@ -32,8 +32,7 @@ simple VoteAggNode
         double camouflageRate = default(0.0);
 
         // New vote aggregation parameters.
-        string aggregationMethod = default("additive"); // additive | multiplicative | borda
-        double globalTrustUpdateInterval @unit(s) = default(10s);
+		int aggregationMethod = default(0); // 0 additive, 1 multiplicative, 2 borda        double globalTrustUpdateInterval @unit(s) = default(10s);
 
     gates:
         inout inoutGate[];

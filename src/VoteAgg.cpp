@@ -22,6 +22,16 @@
 #endif
 #include <cassert>
 /*
+ * VoteAgg modeli ile ilgili Notlar:
+ 1. direct trust is only local, so learning is slow
+ 2. unknown nodes remain neutral at 0.5 (bunu değiştirip deneyebiliriz)
+ 3. DT values are mostly 0/0.5/1 (bu neden böyle çözemedim hala)
+ 4. malicious voters are included equally in aggregation
+ 5. multiplicative is vulnerable to bad-mouthing
+ 6. global ranking can become poisoned and then mislead provider selection
+ (weighted yapabiliriz herkes kendi gloabal trust'ına oranla oy verebilir)
+ */
+/*
 ** -----KRITIK BAZI NOTLAR------
 ** - Kalite hesabı nasıl olacak, artık nadirlik falan yok!
 ** - Çizgenin yapısı aslında değişmeli, ama bu ertelenebilir
@@ -220,7 +230,21 @@ void VoteAgg::initialize() {
   recordScalar("camouflageRate", camouflageRate);
 
   if (hasPar("aggregationMethod")) {
-    aggregationMethod = parseAggregationMethod(par("aggregationMethod").stringValue());
+      int methodValue = par("aggregationMethod").intValue();
+
+      switch (methodValue) {
+          case 0:
+              aggregationMethod = AGG_ADDITIVE;
+              break;
+          case 1:
+              aggregationMethod = AGG_MULTIPLICATIVE;
+              break;
+          case 2:
+              aggregationMethod = AGG_BORDA;
+              break;
+          default:
+              throw cRuntimeError("Invalid aggregationMethod value: %d", methodValue);
+      }
   }
   if (hasPar("globalTrustUpdateInterval")) {
     globalTrustUpdateInterval = par("globalTrustUpdateInterval").doubleValue();
@@ -1079,7 +1103,7 @@ bool VoteAgg::extract(const std::string &input, double &rating,
 }
 
 
-VoteAgg::AggregationMethod VoteAgg::parseAggregationMethod(const char *methodName) {
+/*VoteAgg::AggregationMethod VoteAgg::parseAggregationMethod(const char *methodName) {
   std::string method = methodName ? std::string(methodName) : "additive";
   std::transform(method.begin(), method.end(), method.begin(), ::tolower);
 
@@ -1089,13 +1113,13 @@ VoteAgg::AggregationMethod VoteAgg::parseAggregationMethod(const char *methodNam
   if (method == "multiplicative" ) {
     return AGG_MULTIPLICATIVE;
   }
-  if (method == "borda" ) {
+  if (method == "bordascore" ) {
     return AGG_BORDA;
   }
 
   throw cRuntimeError("Unknown aggregationMethod: %s", methodName);
 }
-
+*/
 std::vector<int> VoteAgg::sortNodesByScore(const std::map<int, double> &scores) {
   std::vector<std::pair<int, double>> entries(scores.begin(), scores.end());
 
