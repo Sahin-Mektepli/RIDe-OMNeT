@@ -24,7 +24,7 @@ struct trustScore {
 
   double value() const {
     if (sumOfAllRatings <= 0.0)
-      return 0.1;  // neutral default until enough ratings exist
+      return 0.5;  // neutral default until enough ratings exist
     return sumOfPositiveRatings / sumOfAllRatings;
   }
 };
@@ -47,7 +47,8 @@ enum AttackerType {
   BAD_MOUTHING = 3,
   OPPORTUNISTIC = 4,
   COLLABORATIVE = 5,
-  HYBRID = 6
+  HYBRID = 6,
+  BAD_SERVICE_GOOD_RATING = 7
 };
 
 class VoteAgg : public cSimpleModule {
@@ -95,8 +96,8 @@ protected:
   double camouflageRate = 0.0;
   double potency = 0.0;
   double consistency = 1.0;
-  double opportunisticAttackTime = 50.0;
-  double hybridSwitchTime = 50.0;
+  double opportunisticAttackTime = 500.0;
+  double hybridSwitchTime = 500.0;
   double globalTrustUpdateInterval = 10.0;
 
   double wQ = 1.0;

@@ -132,71 +132,67 @@ bool VoteAgg::noMalDominatedClusters() {
 void VoteAgg::setMalicious(AttackerType type) {
   EV << "\n\n\n\nWe use attack number " << type
      << " in this simulation\n\n\n\n";
+
   int totalNodes = getParentModule()->par("numNodes");
   int numMalicious =
       int(par("maliciousNodePercentage").doubleValue() * totalNodes);
 
-  // Sadece ilk node random seçim yapar
+  // Only first node randomly selects malicious nodes
   if (getId() == 2) {
     do {
       maliciousNodeIds.clear();
+
       std::vector<int> allIds;
       for (int i = 2; i < 2 + totalNodes; ++i)
         allIds.push_back(i);
+
       std::shuffle(allIds.begin(), allIds.end(), gen);
 
-      if (type == OPPORTUNISTIC) {
-        opportunisticNodeId = allIds.front();
-        EV << "OPPORTUNISM BY NODE " << opportunisticNodeId << '\n';
-      }
+      // For OPPORTUNISTIC, all selected malicious nodes will be opportunistic.
+      // No single opportunisticNodeId anymore.
       maliciousNodeIds.insert(allIds.begin(), allIds.begin() + numMalicious);
-      maliciousNodeIds.erase(
-          opportunisticNodeId); // this is excluded for some reason
 
-    } while (!noMalDominatedClusters()); // try again until there are no such
-                                         // clusters.
+    } while (!noMalDominatedClusters());
   }
 
-  if (type == OPPORTUNISTIC && getId() == opportunisticNodeId) {
-    attackerType = OPPORTUNISTIC;
-    isOpportunisticNode = true;
-    benevolent = true; // Başta iyi
-    // potency = 9; //These values should not be set after initalization
-    // consistency = 2.0;
-  } else if (maliciousNodeIds.count(getId()) > 0) {
-    //!!opportunistic saldırıda iyi davranan bir node belirli bir süre sonra
-    //! kötü davranmaya başlıyor ama onun dışında da kötü nodelar olabilir
-    //! onların türünü kamuflaj yaptım kamuflajı 0 yaparsak yüzde yüz kötücül de
-    //! olabilir
-    attackerType =
-        (type == OPPORTUNISTIC)
-            ? CAMOUFLAGE
-            : type; // opportunistic attack dışınadkiler direkt kendi türüne
-                    // eşitleniyor saldırımız opportunistic ise seçilmiş node
-                    // dışındakiler kamuflaj saldırısı yapıyor
-    benevolent = false;
-    if (attackerType == CAMOUFLAGE) {
-        // read camouflageRate from omnetpp.ini (defaults to 0.0 if not provided)
+  if (maliciousNodeIds.count(getId()) > 0) {
+
+    if (type == OPPORTUNISTIC) {
+      attackerType = OPPORTUNISTIC;
+      isOpportunisticNode = true;
+      benevolent = true;  // starts as good
+
+      EV << "OPPORTUNISTIC BY NODE " << getId() << "\n";
+      getDisplayString().setTagArg("i", 1, "yellow");
+    }
+    else {
+      attackerType = type;
+      benevolent = false;
+
+      if (attackerType == CAMOUFLAGE) {
         if (hasPar("camouflageRate")) {
           camouflageRate = par("camouflageRate").doubleValue();
         }
 
-      EV << "CAMOUFLAGE BY NODE " << getId() << "\n";
-      getDisplayString().setTagArg("i", 1, "blue");
-    } else if (attackerType == MALICIOUS_100) {
-      getDisplayString().setTagArg("i", 1, "red");
-
-    } else if (attackerType == BAD_MOUTHING) {
-      // iyi servis kötü yorum ise
-      getDisplayString().setTagArg("i", 1, "purple");
+        EV << "CAMOUFLAGE BY NODE " << getId() << "\n";
+        getDisplayString().setTagArg("i", 1, "blue");
+      }
+      else if (attackerType == MALICIOUS_100) {
+        getDisplayString().setTagArg("i", 1, "red");
+      }
+      else if (attackerType == BAD_MOUTHING) {
+        getDisplayString().setTagArg("i", 1, "purple");
+      }
+      else if (attackerType == BAD_SERVICE_GOOD_RATING) {
+        EV << "BAD_SERVICE_GOOD_RATING BY NODE " << getId() << "\n";
+        getDisplayString().setTagArg("i", 1, "brown");
+      }
+      else if (attackerType == HYBRID) {
+        getDisplayString().setTagArg("i", 1, "pink");
+      }
     }
-
-  else if (attackerType == HYBRID) {
-
-      benevolent = false;   // hybrid attacker does not act benevolent in trust
-      getDisplayString().setTagArg("i", 1, "pink");
-  }}
-else {
+  }
+  else {
     attackerType = BENEVOLENT;
     benevolent = true;
     totalBenevolentNodes++;
@@ -908,6 +904,10 @@ double VoteAgg::calculateRating(double quality, double timeliness,
     return calculateRatingCamouflage(quality, timeliness, rarity);
   case BAD_MOUTHING:
       return calculateRatingBadMouthing(quality, timeliness, rarity);
+  case MALICIOUS_100:
+      return -10;
+  case BAD_SERVICE_GOOD_RATING:
+      return calculateRatingBenevolent(quality, timeliness, rarity);
   case HYBRID:{
       VoteAgg *provider = getNodeById(lastProviderId);
           if (!provider)
@@ -943,6 +943,8 @@ double VoteAgg::calcQuality(const double potency, const double consistency) {
     return calcQualityBenevolent(potency, consistency);
   case BAD_MOUTHING:
       return calcQualityBenevolent(potency, consistency);
+  case BAD_SERVICE_GOOD_RATING:
+      return -10;
   case HYBRID:
       return hybridHasSwitched ? -10 : calcQualityBenevolent(potency, consistency);  // before switch: good service
 
@@ -979,6 +981,11 @@ double VoteAgg::calculateRatingBenevolent(double quality,
                                           double timeliness,
                                           double rarity) {
   double rating;
+  //deneme için koydum bu if olan kısmı
+  if (quality < 0) {
+     EV << "Bad quality detected, rating forced negative: " << quality << "\n";
+     return quality;
+   }
   // the weighted average of the thre components
   rating = (wQ * quality + wR * rarity + wT * timeliness) / (wQ + wR + wT);
   EV << "RATING IS CALCULATED AS: " << rating << '\n';
