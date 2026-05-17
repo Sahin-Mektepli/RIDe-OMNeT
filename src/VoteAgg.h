@@ -72,6 +72,7 @@ public:
   static int totalServicesReceived;
   static std::map<int, double> globalTrustScores;
   static std::vector<int> globalTrustRanking;
+  static double totalReceivedQuality;
 
 protected:
   std::map<int, int> routingTable;
@@ -101,8 +102,8 @@ protected:
   double globalTrustUpdateInterval = 10.0;
 
   double wQ = 1.0;
-  double wR = 1.0;
-  double wT = 1.0;
+  double wR = 0.0;
+  double wT = 0.0;
 
   int badServicesReceived = 0;
   int lastProviderId = -1;

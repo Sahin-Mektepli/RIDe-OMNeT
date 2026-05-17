@@ -58,7 +58,7 @@ int VoteAgg::opportunisticNodeId = -1;
 int VoteAgg::totalServicesReceived = 0;
 std::map<int, double> VoteAgg::globalTrustScores;
 std::vector<int> VoteAgg::globalTrustRanking;
-
+double VoteAgg::totalReceivedQuality = 0.0;
 
 
 
@@ -534,6 +534,7 @@ void VoteAgg::handleFinalServiceResponseMsg(cMessage *msg) {
   int providerId = response->getProviderId();
   double quality = response->getServiceQuality();
   totalServicesReceived++;   // <-- count every service received
+  totalReceivedQuality += quality;
 
   std::string serviceType = response->getServiceType(); // lazim
   EV << "Node " << getId() << " received final service from " << providerId
@@ -720,6 +721,15 @@ void VoteAgg::handleSelfMessage(cMessage *msg) {
                     .c_str(),
                 ratio);
         }
+    if (totalServicesReceived > 0) {
+        double avgQuality = totalReceivedQuality / totalServicesReceived;
+
+        recordScalar(
+            ("AverageReceivedQualityAt_" + std::to_string((int)simTime().dbl()))
+                .c_str(),
+            avgQuality
+        );
+    }
     // belirli sürede bir(şu anda 10 saniye) tekrar ettiği için
     // badServiceLogger'ın içine yazdım bu opportunistic saldırıyı başlatan
     // kısmı
@@ -1318,7 +1328,10 @@ double VoteAgg::mergeTrustScore(int candidateId) {
      << ": general=" << generalPoints << " personal=" << personalPoints
      << " total=" << generalPoints + personalPoints << "\n";
 
-  return generalPoints + personalPoints;
+  //return generalPoints + personalPoints;
+//return generalPoints ;
+  return directTrust ;
+
 }
 
 /**
