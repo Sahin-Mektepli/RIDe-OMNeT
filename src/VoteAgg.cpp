@@ -1022,6 +1022,7 @@ VoteAgg::badMouthingRating ()
 {
     return 0;
 }
+
 double
 VoteAgg::calculateRatingBadMouthing (double quality, double timeliness, double rarity)
 {
@@ -1405,9 +1406,7 @@ VoteAgg::updateGlobalTrustAdditive ()
 		    total += matrix[evaluatorId][targetId];
 		    count++;
 		}
-	    // TODO this assumes that a node with no votes (how could that be??)
-	    // should get 0,
-	    // which is not clear at all!
+	    // this assumes that a node with no votes (how could that be??)
 	    globalTrustScores[targetId] = (count > 0) ? total / count : 0.0;
 	}
 }
@@ -1522,6 +1521,7 @@ VoteAgg::updateGlobalTrustApproval ()
  * * Node i gives "1" to j if TS_ij > theta.
  * * Otherwise gives a vote of value TS_ij directly,
  * As TS_ij is in [0,1], this accounts for a "partial vote"
+ * TODO inspect the votes and their distribution for this.
  */
 void
 VoteAgg::updateGlobalTrustRelu ()

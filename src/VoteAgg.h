@@ -119,8 +119,8 @@ class VoteAgg : public cSimpleModule
     double approval_threshold = 0.5;
 
     double wQ = 1.0;
-    double wR = 1.0;
-    double wT = 1.0;
+    double wR = 0;
+    double wT = 0;
 
     int badServicesReceived = 0;
     int lastProviderId = -1;
