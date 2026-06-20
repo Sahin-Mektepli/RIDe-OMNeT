@@ -8,6 +8,7 @@
 #include "BlockchainMessage_m.h"
 #include "omnetpp/clog.h"
 #include <algorithm>
+
 #include <cmath>
 #include <map>
 #include <random>
@@ -237,24 +238,34 @@ void VoteAgg::initialize() {
       this->camouflageRate = 0.0;  // safe default
   recordScalar("camouflageRate", camouflageRate);
 
-  if (hasPar("aggregationMethod")) {
-      int methodValue = par("aggregationMethod").intValue();
-  recordScalar("AggregationMethod", methodValue);
+  if (hasPar ("aggregationMethod"))
+   {
+       int methodValue = par ("aggregationMethod").intValue ();
 
-      switch (methodValue) {
-          case 0:
-              aggregationMethod = AGG_ADDITIVE;
-              break;
-          case 1:
-              aggregationMethod = AGG_MULTIPLICATIVE;
-              break;
-          case 2:
-              aggregationMethod = AGG_BORDA;
-              break;
-          default:
-              throw cRuntimeError("Invalid aggregationMethod value: %d", methodValue);
-      }
-  }
+       switch (methodValue)
+       {
+       case 0:
+           aggregationMethod = AGG_ADDITIVE;
+           break;
+       case 1:
+           aggregationMethod = AGG_MULTIPLICATIVE;
+           break;
+       case 2:
+           aggregationMethod = AGG_BORDA;
+           break;
+       case 3:
+           aggregationMethod = AGG_APPROVAL;
+           break;
+       case 4:
+           aggregationMethod = AGG_RELU;
+           break;
+       case 5:
+           aggregationMethod = AGG_REVRELU;
+           break;
+       default:
+           throw cRuntimeError ("Invalid aggregationMethod value: %d", methodValue);
+       }
+   }
   if (hasPar("globalTrustUpdateInterval")) {
     globalTrustUpdateInterval = par("globalTrustUpdateInterval").doubleValue();
   }
@@ -445,6 +456,43 @@ auto randomPairOfMapping(const std::map<int, double> &mapping) {
     return randomPairOfMapping(mapping);
   }
 }*/
+/*std::map<int, double>::const_iterator VoteAgg::epsilonGreedyMaxPair(
+    const std::map<int, double> &mapping) {
+
+  std::uniform_real_distribution<double> dist{0, 1};
+  double random = dist(gen);
+
+  if (random > this->epsilon) {
+    // Exploitation: choose best score from aggregation/merge
+    return std::max_element(
+        mapping.begin(), mapping.end(),
+        [](const auto &a, const auto &b) {
+          return a.second < b.second;
+        });
+  }
+
+  // Exploration: prefer providers with no previous direct interaction
+  std::vector<int> unknownProviderIds;
+
+  for (const auto &entry : mapping) {
+    int candidateId = entry.first;
+
+    if (trustMap.find(candidateId) == trustMap.end()) {
+      unknownProviderIds.push_back(candidateId);
+    }
+  }
+
+  if (!unknownProviderIds.empty()) {
+    int randomIndex = random_0_to_n(unknownProviderIds.size());
+    int chosenId = unknownProviderIds[randomIndex];
+
+    return mapping.find(chosenId);
+  }
+
+  // If all candidates are already known, fall back to random choice
+  return randomPairOfMapping(mapping);
+}*/
+
 std::map<int, double>::const_iterator VoteAgg::epsilonGreedyMaxPair(
     const std::map<int, double> &mapping) {
 
@@ -482,6 +530,74 @@ std::map<int, double>::const_iterator VoteAgg::epsilonGreedyMaxPair(
   return randomPairOfMapping(mapping);
 }
 
+/*
+ * omnet seedlerini kullanıyoruz
+ * Epsilon her node için 1.0 ile başlıyor
+ * Etkileşimleri arttıkça azalıyor
+ * Sonuçlar bunu kullanınca birebir aynı geliyor o yüzden bunu şimdilik yoruma alıyorum
+ */
+/*std::map<int, double>::const_iterator VoteAgg::epsilonGreedyMaxPair(
+    const std::map<int, double> &mapping)
+{
+    if (mapping.empty()) {
+        throw std::invalid_argument("Mapping cannot be empty in epsilonGreedyMaxPair");
+    }
+
+    // Collect unknown providers among the current responding candidates.
+    std::vector<int> unknownProviderIds;
+
+    for (const auto &entry : mapping) {
+        int candidateId = entry.first;
+
+        // Unknown means this requester has no direct trust entry for this provider.
+        if (trustMap.find(candidateId) == trustMap.end()) {
+            unknownProviderIds.push_back(candidateId);
+        }
+    }
+
+    int totalCandidates = mapping.size();
+    int unknownCandidates = unknownProviderIds.size();
+
+    // Old dynamic epsilon strategy:
+    // all unknown  => epsilon = 1.0
+    // half unknown => epsilon = 0.5
+    // none unknown => epsilon = 0.0
+    this->epsilon =
+        (totalCandidates > 0)
+            ? ((double)unknownCandidates / totalCandidates)
+            : 0.0;
+
+    this->epsilon = std::clamp(this->epsilon, minEpsilon, 1.0);
+
+    EV << "Dynamic epsilon for Node " << getId()
+       << " = " << epsilon
+       << " unknownCandidates=" << unknownCandidates
+       << " totalCandidates=" << totalCandidates << "\n";
+
+    // Use OMNeT++ RNG instead of std::default_random_engine.
+    double random = uniform(0, 1);
+
+    // Exploration: randomly choose one unknown provider.
+    if (!unknownProviderIds.empty() && random < this->epsilon) {
+        int randomIndex = intuniform(0, unknownProviderIds.size() - 1);
+        int chosenId = unknownProviderIds[randomIndex];
+
+        EV << "Exploration: Node " << getId()
+           << " chooses unknown provider " << chosenId << "\n";
+
+        return mapping.find(chosenId);
+    }
+
+    // Exploitation: choose provider with the highest merged score.
+    EV << "Exploitation: Node " << getId()
+       << " chooses provider with highest merged score\n";
+
+    return std::max_element(
+        mapping.begin(), mapping.end(),
+        [](const auto &a, const auto &b) {
+            return a.second < b.second;
+        });
+}*/
 void VoteAgg::handleServiceResponseMsg(cMessage *msg) {
   ServiceResponse *response = check_and_cast<ServiceResponse *>(msg);
   int responderId = response->getProviderId();
@@ -491,7 +607,7 @@ void VoteAgg::handleServiceResponseMsg(cMessage *msg) {
     int requestorId = this->getId();
 
     auto it = trustMap.find(responderId);
-    double localTrust = (it != trustMap.end()) ? it->second.value() : 0.0;
+    double localTrust = (it != trustMap.end()) ? it->second.value() : 0.5;
     respondedProviders[responderId] = localTrust;
 
     pendingResponses.erase(responderId);
@@ -613,7 +729,9 @@ void VoteAgg::handleFinalServiceResponseMsg(cMessage *msg) {
       alterandum.sumOfPositiveRatings += rating;
   }
 
+
   alterandum.sumOfAllRatings += std::abs(rating);
+  alterandum.interactionCount += 1;
 
   EV << "Direct trust update: requester=" << getId()
      << " provider=" << providerId
@@ -1203,8 +1321,9 @@ std::vector<int> VoteAgg::sortNodesByScore(const std::map<int, double> &scores) 
   return ranking;
 }
 
-VoteAgg::DirectTrustMatrix VoteAgg::buildDirectTrustMatrix() {//!!0 idi ben 0.5 yaptım denemek için
+VoteAgg::DirectTrustMatrix VoteAgg::buildDirectTrustMatrix() {
   DirectTrustMatrix matrix;
+  const double defaultDirectTrust = 0.5;
 
   for (VoteAgg *evaluator : allNodes) {
     int evaluatorId = evaluator->getId();
@@ -1216,35 +1335,46 @@ VoteAgg::DirectTrustMatrix VoteAgg::buildDirectTrustMatrix() {//!!0 idi ben 0.5 
 
       auto it = evaluator->trustMap.find(targetId);
       matrix[evaluatorId][targetId] =
-          (it != evaluator->trustMap.end()) ? it->second.value() : 0.0;
+          (it != evaluator->trustMap.end()) ? it->second.value()
+                                           : defaultDirectTrust;
     }
   }
 
   return matrix;
 }
 //TODO: Approval yöntemleri eklenecek
-void VoteAgg::updateGlobalTrustList() {
-  if (allNodes.empty())
+void VoteAgg::updateGlobalTrustList ()
+{
+    if (allNodes.empty ())
     return;
 
-  switch (allNodes.front()->aggregationMethod) {
-  case AGG_ADDITIVE:
-    updateGlobalTrustAdditive();
-    break;
-  case AGG_MULTIPLICATIVE:
-    updateGlobalTrustMultiplicative();
-    break;
-  case AGG_BORDA:
-    updateGlobalTrustBorda();
-    break;
-  default:
-    throw cRuntimeError("Invalid aggregation method");
-  }
+    switch (allNodes.front ()->aggregationMethod)
+    {
+    case AGG_ADDITIVE:
+        updateGlobalTrustAdditive ();
+        break;
+    case AGG_MULTIPLICATIVE:
+        updateGlobalTrustMultiplicative ();
+        break;
+    case AGG_BORDA:
+        updateGlobalTrustBorda ();
+        break;
+    case AGG_APPROVAL:
+        updateGlobalTrustApproval ();
+        break;
+    case AGG_RELU:
+        updateGlobalTrustRelu ();
+        break;
+    case AGG_REVRELU:
+           updateGlobalTrustRevRelu ();
+           break;
+    default:
+        throw cRuntimeError ("Invalid aggregation method");
+    }
 
-  globalTrustRanking = sortNodesByScore(globalTrustScores);
+    globalTrustRanking = sortNodesByScore (globalTrustScores);
 
-
-  // Static function: avoid EV/simTime() here because EV requires a module instance.
+    // Static function: avoid EV/simTime() here because EV requires a module instance.
 }
 
 
@@ -1254,30 +1384,88 @@ A interacted with B  => A has DT about B => use it in aggregation
 A never used B       => A has no DT about B => skip it
 Nobody knows B       => B gets neutral global trust 0.5
 */
-/*void VoteAgg::updateGlobalTrustAdditive3() {
-  globalTrustScores.clear();
 
-  DirectTrustMatrix matrix = buildDirectTrustMatrix();
+/*void VoteAgg::updateGlobalTrustApproval()
+{
+    globalTrustScores.clear();
 
-  for (VoteAgg *target : allNodes) {
-    int targetId = target->getId();
+    for (VoteAgg *target : allNodes) {
+        int targetId = target->getId();
 
-    double total = 0.0;
-    int count = 0;
+        int votes = 0;
+        int count = 0;
 
-    for (VoteAgg *evaluator : allNodes) {
-      int evaluatorId = evaluator->getId();
+        for (VoteAgg *voter : allNodes) {
+            int voterId = voter->getId();
 
-      if (evaluatorId == targetId)
-        continue;
+            if (targetId == voterId)
+                continue;
 
-      total += matrix[evaluatorId][targetId];
-      count++;
+            auto it = voter->trustMap.find(targetId);
+
+            // No direct interaction => no opinion
+            if (it == voter->trustMap.end())
+                continue;
+
+            count++;
+
+            double votersTrustInTarget = it->second.value();
+
+            if (votersTrustInTarget >= voter->approval_threshold)
+                votes++;
+        }
+
+        // Normalize to [0,1], so it is comparable with other methods
+        globalTrustScores[targetId] =
+            (count > 0) ? ((double)votes / count) : 0.5;
     }
+}
 
-    globalTrustScores[targetId] = (count > 0) ? total / count : 0.0;
-  }
-}*/
+/*
+ * * Alters the "globalTrustScores" with the Approval method.
+ * * Node i gives "1" to j if TS_ij > theta.
+ * * Otherwise gives a vote of value TS_ij directly,
+ * As TS_ij is in [0,1], this accounts for a "partial vote"
+ * TODO inspect the votes and their distribution for this.
+ */
+/*void VoteAgg::updateGlobalTrustRelu()
+{
+    globalTrustScores.clear();
+
+    for (VoteAgg *target : allNodes) {
+        int targetId = target->getId();
+
+        double votes = 0.0;
+        int count = 0;
+
+        for (VoteAgg *voter : allNodes) {
+            int voterId = voter->getId();
+
+            if (targetId == voterId)
+                continue;
+
+            auto it = voter->trustMap.find(targetId);
+
+            // No direct interaction => no opinion
+            if (it == voter->trustMap.end())
+                continue;
+
+            count++;
+
+            double votersTrustInTarget = it->second.value();
+
+            if (votersTrustInTarget >= voter->approval_threshold) {
+                votes += 1.0;
+            } else {
+                votes += votersTrustInTarget;
+            }
+        }
+        //Merge kısmını değiştirirsek burası da değişmeli!!!
+        // Normalize to [0,1], so it is comparable with Additive/Borda
+        globalTrustScores[targetId] =
+            (count > 0) ? (votes / count) : 0.5;
+    }
+}
 void VoteAgg::updateGlobalTrustAdditive() {
   globalTrustScores.clear();
 
@@ -1307,38 +1495,7 @@ void VoteAgg::updateGlobalTrustAdditive() {
     globalTrustScores[targetId] = (count > 0) ? total / count : 0.5;
   }
 }
-/*void VoteAgg::updateGlobalTrustMultiplicative2() {
-  globalTrustScores.clear();
 
-  DirectTrustMatrix matrix = buildDirectTrustMatrix();
-
-  for (VoteAgg *target : allNodes) {
-    int targetId = target->getId();
-
-    double product = 1.0;
-    int count = 0;
-
-    for (VoteAgg *evaluator : allNodes) {
-      int evaluatorId = evaluator->getId();
-
-      if (evaluatorId == targetId)
-        continue;
-
-      double trust = matrix[evaluatorId][targetId];
-
-      if (trust < 0.0)
-        trust = 0.0;
-
-      if (trust > 1.0)
-        trust = 1.0;
-
-      product *= trust;
-      count++;
-    }
-
-    globalTrustScores[targetId] = (count > 0) ? product : 0.0;
-  }
-}*/
 void VoteAgg::updateGlobalTrustMultiplicative() {
   globalTrustScores.clear();
 
@@ -1378,40 +1535,7 @@ void VoteAgg::updateGlobalTrustMultiplicative() {
 
      }
 }
-/*void VoteAgg::updateGlobalTrustBorda3() {
-  globalTrustScores.clear();
 
-  for (VoteAgg *node : allNodes) {
-    globalTrustScores[node->getId()] = 0.0;
-  }
-
-  DirectTrustMatrix matrix = buildDirectTrustMatrix();
-
-  for (VoteAgg *evaluator : allNodes) {
-    int evaluatorId = evaluator->getId();
-
-    std::map<int, double> localScores;
-
-    for (VoteAgg *candidate : allNodes) {
-      int candidateId = candidate->getId();
-
-      if (candidateId == evaluatorId)
-        continue;
-
-      localScores[candidateId] = matrix[evaluatorId][candidateId];
-    }
-
-    std::vector<int> localRanking = sortNodesByScore(localScores);
-    int n = localRanking.size();
-
-    for (int i = 0; i < n; i++) {
-      int candidateId = localRanking[i];
-      int points = n - i;
-
-      globalTrustScores[candidateId] += points;
-    }
-  }
-}*/
 //normalized version of borda
 void VoteAgg::updateGlobalTrustBorda() {
   globalTrustScores.clear();
@@ -1465,48 +1589,235 @@ void VoteAgg::updateGlobalTrustBorda() {
       entry.second = 0.5;
     }
   }
+}*/
+//normalization olmadan sadece sadece global skorları kullandığımız hali ile test ediyorum metodlar ayrılıyor mu bakmak için
+void VoteAgg::updateGlobalTrustAdditive()
+{
+    globalTrustScores.clear();
+    const double defaultDirectTrust = 0.5;
+
+    for (VoteAgg *target : allNodes) {
+        int targetId = target->getId();
+
+        double total = 0.0;
+        int count = 0;
+
+        for (VoteAgg *evaluator : allNodes) {
+            int evaluatorId = evaluator->getId();
+
+            if (evaluatorId == targetId)
+                continue;
+
+            auto it = evaluator->trustMap.find(targetId);
+            double trust = (it != evaluator->trustMap.end())
+                               ? it->second.value()
+                               : defaultDirectTrust;
+
+            total += trust;
+            count++;
+        }
+
+        globalTrustScores[targetId] = (count > 0) ? (total / count)
+                                                  : defaultDirectTrust;
+    }
 }
-/*void VoteAgg::updateGlobalTrustBorda() {
-  globalTrustScores.clear();
 
-  for (VoteAgg *node : allNodes) {
-    globalTrustScores[node->getId()] = 0.0;
-  }
+void VoteAgg::updateGlobalTrustMultiplicative()
+{
+    globalTrustScores.clear();
+    const double defaultDirectTrust = 0.5;
 
-  for (VoteAgg *evaluator : allNodes) {
-    int evaluatorId = evaluator->getId();
+    for (VoteAgg *target : allNodes) {
+        int targetId = target->getId();
 
-    std::map<int, double> localScores;
+        double product = 1.0;
+        int count = 0;
 
-    for (VoteAgg *candidate : allNodes) {
-      int candidateId = candidate->getId();
+        for (VoteAgg *evaluator : allNodes) {
+            int evaluatorId = evaluator->getId();
 
-      if (candidateId == evaluatorId)
-        continue;
+            if (evaluatorId == targetId)
+                continue;
 
-      auto it = evaluator->trustMap.find(candidateId);
+            auto it = evaluator->trustMap.find(targetId);
+            double trust = (it != evaluator->trustMap.end())
+                               ? it->second.value()
+                               : defaultDirectTrust;
 
-      // No direct interaction => evaluator does not rank this candidate
-      if (it == evaluator->trustMap.end())
-        continue;
+            if (trust < 0.0)
+                trust = 0.0;
 
-      localScores[candidateId] = it->second.value();
+            if (trust > 1.0)
+                trust = 1.0;
+
+            product *= trust;
+            count++;
+        }
+
+        // Geometric mean keeps the score in [0,1] even after adding default 0.5 votes.
+        globalTrustScores[targetId] = (count > 0) ? std::pow(product, 1.0 / count)
+                                                  : defaultDirectTrust;
+    }
+}
+
+void VoteAgg::updateGlobalTrustBorda()
+{
+    globalTrustScores.clear();
+    const double defaultDirectTrust = 0.5;
+
+    for (VoteAgg *node : allNodes) {
+        globalTrustScores[node->getId()] = 0.0;
     }
 
-    if (localScores.empty())
-      continue;
+    double maxPossibleScore = 0.0;
 
-    std::vector<int> localRanking = sortNodesByScore(localScores);
-    int n = localRanking.size();
+    for (VoteAgg *evaluator : allNodes) {
+        int evaluatorId = evaluator->getId();
 
-    for (int i = 0; i < n; i++) {
-      int candidateId = localRanking[i];
-      int points = n - i;
-      globalTrustScores[candidateId] += points;
+        std::map<int, double> localScores;
+
+        for (VoteAgg *candidate : allNodes) {
+            int candidateId = candidate->getId();
+
+            if (candidateId == evaluatorId)
+                continue;
+
+            auto it = evaluator->trustMap.find(candidateId);
+            localScores[candidateId] = (it != evaluator->trustMap.end())
+                                           ? it->second.value()
+                                           : defaultDirectTrust;
+        }
+
+        if (localScores.empty())
+            continue;
+
+        std::vector<int> localRanking = sortNodesByScore(localScores);
+        int n = localRanking.size();
+        maxPossibleScore += (n * (n + 1)) / 2.0;
+
+        for (int i = 0; i < n; i++) {
+            int candidateId = localRanking[i];
+            int points = n - i;
+            globalTrustScores[candidateId] += points;
+        }
     }
-  }
+
+    if (maxPossibleScore > 0.0) {
+        for (auto &entry : globalTrustScores) {
+            entry.second = entry.second / maxPossibleScore;
+        }
+    } else {
+        for (auto &entry : globalTrustScores) {
+            entry.second = defaultDirectTrust;
+        }
+    }
 }
-*/
+
+void VoteAgg::updateGlobalTrustApproval()
+{
+    globalTrustScores.clear();
+    const double defaultDirectTrust = 0.5;
+
+    for (VoteAgg *target : allNodes) {
+        int targetId = target->getId();
+
+        int votes = 0;
+        int count = 0;
+
+        for (VoteAgg *voter : allNodes) {
+            int voterId = voter->getId();
+
+            if (targetId == voterId)
+                continue;
+
+            auto it = voter->trustMap.find(targetId);
+            double votersTrustInTarget = (it != voter->trustMap.end())
+                                             ? it->second.value()
+                                             : defaultDirectTrust;
+
+            if (votersTrustInTarget >= voter->approval_threshold)
+                votes++;
+
+            count++;
+        }
+
+        globalTrustScores[targetId] = (count > 0) ? ((double)votes / count)
+                                                  : defaultDirectTrust;
+    }
+}
+
+void VoteAgg::updateGlobalTrustRevRelu()
+{
+    globalTrustScores.clear();
+    const double defaultDirectTrust = 0.5;
+
+    for (VoteAgg *target : allNodes) {
+        int targetId = target->getId();
+
+        double votes = 0.0;
+        int count = 0;
+
+        for (VoteAgg *voter : allNodes) {
+            int voterId = voter->getId();
+
+            if (targetId == voterId)
+                continue;
+
+            auto it = voter->trustMap.find(targetId);
+            double votersTrustInTarget = (it != voter->trustMap.end())
+                                             ? it->second.value()
+                                             : defaultDirectTrust;
+
+            if (votersTrustInTarget >= voter->approval_threshold) {
+                votes += 1.0;
+            } else {
+                votes += votersTrustInTarget;
+            }
+
+            count++;
+        }
+
+        globalTrustScores[targetId] = (count > 0) ? (votes / count)
+                                                  : defaultDirectTrust;
+    }
+}
+
+void VoteAgg::updateGlobalTrustRelu()
+{
+    globalTrustScores.clear();
+    const double defaultDirectTrust = 0.5;
+
+    for (VoteAgg *target : allNodes) {
+        int targetId = target->getId();
+
+        double votes = 0.0;
+        int count = 0;
+
+        for (VoteAgg *voter : allNodes) {
+            int voterId = voter->getId();
+
+            if (targetId == voterId)
+                continue;
+
+            auto it = voter->trustMap.find(targetId);
+            double votersTrustInTarget = (it != voter->trustMap.end())
+                                             ? it->second.value()
+                                             : defaultDirectTrust;
+
+            if (votersTrustInTarget >= voter->approval_threshold) {
+                votes += votersTrustInTarget;
+            } else {
+                votes += 0.0;
+            }
+
+            count++;
+        }
+
+        globalTrustScores[targetId] = (count > 0) ? (votes / count)
+                                                  : defaultDirectTrust;
+    }
+}
+
 int VoteAgg::getRankPointFromGlobalOrdering(int nodeId, const std::vector<int> &candidates) {
   int n = candidates.size();
   std::vector<int> filteredRanking;
@@ -1525,7 +1836,7 @@ int VoteAgg::getRankPointFromGlobalOrdering(int nodeId, const std::vector<int> &
 
   return 0;
 }
-
+//aşağıdaki merge version1
 /*double VoteAgg::mergeTrustScore(int candidateId) {
   std::vector<int> candidates;
   double directTrustSum = 0.0;
@@ -1565,6 +1876,7 @@ int VoteAgg::getRankPointFromGlobalOrdering(int nodeId, const std::vector<int> &
 
 }*/
 
+/*//only global olan merge aşağıdaki
 double VoteAgg::mergeTrustScore(int candidateId) {//weighted sum of DT and GT
   double globalScore = 0.5;
 
@@ -1580,7 +1892,7 @@ double VoteAgg::mergeTrustScore(int candidateId) {//weighted sum of DT and GT
     personalScore = dit->second.value();
   }
 
-  double lambda = 0.7; // global weight !!test için böyle bunu değiştirmeyi unutma 1.0 kalmasın
+  double lambda = 1.0; // global weight !!test için böyle bunu değiştirmeyi unutma 1.0 kalmasın
 
   double mergedScore = lambda * globalScore + (1.0 - lambda) * personalScore;
 
@@ -1593,8 +1905,79 @@ double VoteAgg::mergeTrustScore(int candidateId) {//weighted sum of DT and GT
   return mergedScore;
 }
 
-/**
- *  */
+*/
+
+
+//aşağıdaki weighted merge
+double VoteAgg::mergeTrustScore(int candidateId)
+{
+    const double defaultScore = 0.5;
+    const double eps = 1e-9;
+
+    // 1. Get raw global trust score of this candidate.
+    double globalScore = defaultScore;
+
+    auto git = globalTrustScores.find(candidateId);
+    if (git != globalTrustScores.end()) {
+        globalScore = git->second;
+    }
+
+    // 2. Find maximum global trust score in the network.
+    double maxGlobalScore = 0.0;
+
+    for (const auto &entry : globalTrustScores) {
+        maxGlobalScore = std::max(maxGlobalScore, entry.second);
+    }
+
+    // 3. Normalize global trust score to [0,1].
+    double normalizedGlobalScore = defaultScore;
+
+    if (maxGlobalScore > eps) {
+        normalizedGlobalScore = globalScore / maxGlobalScore;
+    }
+
+    normalizedGlobalScore = std::clamp(normalizedGlobalScore, 0.0, 1.0);
+
+    // 4. Get direct trust score and interaction count.
+    double personalScore = defaultScore;
+    int interactionCount = 0;
+
+    auto dit = trustMap.find(candidateId);
+    if (dit != trustMap.end()) {
+        personalScore = dit->second.value();
+        interactionCount = dit->second.interactionCount;
+    }
+
+    personalScore = std::clamp(personalScore, 0.0, 1.0);
+
+    // 5. Dynamic weight calculation.
+    // When interactionCount = 0: wDT = 0, wGT = 1
+    // When interactionCount = 3: wDT = 0.5, wGT = 0.5
+    const double evidenceThreshold = 3.0;
+
+    double directTrustWeight =
+        interactionCount / (interactionCount + evidenceThreshold);
+
+    double globalTrustWeight = 1.0 - directTrustWeight;
+
+    // 6. Merge normalized global trust and direct trust.
+    double mergedScore =
+        globalTrustWeight * normalizedGlobalScore +
+        directTrustWeight * personalScore;
+
+    EV << "Merge score for requester " << getId()
+       << " candidate " << candidateId
+       << ": globalRaw=" << globalScore
+       << " maxGlobal=" << maxGlobalScore
+       << " globalNorm=" << normalizedGlobalScore
+       << " personal=" << personalScore
+       << " interactions=" << interactionCount
+       << " wGT=" << globalTrustWeight
+       << " wDT=" << directTrustWeight
+       << " merged=" << mergedScore << "\n";
+
+    return mergedScore;
+}
 void VoteAgg::recordLocalTrust() {
   double sumOfLocalTrust = 0;
   int countOfNodesTrusting = 0;

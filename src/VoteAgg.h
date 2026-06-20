@@ -21,10 +21,11 @@ struct Block {
 struct trustScore {
   double sumOfPositiveRatings = 0.0;
   double sumOfAllRatings = 0.0;
+  int interactionCount = 0;
 
   double value() const {
     if (sumOfAllRatings <= 0.0)
-      return 0.5;  // neutral default until enough ratings exist
+      return 0.5;
     return sumOfPositiveRatings / sumOfAllRatings;
   }
 };
@@ -53,11 +54,15 @@ enum AttackerType {
 
 class VoteAgg : public cSimpleModule {
 public:
-  enum AggregationMethod {
-    AGG_ADDITIVE = 0,
-    AGG_MULTIPLICATIVE = 1,
-    AGG_BORDA = 2
-  };
+    enum AggregationMethod
+       {
+       AGG_ADDITIVE = 0,
+       AGG_MULTIPLICATIVE = 1,
+       AGG_BORDA = 2,
+       AGG_APPROVAL = 3,
+       AGG_RELU = 4,
+       AGG_REVRELU = 5
+       };
 
   using DirectTrustMatrix = std::map<int, std::map<int, double>>;
 
@@ -90,10 +95,10 @@ protected:
 
   AttackerType attackerType = BENEVOLENT;
   AggregationMethod aggregationMethod = AGG_ADDITIVE;
-
-  double epsilon = 0.0;//epsilon greedy değil şu anda!!!
-  double minEpsilon = 0.01;
-  double epsilonDecay = 0.90;
+  double approval_threshold = 0.5;
+  double epsilon = 0.2;
+  double minEpsilon = 0.05;
+  double epsilonDecay = 0.97049;
   double camouflageRate = 0.0;
   double potency = 0.0;
   double consistency = 1.0;
@@ -171,6 +176,9 @@ protected:
   static void updateGlobalTrustAdditive();
   static void updateGlobalTrustMultiplicative();
   static void updateGlobalTrustBorda();
+  static void updateGlobalTrustApproval ();
+  static void updateGlobalTrustRelu ();
+  static void updateGlobalTrustRevRelu ();
   static int getRankPointFromGlobalOrdering(int nodeId, const std::vector<int> &candidates);
   double mergeTrustScore(int candidateId);
 };
