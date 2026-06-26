@@ -33,7 +33,7 @@ simple VoteAggNode
 
         // New vote aggregation parameters.
 		int aggregationMethod = default(0); // 0 additive, 1 multiplicative, 2 borda        double globalTrustUpdateInterval @unit(s) = default(10s);
-
+        double interactionWindow @unit(s) = default(100s);
     gates:
         inout inoutGate[];
 }

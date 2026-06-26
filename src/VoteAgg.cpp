@@ -8,7 +8,7 @@
 #include "BlockchainMessage_m.h"
 #include "omnetpp/clog.h"
 #include <algorithm>
-
+#include <memory>
 #include <cmath>
 #include <map>
 #include <random>
@@ -18,6 +18,7 @@
 #include <set>
 #include <iostream>
 #include <cmath>
+#include <deque>
 #ifdef NDEBUG
 #undef NDEBUG
 #endif
@@ -262,12 +263,21 @@ void VoteAgg::initialize() {
        case 5:
            aggregationMethod = AGG_REVRELU;
            break;
+       case 6:
+           aggregationMethod = AGG_BASELINE;
+           break;
        default:
            throw cRuntimeError ("Invalid aggregationMethod value: %d", methodValue);
        }
    }
   if (hasPar("globalTrustUpdateInterval")) {
     globalTrustUpdateInterval = par("globalTrustUpdateInterval").doubleValue();
+  }
+  if (hasPar("interactionWindow")) {
+      interactionWindow = par("interactionWindow");
+  }
+  else {
+      interactionWindow = 100.0;
   }
 
   epsilon = 0.2;
@@ -694,55 +704,66 @@ double VoteAgg::updateMyRating(int providerId, double rating) {
   return alterandum.value();
 }
 
-void VoteAgg::handleFinalServiceResponseMsg(cMessage *msg) {
-  FinalServiceResponse *response = check_and_cast<FinalServiceResponse *>(msg);
-  int providerId = response->getProviderId();
-  double quality = response->getServiceQuality();
-  totalServicesReceived++;   // <-- count every service received
-  totalReceivedQuality += quality;
+void VoteAgg::handleFinalServiceResponseMsg(cMessage *msg)
+{
+    std::unique_ptr<FinalServiceResponse> response(
+        check_and_cast<FinalServiceResponse *>(msg)
+    );
 
-  std::string serviceType = response->getServiceType(); // lazim
-  EV << "Node " << getId() << " received final service from " << providerId
-     << " with quality: " << quality << endl;
-  if (benevolent && quality < 0) {
-    badServicesReceived++;
-    totalBadServicesReceived++;
-  }
-  double rarity = 10;
-  double timeliness = 10;      // TODO: bunu bilmiyom henuz...
-  lastProviderId = providerId; // New global member needed
+    int providerId = response->getProviderId();
+    double quality = response->getServiceQuality();
 
-  double rating =
-      calculateRating(quality, timeliness, rarity); // handles attacks too
+    totalServicesReceived++;
+    totalReceivedQuality += quality;
 
-  sendRating(providerId, rating);
+    std::string serviceType = response->getServiceType();
 
-  // Keep this only for raw rating history / debugging.
-  // Do not use myRatingMap for aggregation or provider choice.
-  updateMyRating(providerId, rating);//eskiden kalma silmedim şimdilik!!
+    EV << "Node " << getId()
+       << " received final service from " << providerId
+       << " with quality: " << quality << endl;
 
-  // Direct trust update.
-  // This is the value used by VoteAgg.
-  auto &alterandum = trustMap[providerId];
+    if (benevolent && quality < 0) {
+        badServicesReceived++;
+        totalBadServicesReceived++;
+    }
 
-  if (rating > 0.0) {
-      alterandum.sumOfPositiveRatings += rating;
-  }
+    double rarity = 10;
+    double timeliness = 10;
+    lastProviderId = providerId;
 
+    double rating =
+        calculateRating(quality, timeliness, rarity);
 
-  alterandum.sumOfAllRatings += std::abs(rating);
-  alterandum.interactionCount += 1;
+    sendRating(providerId, rating);
 
-  EV << "Direct trust update: requester=" << getId()
-     << " provider=" << providerId
-     << " rating=" << rating
-     << " positiveSum=" << alterandum.sumOfPositiveRatings
-     << " absSum=" << alterandum.sumOfAllRatings
-     << " directTrust=" << alterandum.value()
-     << "\n";
-  delete response;
+    updateMyRating(providerId, rating);
+
+    auto &alterandum = trustMap[providerId];
+
+    if (rating > 0.0) {
+        alterandum.sumOfPositiveRatings += rating;
+    }
+
+    alterandum.sumOfAllRatings += std::abs(rating);
+    alterandum.interactionCount += 1;
+
+    // Save the interaction timestamp for the dynamic-weight window.
+    interactionHistory[providerId].push_back(simTime());
+
+    EV << "Direct trust update: requester=" << getId()
+       << " provider=" << providerId
+       << " rating=" << rating
+       << " positiveSum=" << alterandum.sumOfPositiveRatings
+       << " absSum=" << alterandum.sumOfAllRatings
+       << " lifetimeInteractions=" << alterandum.interactionCount
+       << " recentStoredInteractions="
+       << interactionHistory[providerId].size()
+       << " directTrust=" << alterandum.value()
+       << "\n";
+
+    // Do not write: delete response;
+    // unique_ptr automatically deletes it.
 }
-
 /**
  * Call for Cluster Heads only.
  * creates a replica of the provided transaction
@@ -1342,6 +1363,26 @@ VoteAgg::DirectTrustMatrix VoteAgg::buildDirectTrustMatrix() {
 
   return matrix;
 }
+int VoteAgg::getRecentInteractionCount(int providerId)
+{
+    auto historyIt = interactionHistory.find(providerId);
+
+    if (historyIt == interactionHistory.end()) {
+        return 0;
+    }
+
+    std::deque<simtime_t> &timestamps = historyIt->second;
+
+    simtime_t cutoffTime = simTime() - interactionWindow;
+
+    // Remove interactions older than the current sliding window.
+    while (!timestamps.empty() &&
+           timestamps.front() < cutoffTime) {
+        timestamps.pop_front();
+    }
+
+    return static_cast<int>(timestamps.size());
+}
 //TODO: Approval yöntemleri eklenecek
 void VoteAgg::updateGlobalTrustList ()
 {
@@ -1368,6 +1409,12 @@ void VoteAgg::updateGlobalTrustList ()
     case AGG_REVRELU:
            updateGlobalTrustRevRelu ();
            break;
+    case AGG_BASELINE:
+            // Baseline uses only each requester's local direct trust.
+            // Clear global values so they cannot accidentally be reused.
+            globalTrustScores.clear();
+            globalTrustRanking.clear();
+            return;
     default:
         throw cRuntimeError ("Invalid aggregation method");
     }
@@ -1914,53 +1961,88 @@ double VoteAgg::mergeTrustScore(int candidateId)
     const double defaultScore = 0.5;
     const double eps = 1e-9;
 
-    // 1. Get raw global trust score of this candidate.
-    double globalScore = defaultScore;
-
-    auto git = globalTrustScores.find(candidateId);
-    if (git != globalTrustScores.end()) {
-        globalScore = git->second;
-    }
-
-    // 2. Find maximum global trust score in the network.
-    double maxGlobalScore = 0.0;
-
-    for (const auto &entry : globalTrustScores) {
-        maxGlobalScore = std::max(maxGlobalScore, entry.second);
-    }
-
-    // 3. Normalize global trust score to [0,1].
-    double normalizedGlobalScore = defaultScore;
-
-    if (maxGlobalScore > eps) {
-        normalizedGlobalScore = globalScore / maxGlobalScore;
-    }
-
-    normalizedGlobalScore = std::clamp(normalizedGlobalScore, 0.0, 1.0);
-
-    // 4. Get direct trust score and interaction count.
+    // ---------------------------------------------------------
+    // 1. Obtain this requester's direct trust in the candidate.
+    // ---------------------------------------------------------
     double personalScore = defaultScore;
-    int interactionCount = 0;
 
     auto dit = trustMap.find(candidateId);
+
     if (dit != trustMap.end()) {
         personalScore = dit->second.value();
-        interactionCount = dit->second.interactionCount;
     }
 
     personalScore = std::clamp(personalScore, 0.0, 1.0);
 
-    // 5. Dynamic weight calculation.
-    // When interactionCount = 0: wDT = 0, wGT = 1
-    // When interactionCount = 3: wDT = 0.5, wGT = 0.5
+    // ---------------------------------------------------------
+    // 2. Baseline: use only direct trust.
+    // ---------------------------------------------------------
+    if (aggregationMethod == AGG_BASELINE) {
+        EV << "BASELINE score for requester " << getId()
+           << " candidate " << candidateId
+           << ": directTrust=" << personalScore
+           << " knownProvider="
+           << (dit != trustMap.end() ? "yes" : "no")
+           << "\n";
+
+        return personalScore;
+    }
+
+    // ---------------------------------------------------------
+    // 3. Get global trust score for aggregation-based methods.
+    // ---------------------------------------------------------
+    double globalScore = defaultScore;
+
+    auto git = globalTrustScores.find(candidateId);
+
+    if (git != globalTrustScores.end()) {
+        globalScore = git->second;
+    }
+
+    // ---------------------------------------------------------
+    // 4. Find maximum global trust score.
+    // ---------------------------------------------------------
+    double maxGlobalScore = 0.0;
+
+    for (const auto &entry : globalTrustScores) {
+        maxGlobalScore =
+            std::max(maxGlobalScore, entry.second);
+    }
+
+    // ---------------------------------------------------------
+    // 5. Normalize global trust score.
+    // ---------------------------------------------------------
+    double normalizedGlobalScore = defaultScore;
+
+    if (maxGlobalScore > eps) {
+        normalizedGlobalScore =
+            globalScore / maxGlobalScore;
+    }
+
+    normalizedGlobalScore =
+        std::clamp(normalizedGlobalScore, 0.0, 1.0);
+
+    // ---------------------------------------------------------
+    // 6. Count only recent direct interactions.
+    // ---------------------------------------------------------
+    int recentInteractionCount =
+        getRecentInteractionCount(candidateId);
+
+    // ---------------------------------------------------------
+    // 7. Calculate dynamic weights.
+    // ---------------------------------------------------------
     const double evidenceThreshold = 3.0;
 
     double directTrustWeight =
-        interactionCount / (interactionCount + evidenceThreshold);
+        static_cast<double>(recentInteractionCount) /
+        (recentInteractionCount + evidenceThreshold);
 
-    double globalTrustWeight = 1.0 - directTrustWeight;
+    double globalTrustWeight =
+        1.0 - directTrustWeight;
 
-    // 6. Merge normalized global trust and direct trust.
+    // ---------------------------------------------------------
+    // 8. Merge direct and global trust.
+    // ---------------------------------------------------------
     double mergedScore =
         globalTrustWeight * normalizedGlobalScore +
         directTrustWeight * personalScore;
@@ -1971,10 +2053,12 @@ double VoteAgg::mergeTrustScore(int candidateId)
        << " maxGlobal=" << maxGlobalScore
        << " globalNorm=" << normalizedGlobalScore
        << " personal=" << personalScore
-       << " interactions=" << interactionCount
+       << " recentInteractions=" << recentInteractionCount
+       << " interactionWindow=" << interactionWindow
        << " wGT=" << globalTrustWeight
        << " wDT=" << directTrustWeight
-       << " merged=" << mergedScore << "\n";
+       << " merged=" << mergedScore
+       << "\n";
 
     return mergedScore;
 }

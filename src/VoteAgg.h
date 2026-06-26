@@ -3,7 +3,7 @@
 
 #include <omnetpp.h>
 #include "BlockchainMessage_m.h"
-
+#include <deque>
 #include <map>
 #include <set>
 #include <string>
@@ -54,15 +54,15 @@ enum AttackerType {
 
 class VoteAgg : public cSimpleModule {
 public:
-    enum AggregationMethod
-       {
-       AGG_ADDITIVE = 0,
-       AGG_MULTIPLICATIVE = 1,
-       AGG_BORDA = 2,
-       AGG_APPROVAL = 3,
-       AGG_RELU = 4,
-       AGG_REVRELU = 5
-       };
+    enum AggregationMethod {
+        AGG_ADDITIVE = 0,
+        AGG_MULTIPLICATIVE = 1,
+        AGG_BORDA = 2,
+        AGG_APPROVAL = 3,
+        AGG_RELU = 4,
+        AGG_REVRELU = 5,
+        AGG_BASELINE = 6
+    };
 
   using DirectTrustMatrix = std::map<int, std::map<int, double>>;
 
@@ -78,7 +78,14 @@ public:
   static std::map<int, double> globalTrustScores;
   static std::vector<int> globalTrustRanking;
   static double totalReceivedQuality;
+  // Stores the timestamps of this node's interactions with each provider.
+  std::map<int, std::deque<omnetpp::simtime_t>> interactionHistory;
 
+  // Time interval used when counting recent interactions for merge weights.
+  omnetpp::simtime_t interactionWindow;
+
+  // Returns the number of interactions with a provider inside the current window.
+  int getRecentInteractionCount(int providerId);
 protected:
   std::map<int, int> routingTable;
   std::map<std::string, std::vector<int>> serviceTable;
