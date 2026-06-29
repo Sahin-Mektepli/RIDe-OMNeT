@@ -79,13 +79,21 @@ public:
   static std::vector<int> globalTrustRanking;
   static double totalReceivedQuality;
   // Stores the timestamps of this node's interactions with each provider.
-  std::map<int, std::deque<omnetpp::simtime_t>> interactionHistory;
+  struct TimedRating {
+      omnetpp::simtime_t timestamp;
+      double rating;
+  };
+
+  std::map<int, std::deque<TimedRating>> directTrustHistory;
 
   // Time interval used when counting recent interactions for merge weights.
   omnetpp::simtime_t interactionWindow;
 
   // Returns the number of interactions with a provider inside the current window.
   int getRecentInteractionCount(int providerId);
+  void pruneExpiredDirectTrust(int providerId);
+  void pruneAllExpiredDirectTrust();
+  double providerAvailabilityProbability = 1.0;
 protected:
   std::map<int, int> routingTable;
   std::map<std::string, std::vector<int>> serviceTable;

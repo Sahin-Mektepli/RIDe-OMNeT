@@ -279,6 +279,13 @@ void VoteAgg::initialize() {
   else {
       interactionWindow = 100.0;
   }
+  if (hasPar("providerAvailabilityProbability")) {
+      providerAvailabilityProbability =
+          par("providerAvailabilityProbability").doubleValue();
+  }
+  else {
+      providerAvailabilityProbability = 1.0;
+  }
 
   epsilon = 0.2;
   minEpsilon = 0.05;
@@ -443,7 +450,75 @@ auto randomPairOfMapping(const std::map<int, double> &mapping) {
   std::advance(it, number);
   return it;
 }
+void VoteAgg::pruneExpiredDirectTrust(int providerId)
+{
+    auto historyIt = directTrustHistory.find(providerId);
 
+    if (historyIt == directTrustHistory.end()) {
+        return;
+    }
+
+    auto trustIt = trustMap.find(providerId);
+
+    if (trustIt == trustMap.end()) {
+        // Defensive cleanup in case the two structures become inconsistent.
+        directTrustHistory.erase(historyIt);
+        return;
+    }
+
+    auto &history = historyIt->second;
+    auto &trust = trustIt->second;
+
+    const simtime_t cutoffTime =
+        simTime() - interactionWindow;
+
+    while (!history.empty() &&
+           history.front().timestamp < cutoffTime) {
+
+        double expiredRating = history.front().rating;
+
+        if (expiredRating > 0.0) {
+            trust.sumOfPositiveRatings -= expiredRating;
+        }
+
+        trust.sumOfAllRatings -= std::abs(expiredRating);
+
+        if (trust.interactionCount > 0) {
+            trust.interactionCount--;
+        }
+
+        history.pop_front();
+    }
+
+    // Avoid very small negative values caused by floating-point subtraction.
+    if (trust.sumOfPositiveRatings < 1e-12) {
+        trust.sumOfPositiveRatings = 0.0;
+    }
+
+    if (trust.sumOfAllRatings < 1e-12) {
+        trust.sumOfAllRatings = 0.0;
+    }
+
+    // When no recent evidence remains, the provider becomes unknown again.
+    if (history.empty()) {
+        directTrustHistory.erase(historyIt);
+        trustMap.erase(trustIt);
+    }
+}
+void VoteAgg::pruneAllExpiredDirectTrust()
+{
+    std::vector<int> providerIds;
+
+    providerIds.reserve(directTrustHistory.size());
+
+    for (const auto &entry : directTrustHistory) {
+        providerIds.push_back(entry.first);
+    }
+
+    for (int providerId : providerIds) {
+        pruneExpiredDirectTrust(providerId);
+    }
+}
 /**
  * Input is a mapping from NodeId --> Local Trust
  *
@@ -734,10 +809,20 @@ void VoteAgg::handleFinalServiceResponseMsg(cMessage *msg)
     double rating =
         calculateRating(quality, timeliness, rarity);
 
-    sendRating(providerId, rating);
-
+    // Keep this only for raw rating history or debugging.
     updateMyRating(providerId, rating);
 
+    // Remove ratings that are outside the DT window.
+    // This must happen before obtaining a trustMap reference,
+    // because pruning may erase the trustMap entry.
+    pruneExpiredDirectTrust(providerId);
+
+    // Store the new rating and its timestamp.
+    directTrustHistory[providerId].push_back(
+        {simTime(), rating}
+    );
+
+    // Update direct-trust statistics once.
     auto &alterandum = trustMap[providerId];
 
     if (rating > 0.0) {
@@ -747,22 +832,17 @@ void VoteAgg::handleFinalServiceResponseMsg(cMessage *msg)
     alterandum.sumOfAllRatings += std::abs(rating);
     alterandum.interactionCount += 1;
 
-    // Save the interaction timestamp for the dynamic-weight window.
-    interactionHistory[providerId].push_back(simTime());
-
-    EV << "Direct trust update: requester=" << getId()
+    EV << "Windowed direct trust update: requester=" << getId()
        << " provider=" << providerId
        << " rating=" << rating
        << " positiveSum=" << alterandum.sumOfPositiveRatings
        << " absSum=" << alterandum.sumOfAllRatings
-       << " lifetimeInteractions=" << alterandum.interactionCount
-       << " recentStoredInteractions="
-       << interactionHistory[providerId].size()
+       << " recentInteractions=" << alterandum.interactionCount
        << " directTrust=" << alterandum.value()
        << "\n";
 
-    // Do not write: delete response;
-    // unique_ptr automatically deletes it.
+    // Send the rating after completing the local DT update.
+    sendRating(providerId, rating);
 }
 /**
  * Call for Cluster Heads only.
@@ -999,34 +1079,52 @@ void VoteAgg::electClusterHeads() {
   EV << "Updated Cluster Head selection." << endl;
 }
 void VoteAgg::initiateServiceRequest() {
-  std::vector<int> providerIds;
-  // EVERY node can provide THE service
-  for (auto node : routingTable) {
-    providerIds.push_back(node.first);
-  }
-  // if providerIds vector is empty, this node has no connected nodes,
-  // which is A FATAL PROBLEM; crash
-  assert(!providerIds.empty());
+    std::vector<int> allProviderIds;
 
-  requestedServiceType = SERVICE_TYPE; // just the string "A"
-  pendingResponses.clear();
-  respondedProviders.clear();
-  // Step 3: Send request to all eligible providers
-  for (int providerId : providerIds) {
-    if (providerId == getId())
-      continue; // Don't request from self
+    for (auto node : routingTable) {
+        int providerId = node.first;
 
-    int gateIndex = routingTable[providerId];
-    ServiceRequest *request = new ServiceRequest("serviceRequest");
-    request->setRequesterId(getId());
-    request->setProviderId(providerId);
-    request->setServiceType(SERVICE_TYPE); // again, just the string "A"
+        if (providerId == getId())
+            continue;
 
-    pendingResponses.insert(providerId);
-    send(request, "inoutGate$o", gateIndex);
-    EV << "Sent service request to Node " << providerId << " for type "
-       << SERVICE_TYPE << endl;
-  }
+        allProviderIds.push_back(providerId);
+    }
+
+    assert(!allProviderIds.empty());
+
+    std::vector<int> availableProviderIds;
+
+    for (int providerId : allProviderIds) {
+        if (uniform(0, 1) <= providerAvailabilityProbability) {
+            availableProviderIds.push_back(providerId);
+        }
+    }
+
+    // Eğer o anda hiç provider available olmadıysa,
+    // simülasyonun durmaması için bir tane random provider seçiyoruz.
+    if (availableProviderIds.empty()) {
+        int randomIndex = intuniform(0, allProviderIds.size() - 1);
+        availableProviderIds.push_back(allProviderIds[randomIndex]);
+    }
+
+    requestedServiceType = SERVICE_TYPE;
+    pendingResponses.clear();
+    respondedProviders.clear();
+
+    for (int providerId : availableProviderIds) {
+        int gateIndex = routingTable[providerId];
+
+        ServiceRequest *request = new ServiceRequest("serviceRequest");
+        request->setRequesterId(getId());
+        request->setProviderId(providerId);
+        request->setServiceType(SERVICE_TYPE);
+
+        pendingResponses.insert(providerId);
+        send(request, "inoutGate$o", gateIndex);
+
+        EV << "Sent service request to AVAILABLE Node "
+           << providerId << " for type " << SERVICE_TYPE << endl;
+    }
 }
 
 void VoteAgg::handleServiceRequest(int requesterId) {
@@ -1365,29 +1463,31 @@ VoteAgg::DirectTrustMatrix VoteAgg::buildDirectTrustMatrix() {
 }
 int VoteAgg::getRecentInteractionCount(int providerId)
 {
-    auto historyIt = interactionHistory.find(providerId);
+    pruneExpiredDirectTrust(providerId);
 
-    if (historyIt == interactionHistory.end()) {
+    auto historyIt =
+        directTrustHistory.find(providerId);
+
+    if (historyIt == directTrustHistory.end()) {
         return 0;
     }
 
-    std::deque<simtime_t> &timestamps = historyIt->second;
-
-    simtime_t cutoffTime = simTime() - interactionWindow;
-
-    // Remove interactions older than the current sliding window.
-    while (!timestamps.empty() &&
-           timestamps.front() < cutoffTime) {
-        timestamps.pop_front();
-    }
-
-    return static_cast<int>(timestamps.size());
+    return static_cast<int>(
+        historyIt->second.size()
+    );
 }
 //TODO: Approval yöntemleri eklenecek
 void VoteAgg::updateGlobalTrustList ()
 {
-    if (allNodes.empty ())
-    return;
+    if (allNodes.empty()) {
+            return;
+        }
+
+        // Remove expired direct-trust evidence from every node
+        // before calculating global trust.
+        for (VoteAgg *node : allNodes) {
+            node->pruneAllExpiredDirectTrust();
+        }
 
     switch (allNodes.front ()->aggregationMethod)
     {
@@ -1796,7 +1896,7 @@ void VoteAgg::updateGlobalTrustApproval()
 void VoteAgg::updateGlobalTrustRevRelu()
 {
     globalTrustScores.clear();
-    const double defaultDirectTrust = 0.5;
+    const double defaultDirectTrust = 0.5; //TO DO: RELU thresholdları değişecek 0.5
 
     for (VoteAgg *target : allNodes) {
         int targetId = target->getId();
@@ -1961,10 +2061,14 @@ double VoteAgg::mergeTrustScore(int candidateId)
     const double defaultScore = 0.5;
     const double eps = 1e-9;
 
+    // Remove expired direct-trust evidence before reading it.
+    pruneExpiredDirectTrust(candidateId);
+
     // ---------------------------------------------------------
-    // 1. Obtain this requester's direct trust in the candidate.
+    // 1. Obtain this requester's recent direct trust.
     // ---------------------------------------------------------
     double personalScore = defaultScore;
+    int recentInteractionCount = 0;
 
     auto dit = trustMap.find(candidateId);
 
@@ -1972,7 +2076,15 @@ double VoteAgg::mergeTrustScore(int candidateId)
         personalScore = dit->second.value();
     }
 
-    personalScore = std::clamp(personalScore, 0.0, 1.0);
+    auto historyIt = directTrustHistory.find(candidateId);
+
+    if (historyIt != directTrustHistory.end()) {
+        recentInteractionCount =
+            static_cast<int>(historyIt->second.size());
+    }
+
+    personalScore =
+        std::clamp(personalScore, 0.0, 1.0);
 
     // ---------------------------------------------------------
     // 2. Baseline: use only direct trust.
@@ -1983,24 +2095,25 @@ double VoteAgg::mergeTrustScore(int candidateId)
            << ": directTrust=" << personalScore
            << " knownProvider="
            << (dit != trustMap.end() ? "yes" : "no")
+           << " recentInteractions="
+           << recentInteractionCount
            << "\n";
 
         return personalScore;
     }
 
     // ---------------------------------------------------------
-    // 3. Get global trust score for aggregation-based methods.
+    // 3. Obtain the candidate's global trust.
     // ---------------------------------------------------------
-    double globalScore = defaultScore;
-
     auto git = globalTrustScores.find(candidateId);
+    bool hasGlobalScore =
+        git != globalTrustScores.end();
 
-    if (git != globalTrustScores.end()) {
-        globalScore = git->second;
-    }
+    double globalScore =
+        hasGlobalScore ? git->second : defaultScore;
 
     // ---------------------------------------------------------
-    // 4. Find maximum global trust score.
+    // 4. Find the maximum global trust score.
     // ---------------------------------------------------------
     double maxGlobalScore = 0.0;
 
@@ -2010,11 +2123,11 @@ double VoteAgg::mergeTrustScore(int candidateId)
     }
 
     // ---------------------------------------------------------
-    // 5. Normalize global trust score.
+    // 5. Normalize the global trust score.
     // ---------------------------------------------------------
     double normalizedGlobalScore = defaultScore;
 
-    if (maxGlobalScore > eps) {
+    if (hasGlobalScore && maxGlobalScore > eps) {
         normalizedGlobalScore =
             globalScore / maxGlobalScore;
     }
@@ -2023,13 +2136,7 @@ double VoteAgg::mergeTrustScore(int candidateId)
         std::clamp(normalizedGlobalScore, 0.0, 1.0);
 
     // ---------------------------------------------------------
-    // 6. Count only recent direct interactions.
-    // ---------------------------------------------------------
-    int recentInteractionCount =
-        getRecentInteractionCount(candidateId);
-
-    // ---------------------------------------------------------
-    // 7. Calculate dynamic weights.
+    // 6. Calculate dynamic weights.
     // ---------------------------------------------------------
     const double evidenceThreshold = 3.0;
 
@@ -2041,7 +2148,7 @@ double VoteAgg::mergeTrustScore(int candidateId)
         1.0 - directTrustWeight;
 
     // ---------------------------------------------------------
-    // 8. Merge direct and global trust.
+    // 7. Merge direct and global trust.
     // ---------------------------------------------------------
     double mergedScore =
         globalTrustWeight * normalizedGlobalScore +
@@ -2050,6 +2157,7 @@ double VoteAgg::mergeTrustScore(int candidateId)
     EV << "Merge score for requester " << getId()
        << " candidate " << candidateId
        << ": globalRaw=" << globalScore
+       << " hasGlobal=" << (hasGlobalScore ? "yes" : "no")
        << " maxGlobal=" << maxGlobalScore
        << " globalNorm=" << normalizedGlobalScore
        << " personal=" << personalScore
@@ -2062,21 +2170,50 @@ double VoteAgg::mergeTrustScore(int candidateId)
 
     return mergedScore;
 }
-void VoteAgg::recordLocalTrust() {
-  double sumOfLocalTrust = 0;
-  int countOfNodesTrusting = 0;
-  int thisId = getId();
-  for (auto &node : allNodes) {
-    if (node->trustMap.find(thisId) != node->trustMap.end()) {
-      countOfNodesTrusting++;
-      sumOfLocalTrust += node->trustMap[thisId].value();
+void VoteAgg::recordLocalTrust()
+{
+    const double defaultDirectTrust = 0.5;
+
+    double sumOfLocalTrust = 0.0;
+    int countOfNodesTrusting = 0;
+    int thisId = getId();
+
+    for (VoteAgg *node : allNodes) {
+
+        // Ensure expired evidence is removed before recording.
+        node->pruneExpiredDirectTrust(thisId);
+
+        auto trustIt = node->trustMap.find(thisId);
+
+        if (trustIt != node->trustMap.end()) {
+            sumOfLocalTrust += trustIt->second.value();
+            countOfNodesTrusting++;
+        }
     }
-  }
-  // if no nodes are counted, there has been a FATAL FLAW
-  assert(countOfNodesTrusting != 0);
-  double average = sumOfLocalTrust / countOfNodesTrusting;
-  std::string scalarName = "Local Trust to Node " + std::to_string(thisId);
-  recordScalar(scalarName.c_str(), average);
+
+    double averageLocalTrust = defaultDirectTrust;
+
+    if (countOfNodesTrusting > 0) {
+        averageLocalTrust =
+            sumOfLocalTrust / countOfNodesTrusting;
+    }
+
+    std::string scalarName =
+        "Local Trust to Node " + std::to_string(thisId);
+
+    recordScalar(
+        scalarName.c_str(),
+        averageLocalTrust
+    );
+
+    std::string countScalarName =
+        "Recent Direct Trust Evaluators of Node " +
+        std::to_string(thisId);
+
+    recordScalar(
+        countScalarName.c_str(),
+        countOfNodesTrusting
+    );
 }
 
 void VoteAgg::recordAbility(){
