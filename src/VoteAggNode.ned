@@ -35,6 +35,15 @@ simple VoteAggNode
 		int aggregationMethod = default(0); // 0 additive, 1 multiplicative, 2 borda        double globalTrustUpdateInterval @unit(s) = default(10s);
         double interactionWindow @unit(s) = default(100s);
         double providerAvailabilityProbability = default(1.0);
+          
+        int selectionMode = default(0);       // 0:DT+GT merge, 1:DT-only, 2:GT-only
+        int directTrustMethod = default(0);   // 0:Simple, 1:Weighted, 2:Rancorous, 3:Decay, 4:Rancorous+Decay
+
+        int minDirectEvidence = default(1);
+        double directTrustPriorMass = default(0.0);
+        double rancorFactor = default(2.0);
+        double directTrustDecayRate = default(0.05);
+        
     gates:
         inout inoutGate[];
 }

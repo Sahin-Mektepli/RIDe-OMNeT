@@ -54,16 +54,42 @@ enum AttackerType {
 
 class VoteAgg : public cSimpleModule {
 public:
+
     enum AggregationMethod {
         AGG_ADDITIVE = 0,
         AGG_MULTIPLICATIVE = 1,
         AGG_BORDA = 2,
         AGG_APPROVAL = 3,
         AGG_RELU = 4,
-        AGG_REVRELU = 5,
-        AGG_BASELINE = 6
+        AGG_REVRELU = 5
     };
 
+    enum SelectionMode {
+        SEL_MERGE = 0,
+        SEL_DIRECT_ONLY = 1,
+        SEL_GLOBAL_ONLY = 2
+    };
+
+    enum DirectTrustMethod {
+        DT_SIMPLE = 0,
+        DT_WEIGHTED = 1,
+        DT_RANCOROUS = 2,
+        DT_DECAY = 3,
+        DT_RANCOROUS_DECAY = 4
+    };
+
+    AggregationMethod aggregationMethod = AGG_ADDITIVE;
+    SelectionMode selectionMode = SEL_MERGE;
+    DirectTrustMethod directTrustMethod = DT_SIMPLE;
+
+    int minDirectEvidence = 1;
+    double directTrustPriorMass = 0.0;
+    double rancorFactor = 2.0;
+    double directTrustDecayRate = 0.05;
+
+    double getDirectTrustScore(int providerId);
+    double getGlobalTrustScore(int candidateId);
+    double applyDirectTrustPrior(double positiveEvidence, double totalEvidence);
   using DirectTrustMatrix = std::map<int, std::map<int, double>>;
 
   static std::vector<Block> blockchain;
@@ -109,7 +135,7 @@ protected:
   bool hybridHasSwitched = false;
 
   AttackerType attackerType = BENEVOLENT;
-  AggregationMethod aggregationMethod = AGG_ADDITIVE;
+
   double approval_threshold = 0.5;
   double epsilon = 0.2;
   double minEpsilon = 0.05;
