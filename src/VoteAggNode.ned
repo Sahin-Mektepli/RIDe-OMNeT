@@ -44,6 +44,17 @@ simple VoteAggNode
         double rancorFactor = default(2.0);
         double directTrustDecayRate = default(0.05);
         
+        double betrayalTime @unit(s) = default(1000s);
+
+        int selectiveVictimModulo = default(2);
+        int selectiveVictimRemainder = default(0);
+        
+        double intermittentCooldownTime @unit(s) = default(20s);
+        double intermittentBadServiceProbability = default(1.0);
+        
+
+double thresholdGamingMargin = default(0.05);
+        
     gates:
         inout inoutGate[];
 }

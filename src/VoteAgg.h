@@ -49,7 +49,12 @@ enum AttackerType {
   OPPORTUNISTIC = 4,
   COLLABORATIVE = 5,
   HYBRID = 6,
-  BAD_SERVICE_GOOD_RATING = 7
+  BAD_SERVICE_GOOD_RATING = 7,
+  // New service-behavior attacks
+  INTERMITTENT_AVAILABILITY = 8,
+     SELECTIVE_SERVICE = 9,
+     THRESHOLD_GAMING = 10,
+     BALANCED_GOOD_BAD = 11
 };
 
 class VoteAgg : public cSimpleModule {
@@ -87,9 +92,59 @@ public:
     double rancorFactor = 2.0;
     double directTrustDecayRate = 0.05;
 
+    // New attack parameters
+    double betrayalTime = 1000.0;
+
+    int selectiveVictimModulo = 2;
+    int selectiveVictimRemainder = 0;
+
+    double thresholdGamingMargin = 0.05;
+
+    // New attack parameters
+    double intermittentCooldownTime = 20.0;
+    double intermittentBadServiceProbability = 1.0;
+
+
+
+
+
+    // Per-requester state for strategic attacks
+    std::map<int, int> serviceCounterByRequester;
+    std::map<int, simtime_t> unavailableUntilByRequester;
+
+    // Used for deterministic per-requester alternating attacks
+
+
     double getDirectTrustScore(int providerId);
     double getGlobalTrustScore(int candidateId);
     double applyDirectTrustPrior(double positiveEvidence, double totalEvidence);
+
+    double calcQualityForRequester(const double potency,
+                                   const double consistency,
+                                   int requesterId);
+
+    double calcQualitySuddenBetrayal(const double potency,
+                                     const double consistency);
+
+    double calcQualitySelectiveService(const double potency,
+                                       const double consistency,
+                                       int requesterId);
+    double calcQualityIntermittentAvailability(const double potency,
+                                               const double consistency,
+                                               int requesterId);
+
+
+    double calcQualityThresholdGaming(const double potency,
+                                      const double consistency,
+                                      int requesterId);
+
+    double calcQualityBalancedGoodBad(const double potency,
+                                      const double consistency,
+                                      int requesterId);
+
+    bool isSelectiveVictim(int requesterId) const;
+    bool shouldGiveGoodServiceByRatio(int requesterId, double goodRatio);
+    bool isProviderAvailableForRequester(int requesterId);
   using DirectTrustMatrix = std::map<int, std::map<int, double>>;
 
   static std::vector<Block> blockchain;

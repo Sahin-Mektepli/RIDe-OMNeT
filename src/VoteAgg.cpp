@@ -204,6 +204,24 @@ void VoteAgg::setMalicious(AttackerType type) {
       else if (attackerType == HYBRID) {
         getDisplayString().setTagArg("i", 1, "pink");
       }
+
+      else if (attackerType == SELECTIVE_SERVICE) {
+          EV << "SELECTIVE_SERVICE BY NODE " << getId() << "\n";
+          getDisplayString().setTagArg("i", 1, "cyan");
+      }
+      else if (attackerType == THRESHOLD_GAMING) {
+          EV << "THRESHOLD_GAMING BY NODE " << getId() << "\n";
+          getDisplayString().setTagArg("i", 1, "magenta");
+      }
+      else if (attackerType == BALANCED_GOOD_BAD) {
+          EV << "BALANCED_GOOD_BAD BY NODE " << getId() << "\n";
+          getDisplayString().setTagArg("i", 1, "gray");
+      }
+      else if (attackerType == INTERMITTENT_AVAILABILITY) {
+          EV << "INTERMITTENT_AVAILABILITY BY NODE " << getId() << "\n";
+          getDisplayString().setTagArg("i", 1, "orange");
+      }
+
     }
   }
   else {
@@ -367,6 +385,29 @@ void VoteAgg::initialize() {
   }
   else {
       providerAvailabilityProbability = 1.0;
+  }
+  if (hasPar("betrayalTime")) {
+      betrayalTime = par("betrayalTime").doubleValue();
+  }
+
+  if (hasPar("selectiveVictimModulo")) {
+      selectiveVictimModulo = par("selectiveVictimModulo").intValue();
+  }
+
+  if (hasPar("selectiveVictimRemainder")) {
+      selectiveVictimRemainder = par("selectiveVictimRemainder").intValue();
+  }
+
+  if (hasPar("thresholdGamingMargin")) {
+      thresholdGamingMargin = par("thresholdGamingMargin").doubleValue();
+  }
+  if (hasPar("intermittentCooldownTime")) {
+      intermittentCooldownTime = par("intermittentCooldownTime").doubleValue();
+  }
+
+  if (hasPar("intermittentBadServiceProbability")) {
+      intermittentBadServiceProbability =
+          par("intermittentBadServiceProbability").doubleValue();
   }
 
   epsilon = 0.2;
@@ -839,7 +880,9 @@ void VoteAgg::handleFinalServiceRequestMsg(cMessage *msg) {
   response->setRequesterId(requesterId);
   response->setProviderId(getId());
   response->setServiceType(requestedService.c_str());
-  response->setServiceQuality(calcQuality(potency, consistency));
+  response->setServiceQuality(
+      calcQualityForRequester(potency, consistency, requesterId)
+  );
   // provider kendi potency ve consistency'sini ekliyor
 
   if (routingTable.find(requesterId) != routingTable.end()) {
@@ -1162,6 +1205,30 @@ void VoteAgg::electClusterHeads() {
   }
   EV << "Updated Cluster Head selection." << endl;
 }
+bool VoteAgg::isProviderAvailableForRequester(int requesterId)
+{
+    // General provider availability for all UAVs
+    if (uniform(0, 1) > providerAvailabilityProbability) {
+        return false;
+    }
+
+    // Intermittent availability attacker hides after harming a requester
+    if (attackerType == INTERMITTENT_AVAILABILITY) {
+        auto it = unavailableUntilByRequester.find(requesterId);
+
+        if (it != unavailableUntilByRequester.end() &&
+            simTime() < it->second) {
+
+            EV << "INTERMITTENT_AVAILABILITY: Node " << getId()
+               << " is hidden from requester " << requesterId
+               << " until " << it->second << "\n";
+
+            return false;
+        }
+    }
+
+    return true;
+}
 void VoteAgg::initiateServiceRequest() {
     std::vector<int> allProviderIds;
 
@@ -1179,18 +1246,19 @@ void VoteAgg::initiateServiceRequest() {
     std::vector<int> availableProviderIds;
 
     for (int providerId : allProviderIds) {
-        if (uniform(0, 1) <= providerAvailabilityProbability) {
+        VoteAgg *providerNode = getNodeById(providerId);
+
+        if (providerNode &&
+            providerNode->isProviderAvailableForRequester(getId())) {
             availableProviderIds.push_back(providerId);
         }
     }
 
-    // Eğer o anda hiç provider available olmadıysa,
-    // simülasyonun durmaması için bir tane random provider seçiyoruz.
     if (availableProviderIds.empty()) {
-        int randomIndex = intuniform(0, allProviderIds.size() - 1);
-        availableProviderIds.push_back(allProviderIds[randomIndex]);
+        EV << "Node " << getId()
+           << " found no available providers for this request.\n";
+        return;
     }
-
     requestedServiceType = SERVICE_TYPE;
     pendingResponses.clear();
     respondedProviders.clear();
@@ -1227,6 +1295,126 @@ void VoteAgg::handleServiceRequest(int requesterId) {
        << endl;
     delete serviceResponse;
   }
+}
+
+bool VoteAgg::isSelectiveVictim(int requesterId) const
+{
+    if (selectiveVictimModulo <= 0) {
+        return false;
+    }
+
+    return (requesterId % selectiveVictimModulo) == selectiveVictimRemainder;
+}
+bool VoteAgg::shouldGiveGoodServiceByRatio(int requesterId, double goodRatio)
+{
+    goodRatio = std::clamp(goodRatio, 0.0, 1.0);
+
+    int &counter = serviceCounterByRequester[requesterId];
+    counter++;
+
+    const int cycleLength = 20;
+    int goodSlots = static_cast<int>(std::round(goodRatio * cycleLength));
+
+    int position = (counter - 1) % cycleLength;
+
+    return position < goodSlots;
+}
+
+double VoteAgg::calcQualitySuddenBetrayal(const double potency,
+                                          const double consistency)
+{
+    if (simTime().dbl() < betrayalTime) {
+        return calcQualityBenevolent(potency, consistency);
+    }
+
+    return -10;
+}
+double VoteAgg::calcQualitySelectiveService(const double potency,
+                                            const double consistency,
+                                            int requesterId)
+{
+    if (isSelectiveVictim(requesterId)) {
+        EV << "SELECTIVE_SERVICE: Node " << getId()
+           << " gives BAD service to requester " << requesterId << "\n";
+
+        return -10;
+    }
+
+    EV << "SELECTIVE_SERVICE: Node " << getId()
+       << " gives GOOD service to requester " << requesterId << "\n";
+
+    return calcQualityBenevolent(potency, consistency);
+}
+double VoteAgg::calcQualityThresholdGaming(const double potency,
+                                           const double consistency,
+                                           int requesterId)
+{
+    double targetGoodRatio =
+        std::clamp(approval_threshold + thresholdGamingMargin, 0.0, 1.0);
+
+    bool giveGoodService =
+        shouldGiveGoodServiceByRatio(requesterId, targetGoodRatio);
+
+    if (giveGoodService) {
+        EV << "THRESHOLD_GAMING: Node " << getId()
+           << " gives GOOD service to requester " << requesterId
+           << " targetGoodRatio=" << targetGoodRatio << "\n";
+
+        return calcQualityBenevolent(potency, consistency);
+    }
+
+    EV << "THRESHOLD_GAMING: Node " << getId()
+       << " gives BAD service to requester " << requesterId
+       << " targetGoodRatio=" << targetGoodRatio << "\n";
+
+    return -10;
+}double VoteAgg::calcQualityBalancedGoodBad(const double potency,
+        const double consistency,
+        int requesterId)
+{
+int &counter = serviceCounterByRequester[requesterId];
+counter++;
+
+bool giveGoodService = (counter % 2 == 1);
+
+if (giveGoodService) {
+EV << "BALANCED_GOOD_BAD: Node " << getId()
+<< " gives GOOD service to requester " << requesterId << "\n";
+
+return calcQualityBenevolent(potency, consistency);
+}
+
+EV << "BALANCED_GOOD_BAD: Node " << getId()
+<< " gives BAD service to requester " << requesterId << "\n";
+
+return -10;
+}
+
+double VoteAgg::calcQualityIntermittentAvailability(const double potency,
+                                                    const double consistency,
+                                                    int requesterId)
+{
+    bool giveBadService =
+        uniform(0, 1) < intermittentBadServiceProbability;
+
+    if (giveBadService) {
+        unavailableUntilByRequester[requesterId] =
+            simTime() + intermittentCooldownTime;
+
+        EV << "INTERMITTENT_AVAILABILITY: Node " << getId()
+           << " gives BAD service to requester " << requesterId
+           << " and hides until "
+           << unavailableUntilByRequester[requesterId]
+           << "\n";
+
+        return -10;
+    }
+
+    EV << "INTERMITTENT_AVAILABILITY: Node " << getId()
+       << " gives GOOD service to requester " << requesterId
+       << "\n";
+
+    return calcQualityBenevolent(potency, consistency);
 }
 // return true if the node performs camouflage; i.e. behaving "normally"
 bool performsCamouflage(double camouflageRate) {
@@ -1313,27 +1501,70 @@ double VoteAgg::calculateRating(double quality, double timeliness,
     return 0; // should not defualt to here!
   }
 }
-double VoteAgg::calcQuality(const double potency, const double consistency) {
-  enum AttackerType type = this->attackerType;
-  switch (type) {
-  case BENEVOLENT:
-    return calcQualityBenevolent(potency, consistency);
-  case CAMOUFLAGE:
-    return calcQualityCamouflage(potency, consistency);
-  case OPPORTUNISTIC:
-    return calcQualityBenevolent(potency, consistency);
-  case BAD_MOUTHING:
-      return calcQualityBenevolent(potency, consistency);
-  case BAD_SERVICE_GOOD_RATING:
-      return -10;
-  case HYBRID:
-      return hybridHasSwitched ? -10 : calcQualityBenevolent(potency, consistency);  // before switch: good service
+double VoteAgg::calcQualityForRequester(const double potency,
+                                        const double consistency,
+                                        int requesterId)
+{
+    enum AttackerType type = this->attackerType;
 
-  default:
-    EV << "SOMETHING WENT WRONG WITH calcQuality!!\n";
-    return -10; // should not defualt to here!
-  }
+    switch (type) {
+    case BENEVOLENT:
+        return calcQualityBenevolent(potency, consistency);
+
+    case CAMOUFLAGE:
+        return calcQualityCamouflage(potency, consistency);
+
+    case OPPORTUNISTIC:
+        return calcQualityBenevolent(potency, consistency);
+
+    case BAD_MOUTHING:
+        return calcQualityBenevolent(potency, consistency);
+
+    case MALICIOUS_100:
+        return -10;
+
+    case BAD_SERVICE_GOOD_RATING:
+        return -10;
+
+    case HYBRID:
+        return hybridHasSwitched
+                   ? -10
+                   : calcQualityBenevolent(potency, consistency);
+
+
+    case INTERMITTENT_AVAILABILITY:
+            return calcQualityIntermittentAvailability(
+                potency,
+                consistency,
+                requesterId
+            );
+
+
+    case SELECTIVE_SERVICE:
+        return calcQualitySelectiveService(potency, consistency, requesterId);
+
+    case THRESHOLD_GAMING:
+        return calcQualityThresholdGaming(potency, consistency, requesterId);
+
+    case BALANCED_GOOD_BAD:
+        return calcQualityBalancedGoodBad(potency, consistency, requesterId);
+
+    default:
+        EV << "SOMETHING WENT WRONG WITH calcQualityForRequester!!\n";
+        return -10;
+    }
 }
+/*INTERMITTENT_AVAILABILITY:
+    Attacker gives bad service, then hides for some time.
+
+SELECTIVE_SERVICE:
+    Attacker gives good service to some UAVs and bad service to others.
+
+THRESHOLD_GAMING:
+    Attacker gives just enough good services to stay slightly above the approval threshold.
+
+BALANCED_GOOD_BAD:
+    Attacker gives equal good and bad services to keep DT around 0.5.*/
 
 /* The "normal" way of calculating the quality of a service
  * returns a double in (-10,10)
@@ -1577,7 +1808,6 @@ double VoteAgg::applyDirectTrustPrior(double positiveEvidence,
 
     return std::clamp(score, 0.0, 1.0);
 }
-
 double VoteAgg::getDirectTrustScore(int providerId)
 {
     const double defaultScore = 0.5;
@@ -1590,6 +1820,29 @@ double VoteAgg::getDirectTrustScore(int providerId)
     if (historyIt == directTrustHistory.end() ||
         historyIt->second.empty()) {
         return defaultScore;
+    }
+
+    auto trustIt = trustMap.find(providerId);
+
+    if (trustIt == trustMap.end()) {
+        return defaultScore;
+    }
+
+    // ---------------------------------------------------------
+    // Old Simple DT logic:
+    // DT = sumOfPositiveRatings / sumOfAllRatings
+    // ---------------------------------------------------------
+    if (directTrustMethod == DT_SIMPLE) {
+        double total = trustIt->second.sumOfAllRatings;
+
+        if (total <= eps) {
+            return defaultScore;
+        }
+
+        double simpleTrust =
+            trustIt->second.sumOfPositiveRatings / total;
+
+        return std::clamp(simpleTrust, 0.0, 1.0);
     }
 
     const auto &history = historyIt->second;
@@ -1612,8 +1865,6 @@ double VoteAgg::getDirectTrustScore(int providerId)
         double weight = 1.0;
 
         if (directTrustMethod == DT_WEIGHTED) {
-            // Larger weight for more recent interactions.
-            // Oldest interaction has weight 1, newest has weight n.
             weight = static_cast<double>(i + 1);
         }
 
@@ -1919,7 +2170,7 @@ void VoteAgg::updateGlobalTrustBorda() {
 // Active global-trust aggregation implementations.
 // Unknown direct-trust pairs are skipped as "no opinion".
 // If nobody has recent direct evidence about a target, its global score is neutral 0.5.
-
+//değiştirdim buna dikkat!
 void VoteAgg::updateGlobalTrustAdditive()
 {
     globalTrustScores.clear();
@@ -1939,17 +2190,16 @@ void VoteAgg::updateGlobalTrustAdditive()
 
             auto it = evaluator->trustMap.find(targetId);
 
-            // No direct interaction => no opinion
-            if (it == evaluator->trustMap.end())
-                continue;
+            double trust = (it != evaluator->trustMap.end())
+                               ? evaluator->getDirectTrustScore(targetId)
+                               : defaultDirectTrust;
 
-            double trust = evaluator->getDirectTrustScore(targetId);
             total += trust;
             count++;
         }
 
-        globalTrustScores[targetId] = (count > 0) ? (total / count)
-                                                  : defaultDirectTrust;
+        globalTrustScores[targetId] =
+            (count > 0) ? (total / count) : defaultDirectTrust;
     }
 }
 
@@ -1970,13 +2220,13 @@ void VoteAgg::updateGlobalTrustMultiplicative()
             if (evaluatorId == targetId)
                 continue;
 
+
+
             auto it = evaluator->trustMap.find(targetId);
 
-            // No direct interaction => no opinion
-            if (it == evaluator->trustMap.end())
-                continue;
-
-            double trust = evaluator->getDirectTrustScore(targetId);
+            double trust = (it != evaluator->trustMap.end())
+                               ? evaluator->getDirectTrustScore(targetId)
+                               : defaultDirectTrust;
             trust = std::clamp(trust, 0.0, 1.0);
 
             product *= trust;
@@ -1995,12 +2245,11 @@ void VoteAgg::updateGlobalTrustBorda()
     globalTrustScores.clear();
     const double defaultDirectTrust = 0.5;
 
-    std::map<int, int> voteCounts;
-
     for (VoteAgg *node : allNodes) {
         globalTrustScores[node->getId()] = 0.0;
-        voteCounts[node->getId()] = 0;
     }
+
+    double maxPossibleScore = 0.0;
 
     for (VoteAgg *evaluator : allNodes) {
         int evaluatorId = evaluator->getId();
@@ -2015,11 +2264,10 @@ void VoteAgg::updateGlobalTrustBorda()
 
             auto it = evaluator->trustMap.find(candidateId);
 
-            // No direct interaction => no opinion
-            if (it == evaluator->trustMap.end())
-                continue;
-
-            localScores[candidateId] = evaluator->getDirectTrustScore(candidateId);
+            localScores[candidateId] =
+                (it != evaluator->trustMap.end())
+                    ? evaluator->getDirectTrustScore(candidateId)
+                    : defaultDirectTrust;
         }
 
         if (localScores.empty())
@@ -2028,27 +2276,23 @@ void VoteAgg::updateGlobalTrustBorda()
         std::vector<int> localRanking = sortNodesByScore(localScores);
         int n = localRanking.size();
 
+        maxPossibleScore += (n * (n + 1)) / 2.0;
+
         for (int i = 0; i < n; i++) {
             int candidateId = localRanking[i];
-
-            // Normalized Borda score in [0,1].
-            // Best candidate gets 1.0, worst gets 0.0 when n > 1.
-            double bordaScore =
-                (n > 1) ? static_cast<double>(n - 1 - i) / (n - 1)
-                        : 1.0;
-
-            globalTrustScores[candidateId] += bordaScore;
-            voteCounts[candidateId]++;
+            int points = n - i;
+            globalTrustScores[candidateId] += points;
         }
     }
 
-    for (auto &entry : globalTrustScores) {
-        int nodeId = entry.first;
-
-        entry.second =
-            (voteCounts[nodeId] > 0)
-                ? (entry.second / voteCounts[nodeId])
-                : defaultDirectTrust;
+    if (maxPossibleScore > 0.0) {
+        for (auto &entry : globalTrustScores) {
+            entry.second = entry.second / maxPossibleScore;
+        }
+    } else {
+        for (auto &entry : globalTrustScores) {
+            entry.second = defaultDirectTrust;
+        }
     }
 }
 
@@ -2071,11 +2315,10 @@ void VoteAgg::updateGlobalTrustApproval()
 
             auto it = voter->trustMap.find(targetId);
 
-            // No direct interaction => no opinion
-            if (it == voter->trustMap.end())
-                continue;
-
-            double votersTrustInTarget = voter->getDirectTrustScore(targetId);
+            double votersTrustInTarget =
+                (it != voter->trustMap.end())
+                    ? voter->getDirectTrustScore(targetId)
+                    : defaultDirectTrust;
 
             if (votersTrustInTarget >= voter->approval_threshold)
                 votes++;
@@ -2083,8 +2326,9 @@ void VoteAgg::updateGlobalTrustApproval()
             count++;
         }
 
-        globalTrustScores[targetId] = (count > 0) ? ((double)votes / count)
-                                                  : defaultDirectTrust;
+        globalTrustScores[targetId] =
+            (count > 0) ? ((double)votes / count)
+                        : defaultDirectTrust;
     }
 }
 
@@ -2188,69 +2432,68 @@ int VoteAgg::getRankPointFromGlobalOrdering(int nodeId, const std::vector<int> &
 //aşağıdaki weighted merge
 double VoteAgg::mergeTrustScore(int candidateId)
 {
-    // Remove expired direct-trust evidence before reading it.
+    const double defaultScore = 0.5;
+    const double eps = 1e-9;
+
     pruneExpiredDirectTrust(candidateId);
 
     double personalScore = getDirectTrustScore(candidateId);
-    double globalScore = getGlobalTrustScore(candidateId);
+    personalScore = std::clamp(personalScore, 0.0, 1.0);
+
     int recentInteractionCount = getRecentInteractionCount(candidateId);
 
-    // ---------------------------------------------------------
-    // Selection mode 1: Direct Trust only baseline
-    // ---------------------------------------------------------
-    if (selectionMode == SEL_DIRECT_ONLY) {
-        EV << "DIRECT-ONLY score for requester " << getId()
-           << " candidate " << candidateId
-           << ": directTrust=" << personalScore
-           << " recentInteractions=" << recentInteractionCount
-           << " interactionWindow=" << interactionWindow
-           << "\n";
+    auto git = globalTrustScores.find(candidateId);
+    bool hasGlobalScore = (git != globalTrustScores.end());
 
+    double globalScore = hasGlobalScore ? git->second : defaultScore;
+
+    double maxGlobalScore = 0.0;
+
+    for (const auto &entry : globalTrustScores) {
+        maxGlobalScore = std::max(maxGlobalScore, entry.second);
+    }
+
+    double normalizedGlobalScore = defaultScore;
+
+    if (hasGlobalScore && maxGlobalScore > eps) {
+        normalizedGlobalScore = globalScore / maxGlobalScore;
+    }
+
+    normalizedGlobalScore = std::clamp(normalizedGlobalScore, 0.0, 1.0);
+
+    if (selectionMode == SEL_DIRECT_ONLY) {
         return personalScore;
     }
 
-    // ---------------------------------------------------------
-    // Selection mode 2: Global Trust only baseline
-    // ---------------------------------------------------------
     if (selectionMode == SEL_GLOBAL_ONLY) {
-        EV << "GLOBAL-ONLY score for requester " << getId()
-           << " candidate " << candidateId
-           << ": globalTrust=" << globalScore
-           << "\n";
-
-        return globalScore;
+        return normalizedGlobalScore;
     }
 
-    // ---------------------------------------------------------
-    // Selection mode 0: Proposed dynamic Direct + Global merge
-    // ---------------------------------------------------------
     const double evidenceThreshold = 3.0;
 
     double directTrustWeight =
         static_cast<double>(recentInteractionCount) /
         (recentInteractionCount + evidenceThreshold);
 
-    double globalTrustWeight =
-        1.0 - directTrustWeight;
+    double globalTrustWeight = 1.0 - directTrustWeight;
 
     double mergedScore =
-        globalTrustWeight * globalScore +
+        globalTrustWeight * normalizedGlobalScore +
         directTrustWeight * personalScore;
-
-    mergedScore = std::clamp(mergedScore, 0.0, 1.0);
 
     EV << "MERGE score for requester " << getId()
        << " candidate " << candidateId
-       << ": global=" << globalScore
+       << ": globalRaw=" << globalScore
+       << " maxGlobal=" << maxGlobalScore
+       << " globalNorm=" << normalizedGlobalScore
        << " personal=" << personalScore
        << " recentInteractions=" << recentInteractionCount
-       << " interactionWindow=" << interactionWindow
        << " wGT=" << globalTrustWeight
        << " wDT=" << directTrustWeight
        << " merged=" << mergedScore
        << "\n";
 
-    return mergedScore;
+    return std::clamp(mergedScore, 0.0, 1.0);
 }
 
 void VoteAgg::recordLocalTrust()
